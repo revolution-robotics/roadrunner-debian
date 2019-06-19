@@ -27,7 +27,7 @@ readonly LOOP_MAJOR=7
 
 # default mirror
 readonly DEF_DEBIAN_MIRROR="http://httpredir.debian.org/debian"
-readonly DEB_RELEASE="stretch"
+readonly DEB_RELEASE="buster"
 readonly DEF_ROOTFS_TARBAR_NAME="rootfs.tar.gz"
 
 ## base paths
@@ -42,16 +42,16 @@ readonly G_VARISCITE_PATH="${DEF_BUILDENV}/variscite"
 readonly G_LINUX_KERNEL_SRC_DIR="${DEF_SRC_DIR}/kernel"
 readonly G_LINUX_KERNEL_GIT="https://github.com/varigit/linux-imx.git"
 readonly G_LINUX_KERNEL_BRANCH="imx_4.14.78_1.0.0_ga_var01"
-readonly G_LINUX_KERNEL_REV="25137f4cd8f21a6d172acce6d78b1cb462d77528"
+readonly G_LINUX_KERNEL_REV="937f69a7d6a3bdce07d92a8d61c0b40ca1933d0d"
 readonly G_LINUX_KERNEL_DEF_CONFIG='imx8_var_defconfig'
-readonly G_LINUX_DTB='freescale/fsl-imx8mq-var-dart-sd-emmc-lvds.dtb freescale/fsl-imx8mq-var-dart-sd-emmc-hdmi.dtb freescale/fsl-imx8mq-var-dart-sd-emmc-dual-display.dtb freescale/fsl-imx8mq-var-dart-emmc-wifi-lvds.dtb freescale/fsl-imx8mq-var-dart-emmc-wifi-hdmi.dtb freescale/fsl-imx8mq-var-dart-emmc-wifi-dual-display.dtb freescale/fsl-imx8mq-var-dart-m4-sd-emmc-lvds.dtb freescale/fsl-imx8mq-var-dart-m4-sd-emmc-hdmi.dtb freescale/fsl-imx8mq-var-dart-m4-sd-emmc-dual-display.dtb freescale/fsl-imx8mq-var-dart-m4-emmc-wifi-lvds.dtb freescale/fsl-imx8mq-var-dart-m4-emmc-wifi-hdmi.dtb freescale/fsl-imx8mq-var-dart-m4-emmc-wifi-dual-display.dtb freescale/fsl-imx8mm-var-dart.dtb'
+G_LINUX_DTB='freescale/fsl-imx8mq-var-dart-sd-emmc-lvds.dtb freescale/fsl-imx8mq-var-dart-sd-emmc-hdmi.dtb freescale/fsl-imx8mq-var-dart-sd-emmc-dual-display.dtb freescale/fsl-imx8mq-var-dart-emmc-wifi-lvds.dtb freescale/fsl-imx8mq-var-dart-emmc-wifi-hdmi.dtb freescale/fsl-imx8mq-var-dart-emmc-wifi-dual-display.dtb freescale/fsl-imx8mq-var-dart-m4-sd-emmc-lvds.dtb freescale/fsl-imx8mq-var-dart-m4-sd-emmc-hdmi.dtb freescale/fsl-imx8mq-var-dart-m4-sd-emmc-dual-display.dtb freescale/fsl-imx8mq-var-dart-m4-emmc-wifi-lvds.dtb freescale/fsl-imx8mq-var-dart-m4-emmc-wifi-hdmi.dtb freescale/fsl-imx8mq-var-dart-m4-emmc-wifi-dual-display.dtb'
 
 ## uboot
 readonly G_UBOOT_SRC_DIR="${DEF_SRC_DIR}/uboot"
 readonly G_UBOOT_GIT="https://github.com/varigit/uboot-imx.git"
 readonly G_UBOOT_BRANCH="imx_v2018.03_4.14.78_1.0.0_ga_var01"
-readonly G_UBOOT_REV="41435f6db4ef6244d73acea810d369082b791eb8"
-readonly G_UBOOT_DEF_CONFIG_MMC='imx8m_var_dart_defconfig'
+readonly G_UBOOT_REV="9d79534cd425a9e0b6fe792fc290e8c521c0c20a"
+G_UBOOT_DEF_CONFIG_MMC='imx8m_var_dart_defconfig'
 readonly G_UBOOT_NAME_FOR_EMMC='imx-boot-sd.bin'
 
 ## Broadcom BT/WIFI firmware ##
@@ -73,8 +73,17 @@ readonly G_USER_PACKAGES=""
 
 export LC_ALL=C
 
-SOM="imx8m-var-dart"
+SOM="imx8mm-var-dart"
 
+if [ "${SOM}" = "imx8m-var-dart" ]; then
+	G_UBOOT_DEF_CONFIG_MMC='imx8m_var_dart_defconfig'
+elif [ "${SOM}" = "imx8mm-var-dart" ]; then
+	G_UBOOT_DEF_CONFIG_MMC='imx8mm_var_dart_defconfig'
+	G_LINUX_DTB='freescale/fsl-imx8mm-var-dart.dtb'
+else
+	echo "Unknown target SOM ${SOM}"
+	exit 1
+fi
 #### Input params #####
 PARAM_DEB_LOCAL_MIRROR="${DEF_DEBIAN_MIRROR}"
 PARAM_OUTPUT_DIR="${DEF_BUILDENV}/output"
@@ -293,7 +302,6 @@ function make_debian_rootfs() {
 	mkdir -p ${ROOTFS_BASE}/etc/sudoers.d/
 	echo "user ALL=(root) /usr/bin/apt-get, /usr/bin/dpkg, /usr/bin/vi, /sbin/reboot" > ${ROOTFS_BASE}/etc/sudoers.d/user
 	chmod 0440 ${ROOTFS_BASE}/etc/sudoers.d/user
-
 	mkdir -p ${ROOTFS_BASE}/srv/local-apt-repository
 	cp -r ${G_VARISCITE_PATH}/deb/* ${ROOTFS_BASE}/srv/local-apt-repository
 
@@ -320,7 +328,7 @@ echo "
 # /dev/mmcblk0p1  /boot           vfat    defaults        0       0
 " > etc/fstab
 
-echo "imx8-var-dart" > etc/hostname
+echo "${SOM}" > etc/hostname
 
 echo "auto lo
 iface lo inet loopback
@@ -411,6 +419,7 @@ protected_install imx-firmware-sdma
 # graphical packages
 protected_install libdrm-vivante1
 protected_install imx-gpu-viv-core
+protected_install imx-gpu-g2d
 protected_install weston
 
 # added alsa & gstreamer
@@ -554,8 +563,9 @@ rm -f user-stage
 	cp ${PARAM_OUTPUT_DIR}/fw_printenv ${ROOTFS_BASE}/usr/bin
 	ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_setenv
 	cp ${G_VARISCITE_PATH}/10-imx.rules ${ROOTFS_BASE}/etc/udev/rules.d
+if [ "${SOM}" = "imx8m-var-dart" ]; then
 	cp ${G_VARISCITE_PATH}/${SOM}/*.rules ${ROOTFS_BASE}/etc/udev/rules.d
-
+fi
 
 ## clenup command
 echo "#!/bin/bash
@@ -689,11 +699,13 @@ function make_uboot() {
 		TEE_LOAD_ADDR=0xfe000000
 		ATF_LOAD_ADDR=0x00910000
 		UBOOT_DTB="fsl-imx8mq-var-dart.dtb"
+		IMX_BOOT_TOOL_BL_BIN="bl31-imx8mq.bin"
 	else
 		HDMI=no
 		TEE_LOAD_ADDR=0xbe000000
 		ATF_LOAD_ADDR=0x00920000
 		UBOOT_DTB="fsl-imx8mm-var-dart.dtb"
+		IMX_BOOT_TOOL_BL_BIN="bl31-imx8mm.bin"
 	fi
 
 	# Copy u-boot, SPL and DTB
@@ -711,7 +723,7 @@ function make_uboot() {
 	rm -f lpddr4_pmu_train_1d_fw.bin lpddr4_pmu_train_2d_fw.bin lpddr4_pmu_train_1d_imem_pad.bin lpddr4_pmu_train_1d_dmem_pad.bin lpddr4_pmu_train_2d_imem_pad.bin
 
 	# Build u-boot+ATF firmware image: u-boot-atf.bin
-	ln -sf bl31-imx8mq.bin bl31.bin
+	ln -sf ${IMX_BOOT_TOOL_BL_BIN} bl31.bin
 	cp bl31.bin u-boot-atf.bin
 	dd if=u-boot.bin of=u-boot-atf.bin bs=1K seek=128
 
@@ -986,9 +998,6 @@ function cmd_make_deploy() {
 	(( `ls ${G_LINUX_KERNEL_SRC_DIR} 2>/dev/null | wc -l` == 0 )) && {
 		pr_info "Get kernel repository";
 		get_git_src ${G_LINUX_KERNEL_GIT} ${G_LINUX_KERNEL_BRANCH} ${G_LINUX_KERNEL_SRC_DIR} ${G_LINUX_KERNEL_REV}
-		cd ${G_LINUX_KERNEL_SRC_DIR}
-		git am < ${G_VARISCITE_PATH}/patches/kernel/0001-vivante-gpu-revert-to-6.2.4.p1-driver.patch
-		cd -
 	};
 
 	# get bcm firmware repository
