@@ -70,7 +70,7 @@ src
 toolchain
 tmp
 
+*.log
 *.orig
 *~
 \#*#
-
