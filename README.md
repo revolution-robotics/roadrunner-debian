@@ -69,7 +69,6 @@ re-running the Debian bootstrap as follows:
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c kernel
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c modules
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rtar
-sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rubi
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c sdcard -d /dev/sdX
 ```
 Likewise, when editing uBoot sources only, use:

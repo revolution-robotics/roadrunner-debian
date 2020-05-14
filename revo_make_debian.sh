@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # It is designed to build Debian Linux for Variscite iMX modules
 # prepare host OS system:
 #  sudo apt-get install binfmt-support qemu qemu-user-static debootstrap kpartx
@@ -487,32 +487,32 @@ make_uboot ()
         cp ${1}/SPL ${2}/${G_SPL_NAME_FOR_EMMC}
         cp ${1}/u-boot.img  ${2}/${G_UBOOT_NAME_FOR_EMMC}
 
-        # make nand make NAND U-Boot
-        pr_info "Make SPL & u-boot: ${G_UBOOT_DEF_CONFIG_NAND}"
-        # clean work directory
-        make ARCH=arm -C ${1} \
-             CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-             ${G_CROSS_COMPILER_JOPTION} mrproper
+        # # make NAND U-Boot
+        # pr_info "Make SPL & u-boot: ${G_UBOOT_DEF_CONFIG_NAND}"
+        # # clean work directory
+        # make ARCH=arm -C ${1} \
+        #      CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
+        #      ${G_CROSS_COMPILER_JOPTION} mrproper
 
-        # make uboot config for nand
-        make ARCH=arm -C ${1} \
-             CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-             ${G_CROSS_COMPILER_JOPTION} ${G_UBOOT_DEF_CONFIG_NAND}
+        # # make uboot config for nand
+        # make ARCH=arm -C ${1} \
+        #      CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
+        #      ${G_CROSS_COMPILER_JOPTION} ${G_UBOOT_DEF_CONFIG_NAND}
 
-        # make uboot
-        make ARCH=arm -C ${1} \
-             CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-             ${G_CROSS_COMPILER_JOPTION}
+        # # make uboot
+        # make ARCH=arm -C ${1} \
+        #      CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
+        #      ${G_CROSS_COMPILER_JOPTION}
 
-        # make fw_printenv
-        make envtools -C ${1} \
-             CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-             ${G_CROSS_COMPILER_JOPTION}
+        # # make fw_printenv
+        # make envtools -C ${1} \
+        #      CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
+        #      ${G_CROSS_COMPILER_JOPTION}
 
-        # copy NAND SPL, u-boot binaries
-        cp ${1}/SPL ${2}/${G_SPL_NAME_FOR_NAND}
-        cp ${1}/u-boot.img ${2}/${G_UBOOT_NAME_FOR_NAND}
-        cp ${1}/tools/env/fw_printenv ${2}/fw_printenv-nand
+        # # copy NAND SPL, u-boot binaries
+        # cp ${1}/SPL ${2}/${G_SPL_NAME_FOR_NAND}
+        # cp ${1}/u-boot.img ${2}/${G_UBOOT_NAME_FOR_NAND}
+        # cp ${1}/tools/env/fw_printenv ${2}/fw_printenv-nand
     fi
 }
 
@@ -749,9 +749,10 @@ cmd_make_rootfs ()
     if [ "${MACHINE}" = "imx6ul-var-dart" ] ||
            [ "${MACHINE}" = "var-som-mx7" ] ||
            [ "${MACHINE}" = "revo-roadrunner-mx7" ]; then
+        :
         # pack to ubi
-        make_ubi ${G_ROOTFS_DIR} ${G_TMP_DIR} ${PARAM_OUTPUT_DIR} \
-                 ${G_UBI_FILE_NAME}
+        # make_ubi ${G_ROOTFS_DIR} ${G_TMP_DIR} ${PARAM_OUTPUT_DIR} \
+        #          ${G_UBI_FILE_NAME}
     fi
 }
 

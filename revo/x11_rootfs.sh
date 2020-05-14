@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Must be called after make_prepare in main script
 # function generate rootfs in input dir
 # $1 - rootfs base dir
@@ -380,7 +380,7 @@ rm -f user-stage
     # copy custom files
     cp ${G_CONFIG_PATH}/${MACHINE}/kobs-ng ${ROOTFS_BASE}/usr/bin
     cp ${PARAM_OUTPUT_DIR}/fw_printenv-mmc ${ROOTFS_BASE}/usr/bin
-    cp ${PARAM_OUTPUT_DIR}/fw_printenv-nand ${ROOTFS_BASE}/usr/bin
+    # cp ${PARAM_OUTPUT_DIR}/fw_printenv-nand ${ROOTFS_BASE}/usr/bin
     # ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_printenv-nand
     # ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_setenv
     ln -sf fw_printenv-mmc ${ROOTFS_BASE}/usr/bin/fw_printenv
@@ -507,8 +507,9 @@ make_x11_sdcard ()
         if [ "${MACHINE}" = "imx6ul-var-dart" ] ||
                [ "${MACHINE}" = "var-som-mx7" ] ||
                [ "${MACHINE}" = "revo-roadrunner-mx7" ]; then
-            cp ${LPARAM_OUTPUT_DIR}/rootfs.ubi.img \
-               ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
+            :
+            # cp ${LPARAM_OUTPUT_DIR}/rootfs.ubi.img \
+            #    ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
         fi
         cp ${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME} \
            ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/${DEF_ROOTFS_TARBALL_NAME}
@@ -516,11 +517,11 @@ make_x11_sdcard ()
         cp ${LPARAM_OUTPUT_DIR}/*.dtb \
            ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
 
-        pr_info "Copying NAND U-Boot to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
-        cp ${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_NAND} \
-           ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
-        cp ${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_NAND} \
-           ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
+        # pr_info "Copying NAND U-Boot to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        # cp ${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_NAND} \
+        #    ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
+        # cp ${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_NAND} \
+        #    ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
 
         pr_info "Copying MMC U-Boot to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
         cp ${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC} \
@@ -550,7 +551,7 @@ make_x11_sdcard ()
     }
 
     # Delete the partitions
-    for ((i=0; i<10; i++))
+    for (( i=0; i<10; i++ ))
     do
         if [ -e ${LPARAM_BLOCK_DEVICE}${part}${i} ]; then
             dd if=/dev/zero of=${LPARAM_BLOCK_DEVICE}${part}$i bs=512 count=1024 2> /dev/null || true
@@ -558,7 +559,7 @@ make_x11_sdcard ()
     done
     sync
 
-    ((echo d; echo 1; echo d; echo 2; echo d; echo 3; echo d; echo w) | fdisk ${LPARAM_BLOCK_DEVICE} &> /dev/null) || true
+    ( (echo d; echo 1; echo d; echo 2; echo d; echo 3; echo d; echo w) | fdisk ${LPARAM_BLOCK_DEVICE} &> /dev/null) || true
     sync
 
     dd if=/dev/zero of=${LPARAM_BLOCK_DEVICE} bs=1024 count=4096
