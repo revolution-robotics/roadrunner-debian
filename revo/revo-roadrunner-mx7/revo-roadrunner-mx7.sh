@@ -17,10 +17,10 @@ readonly G_SPL_NAME_FOR_NAND='SPL.nand'
 readonly G_LINUX_KERNEL_SRC_DIR="${DEF_SRC_DIR}/kernel"
 readonly G_LINUX_KERNEL_GIT="https://github.com/revolution-robotics/roadrunner-linux-imx.git"
 readonly G_LINUX_KERNEL_BRANCH="imx_4.14.78_1.0.0_ga_var01_rr01"
-readonly G_LINUX_KERNEL_REV="a748d51fb75902e2536c2e42c3c1a15fffe5ddb2"
+readonly G_LINUX_KERNEL_REV="825a224cd86c38e048b1d802682e799b35c74900"
 readonly G_LINUX_KERNEL_DEF_CONFIG='imx_v7_roadrunner_defconfig'
-G_LINUX_DTB="imx7d-roadrunner-emmc.dtb
-        imx7d-roadrunner-nand.dtb"
+G_LINUX_DTB="imx7d-roadrunner-emmc.dtb"
+        # imx7d-roadrunner-nand.dtb"
         # imx7d-var-som-nand.dtb
         # imx7d-var-som-emmc-m4.dtb
         # imx7d-var-som-nand-m4.dtb"
