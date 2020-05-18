@@ -17,10 +17,10 @@ SCRIPT_NAME=${0##*/}
 
 #### Exports Variables ####
 #### global variables ####
-readonly ABSOLUTE_FILENAME=`readlink -e "$0"`
-readonly ABSOLUTE_DIRECTORY=`dirname ${ABSOLUTE_FILENAME}`
+readonly ABSOLUTE_FILENAME=$(readlink -e "$0")
+readonly ABSOLUTE_DIRECTORY=$(dirname ${ABSOLUTE_FILENAME})
 readonly SCRIPT_POINT=${ABSOLUTE_DIRECTORY}
-readonly SCRIPT_START_DATE=`date +%Y%m%d`
+readonly SCRIPT_START_DATE=$(date +%Y%m%d)
 readonly LOOP_MAJOR=7
 
 # default mirror
@@ -157,24 +157,24 @@ while true; do
     case $1 in
         -c|--cmd ) # script command
             shift
-            PARAM_CMD="$1";
+            PARAM_CMD=$1
             ;;
         -o|--output ) # select output dir
             shift
-            PARAM_OUTPUT_DIR="$1";
+            PARAM_OUTPUT_DIR=$1
             ;;
         -d|--dev ) # SD card block device
             shift
-            [ -e ${1} ] && {
-                PARAM_BLOCK_DEVICE=${1};
-            };
+            [ -e $1 ] && {
+                PARAM_BLOCK_DEVICE=$1
+            }
             ;;
         --debug ) # enable debug
-            PARAM_DEBUG=1;
+            PARAM_DEBUG=1
             ;;
         -h|--help ) # get help
             usage
-            exit 0;
+            exit 0
             ;;
         -- )
             shift
@@ -192,7 +192,7 @@ done
 [ "${PARAM_DEBUG}" = "1" ] && {
     echo "Debug mode enabled!"
     set -x
-};
+}
 
 echo "=============== Build summary ==============="
 echo "Building Debian ${DEB_RELEASE} for ${MACHINE}"
@@ -248,9 +248,9 @@ pr_debug ()
 get_git_src ()
 {
     # clone src code
-    git clone ${1} -b ${2} ${3}
-    cd ${3}
-    git reset --hard ${4}
+    git clone $1 -b $2 $3
+    cd $3
+    git reset --hard $4
     cd -
 }
 
@@ -260,7 +260,7 @@ get_git_src ()
 get_remote_file ()
 {
     # download remote file
-    wget -c ${1} -O ${2}
+    wget -c $1 -O $2
 }
 
 make_prepare ()
@@ -290,7 +290,7 @@ make_tarball ()
     cd $1
 
     chown root:root .
-    pr_info "make tarball from folder ${1}"
+    pr_info "make tarball from folder $1"
     pr_info "Remove old tarball $2"
     rm -f $2
 
@@ -300,7 +300,7 @@ make_tarball ()
     tar czf $2 . || {
         RETVAL=1
         rm -f $2
-    };
+    }
 
     cd -
     return $RETVAL
@@ -315,21 +315,24 @@ make_tarball ()
 make_kernel ()
 {
     pr_info "make kernel .config"
-    make ARCH=${ARCH_ARGS} CROSS_COMPILE=${1} ${G_CROSS_COMPILER_JOPTION} -C ${4}/ ${2}
+    make ARCH=${ARCH_ARGS} CROSS_COMPILE=$1 ${G_CROSS_COMPILER_JOPTION} -C $4 $2
 
     pr_info "make kernel"
     if [ ! -z "${UIMAGE_LOADADDR}" ]; then
         IMAGE_EXTRA_ARGS="LOADADDR=${UIMAGE_LOADADDR}"
     fi
-    make CROSS_COMPILE=${1} ARCH=${ARCH_ARGS} ${G_CROSS_COMPILER_JOPTION} ${IMAGE_EXTRA_ARGS}\
-         -C ${4}/ ${BUILD_IMAGE_TYPE}
+    echo "make CROSS_COMPILE=$1 ARCH=${ARCH_ARGS} ${G_CROSS_COMPILER_JOPTION} \
+         ${IMAGE_EXTRA_ARGS} -C $4 ${BUILD_IMAGE_TYPE}"
+    make CROSS_COMPILE=$1 ARCH=${ARCH_ARGS} ${G_CROSS_COMPILER_JOPTION} \
+         ${IMAGE_EXTRA_ARGS} -C $4 ${BUILD_IMAGE_TYPE}
 
-    pr_info "make ${3}"
-    make CROSS_COMPILE=${1} ARCH=${ARCH_ARGS} ${G_CROSS_COMPILER_JOPTION} -C ${4} ${3}
+    pr_info "make $3"
+    echo "make CROSS_COMPILE=$1 ARCH=${ARCH_ARGS} ${G_CROSS_COMPILER_JOPTION} -C $4 $3"
+    make CROSS_COMPILE=$1 ARCH=${ARCH_ARGS} ${G_CROSS_COMPILER_JOPTION} -C $4 $3
 
-    pr_info "Copy kernel and dtb files to output dir: ${5}"
-    cp ${4}/${KERNEL_BOOT_IMAGE_SRC}/${BUILD_IMAGE_TYPE} ${5}/;
-    cp ${4}/${KERNEL_DTB_IMAGE_PATH}*.dtb ${5}/;
+    pr_info "Copy kernel and dtb files to output dir: $5"
+    cp ${4}/${KERNEL_BOOT_IMAGE_SRC}/${BUILD_IMAGE_TYPE} ${5}/
+    cp ${4}/${KERNEL_DTB_IMAGE_PATH}*.dtb ${5}/
 }
 
 # clean kernel
@@ -338,7 +341,7 @@ clean_kernel ()
 {
     pr_info "Clean the Linux kernel"
 
-    make ARCH=${ARCH_ARGS} -C ${1}/ mrproper
+    make ARCH=${ARCH_ARGS} -C $1 mrproper
 }
 
 # make Linux kernel modules
@@ -349,10 +352,10 @@ clean_kernel ()
 make_kernel_modules ()
 {
     pr_info "make kernel defconfig"
-    make ARCH=${ARCH_ARGS} CROSS_COMPILE=${1} ${G_CROSS_COMPILER_JOPTION} -C ${3} ${2}
+    make ARCH=${ARCH_ARGS} CROSS_COMPILE=$1 ${G_CROSS_COMPILER_JOPTION} -C $3 $2
 
     pr_info "Compiling kernel modules"
-    make ARCH=${ARCH_ARGS} CROSS_COMPILE=${1} ${G_CROSS_COMPILER_JOPTION} -C ${3} modules
+    make ARCH=${ARCH_ARGS} CROSS_COMPILE=$1 ${G_CROSS_COMPILER_JOPTION} -C $3 modules
 }
 
 # install the Linux kernel modules
@@ -362,13 +365,17 @@ make_kernel_modules ()
 # $4 -- out modules path
 install_kernel_modules ()
 {
-    pr_info "Installing kernel headers to ${4}"
-    make ARCH=${ARCH_ARGS} CROSS_COMPILE=${1} ${G_CROSS_COMPILER_JOPTION} -C ${3} \
-         INSTALL_HDR_PATH=${4}/usr/local headers_install
+    pr_info "Installing kernel headers to $4"
+    echo "make ARCH=${ARCH_ARGS} CROSS_COMPILE=$1 ${G_CROSS_COMPILER_JOPTION} -C $3 \
+         INSTALL_HDR_PATH=$4/usr/local headers_install"
+    make ARCH=${ARCH_ARGS} CROSS_COMPILE=$1 ${G_CROSS_COMPILER_JOPTION} -C $3 \
+         INSTALL_HDR_PATH=$4/usr/local headers_install
 
-    pr_info "Installing kernel modules to ${4}"
-    make ARCH=${ARCH_ARGS} CROSS_COMPILE=${1} ${G_CROSS_COMPILER_JOPTION} -C ${3} \
-         INSTALL_MOD_PATH=${4} modules_install
+    pr_info "Installing kernel modules to $4"
+    echo "make ARCH=${ARCH_ARGS} CROSS_COMPILE=$1 ${G_CROSS_COMPILER_JOPTION} -C $3 \
+         INSTALL_MOD_PATH=$4 modules_install"
+    make ARCH=${ARCH_ARGS} CROSS_COMPILE=$1 ${G_CROSS_COMPILER_JOPTION} -C $3 \
+         INSTALL_MOD_PATH=$4 modules_install
 }
 
 # make U-Boot
@@ -379,35 +386,35 @@ make_uboot ()
     pr_info "Make U-Boot: ${G_UBOOT_DEF_CONFIG_MMC}"
 
     # clean work directory
-    echo "make ARCH=${ARCH_ARGS} -C ${1} \
+    echo "make ARCH=${ARCH_ARGS} -C $1 \
          CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
          ${G_CROSS_COMPILER_JOPTION} mrproper"
-    make ARCH=${ARCH_ARGS} -C ${1} \
+    make ARCH=${ARCH_ARGS} -C $1 \
          CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
          ${G_CROSS_COMPILER_JOPTION} mrproper
 
     # make U-Boot mmc defconfig
-    echo "make ARCH=${ARCH_ARGS} -C ${1} \
+    echo "make ARCH=${ARCH_ARGS} -C $1 \
          CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
          ${G_CROSS_COMPILER_JOPTION} ${G_UBOOT_DEF_CONFIG_MMC}"
-    make ARCH=${ARCH_ARGS} -C ${1} \
+    make ARCH=${ARCH_ARGS} -C $1 \
          CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
          ${G_CROSS_COMPILER_JOPTION} ${G_UBOOT_DEF_CONFIG_MMC}
 
     # make U-Boot
-    echo "make -C ${1} \
+    echo "make -C $1 \
          CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
          ${G_CROSS_COMPILER_JOPTION}"
-    make -C ${1} \
+    make -C $1 \
          CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
          ${G_CROSS_COMPILER_JOPTION}
 
     # make fw_printenv
-    make envtools -C ${1} \
+    make envtools -C $1 \
          CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
          ${G_CROSS_COMPILER_JOPTION}
 
-    cp ${1}/tools/env/fw_printenv ${2}
+    cp ${1}/tools/env/fw_printenv $2
 
     if [ "${MACHINE}" = "imx8qxp-var-som" ]; then
         cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/scfw_tcm.bin \
@@ -492,22 +499,22 @@ make_uboot ()
         # # make NAND U-Boot
         # pr_info "Make SPL & u-boot: ${G_UBOOT_DEF_CONFIG_NAND}"
         # # clean work directory
-        # make ARCH=arm -C ${1} \
+        # make ARCH=arm -C $1 \
         #      CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
         #      ${G_CROSS_COMPILER_JOPTION} mrproper
 
         # # make uboot config for nand
-        # make ARCH=arm -C ${1} \
+        # make ARCH=arm -C $1 \
         #      CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
         #      ${G_CROSS_COMPILER_JOPTION} ${G_UBOOT_DEF_CONFIG_NAND}
 
         # # make uboot
-        # make ARCH=arm -C ${1} \
+        # make ARCH=arm -C $1 \
         #      CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
         #      ${G_CROSS_COMPILER_JOPTION}
 
         # # make fw_printenv
-        # make envtools -C ${1} \
+        # make envtools -C $1 \
         #      CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
         #      ${G_CROSS_COMPILER_JOPTION}
 
@@ -526,10 +533,10 @@ make_uboot ()
 #  $4 -- ubi file name
 make_ubi ()
 {
-    readonly local _rootfs=${1};
-    readonly local _tmp=${2};
-    readonly local _output=${3};
-    readonly local _ubi_file_name=${4};
+    readonly local _rootfs=$1
+    readonly local _tmp=$2
+    readonly local _output=$3
+    readonly local _ubi_file_name=$4
 
     readonly local UBI_CFG="${_tmp}/ubi.cfg"
     readonly local UBIFS_IMG="${_tmp}/rootfs.ubifs"
@@ -565,7 +572,7 @@ EOF
     rm -f ${UBI_CFG}
     rm -rf ${UBIFS_ROOTFS_DIR}
 
-    return 0;
+    return 0
 }
 
 # clean U-Boot
@@ -573,7 +580,7 @@ EOF
 clean_uboot ()
 {
     pr_info "Clean U-Boot"
-    make ARCH=${ARCH_ARGS} -C ${1}/ mrproper
+    make ARCH=${ARCH_ARGS} -C $1 mrproper
 }
 
 # verify the SD card
@@ -673,42 +680,42 @@ make_bcm_fw ()
 cmd_make_deploy ()
 {
     # get linaro toolchain
-    (( `ls ${G_CROSS_COMPILER_PATH} 2>/dev/null | wc -l` == 0 )) && {
-        pr_info "Get and unpack cross compiler";
+    (( $(ls ${G_CROSS_COMPILER_PATH} 2>/dev/null | wc -l) == 0 )) && {
+        pr_info "Get and unpack cross compiler"
         get_remote_file ${G_EXT_CROSS_COMPILER_LINK} \
                         ${DEF_SRC_DIR}/${G_CROSS_COMPILER_ARCHIVE}
         tar -xJf ${DEF_SRC_DIR}/${G_CROSS_COMPILER_ARCHIVE} \
             -C ${G_TOOLS_PATH}/
-    };
+    }
 
     # get U-Boot repository
-    (( `ls ${G_UBOOT_SRC_DIR} 2>/dev/null | wc -l` == 0 )) && {
-        pr_info "Get U-Boot repository";
+    (( $(ls ${G_UBOOT_SRC_DIR} 2>/dev/null | wc -l) == 0 )) && {
+        pr_info "Get U-Boot repository"
         get_git_src ${G_UBOOT_GIT} ${G_UBOOT_BRANCH} \
                     ${G_UBOOT_SRC_DIR} ${G_UBOOT_REV}
-    };
+    }
 
     # get kernel repository
-    (( `ls ${G_LINUX_KERNEL_SRC_DIR} 2>/dev/null | wc -l` == 0 )) && {
-        pr_info "Get kernel repository";
+    (( $(ls ${G_LINUX_KERNEL_SRC_DIR} 2>/dev/null | wc -l) == 0 )) && {
+        pr_info "Get kernel repository"
         get_git_src ${G_LINUX_KERNEL_GIT} ${G_LINUX_KERNEL_BRANCH} \
                     ${G_LINUX_KERNEL_SRC_DIR} ${G_LINUX_KERNEL_REV}
-    };
+    }
     if [ ! -z "${G_BCM_FW_GIT}" ]; then
         # get bcm firmware repository
-        (( `ls ${G_BCM_FW_SRC_DIR}  2>/dev/null | wc -l` == 0 )) && {
-            pr_info "Get bcmhd firmware repository";
+        (( $(ls ${G_BCM_FW_SRC_DIR}  2>/dev/null | wc -l) == 0 )) && {
+            pr_info "Get bcmhd firmware repository"
             get_git_src ${G_BCM_FW_GIT} ${G_BCM_FW_GIT_BRANCH} \
                         ${G_BCM_FW_SRC_DIR} ${G_BCM_FW_GIT_REV}
-        };
+        }
     fi
     if [ ! -z "${G_IMXBOOT_GIT}" ]; then
         # get IMXBoot Source repository
-        (( `ls ${G_IMXBOOT_SRC_DIR}  2>/dev/null | wc -l` == 0 )) && {
-            pr_info "Get imx-boot";
+        (( $(ls ${G_IMXBOOT_SRC_DIR}  2>/dev/null | wc -l) == 0 )) && {
+            pr_info "Get imx-boot"
             get_git_src ${G_IMXBOOT_GIT} \
                         ${G_IMXBOOT_BRACH} ${G_IMXBOOT_SRC_DIR} ${G_IMXBOOT_REV}
-        };
+        }
     fi
 
     # SDMA firmware
@@ -716,19 +723,19 @@ cmd_make_deploy ()
            [ "${MACHINE}" = "var-som-mx7" ] ||
            [ "${MACHINE}" = "revo-roadrunner-mx7" ]; then
         # get linux-frimwrae source repository
-        (( `ls ${G_IMX_SDMA_FW_SRC_DIR}  2>/dev/null | wc -l` == 0 )) && {
-            pr_info "Get Linux-Firmware";
+        (( $(ls ${G_IMX_SDMA_FW_SRC_DIR}  2>/dev/null | wc -l) == 0 )) && {
+            pr_info "Get Linux-Firmware"
             get_git_src ${G_IMX_SDMA_FW_GIT} \
                         ${G_IMX_SDMA_FW_GIT_BRANCH} ${G_IMX_SDMA_FW_SRC_DIR} \
                         ${G_IMX_SDMA_FW_GIT_REV}
-        };
+        }
     fi
     return 0
 }
 
 cmd_make_rootfs ()
 {
-    make_prepare;
+    make_prepare
 
     if [ "${MACHINE}" = "imx6ul-var-dart" ] ||
            [ "${MACHINE}" = "var-som-mx7" ] ||
@@ -869,12 +876,10 @@ cmd_make_clean ()
 ################ main function ################
 
 # test for root access support
-[ "$PARAM_CMD" != "deploy" ] && [ "$PARAM_CMD" != "bootloader" ] &&
-    [ "$PARAM_CMD" != "kernel" ] && [ "$PARAM_CMD" != "modules" ] &&
-    [ ${EUID} -ne 0 ] && {
-        pr_error "this command must be run as root (or sudo/su)"
-        exit 1;
-    };
+if [[ "$PARAM_CMD" != "deploy"  && ${EUID} -ne 0 ]]; then
+    pr_error "This command must be run as root (or sudo/su)"
+    exit 1
+fi
 
 pr_info "Command: \"$PARAM_CMD\" start..."
 
@@ -924,7 +929,7 @@ case $PARAM_CMD in
         cmd_make_clean
         ;;
     * )
-        pr_error "Invalid input command: \"${PARAM_CMD}\"";
+        pr_error "Invalid input command: \"${PARAM_CMD}\""
         ;;
 esac
 

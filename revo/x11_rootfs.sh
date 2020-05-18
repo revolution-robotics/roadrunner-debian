@@ -103,15 +103,15 @@ rm -f /debconf.set
 protected_install ()
 {
     local _name=\${1}
-    local repeated_cnt=5;
-    local RET_CODE=1;
+    local repeated_cnt=5
+    local RET_CODE=1
 
-    for (( c=0; c<\${repeated_cnt}; c++ ))
+    for (( c=0; c < \${repeated_cnt}; c++ ))
     do
         apt-get install -y \${_name} && {
-            RET_CODE=0;
-            break;
-        };
+            RET_CODE=0
+            break
+        }
 
         echo ""
         echo "###########################"
@@ -119,11 +119,11 @@ protected_install ()
         echo "###########################"
         echo ""
 
-        sleep 2;
+        sleep 2
         apt --fix-broken install -y && {
-                RET_CODE=0;
-                break;
-        };
+                RET_CODE=0
+                break
+        }
     done
 
     return \${RET_CODE}
@@ -343,7 +343,7 @@ rm -f user-stage
         chmod +x user-stage
         LANG=C chroot ${ROOTFS_BASE} /user-stage
 
-    };
+    }
 
     # binaries rootfs patching
     install -m 0644 ${G_CONFIG_PATH}/issue ${ROOTFS_BASE}/etc/
@@ -462,9 +462,9 @@ make_x11_sdcard ()
         return 1
     fi
 
-    for ((i=0; i<10; i++))
+    for (( i=0; i < 10; i++ ))
     do
-        if [ `mount | grep -c ${LPARAM_BLOCK_DEVICE}${part}$i` -ne 0 ]; then
+        if [ $(mount | grep -c ${LPARAM_BLOCK_DEVICE}${part}$i) -ne 0 ]; then
             umount ${LPARAM_BLOCK_DEVICE}${part}$i
         fi
     done
@@ -530,7 +530,7 @@ make_x11_sdcard ()
         cp ${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC} \
            ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
 
-        return 0;
+        return 0
     }
 
     copy_scripts ()
@@ -552,7 +552,7 @@ make_x11_sdcard ()
     }
 
     # Delete the partitions
-    for (( i=0; i<10; i++ ))
+    for (( i=0; i < 10; i++ ))
     do
         if [ -e ${LPARAM_BLOCK_DEVICE}${part}${i} ]; then
             dd if=/dev/zero of=${LPARAM_BLOCK_DEVICE}${part}$i bs=512 count=1024 2> /dev/null || true
@@ -613,7 +613,7 @@ EOF
 
     mount ${LPARAM_BLOCK_DEVICE}${part}1  ${P1_MOUNT_DIR}
     mount ${LPARAM_BLOCK_DEVICE}${part}2  ${P2_MOUNT_DIR}
-    sleep 2; sync;
+    sleep 2; sync
 
     flash_sdcard
     copy_debian_images

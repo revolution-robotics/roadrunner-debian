@@ -5,8 +5,8 @@
 - [Fetch build suite, cross-compiler and sources](#fetch-build-suite-cross-compiler-and-sources)
 - [Build uBoot and Linux kernel and modules](#build-uboot-and-linux-kernel-and-modules)
 - [Populate root filesystem with Debian, kernel modules and firmware](#populate-root-filesystem-with-debian-kernel-modules-and-firmware)
-- [Create a bootable SD card](#create-a-bootable-sd-card)
-- [Create a bootable image file](#create-a-bootable-image-file)
+- [Create bootable SD card](#create-bootable-sd-card)
+- [Create bootable image file](#create-bootable-image-file)
 - [Subsequent builds](#subsequent-builds)
 
 ## Overview
@@ -57,12 +57,12 @@ Bootstrap Debian to _rootfs_ and install kernel modules and firmware with:
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rootfs
 ```
-## Create a bootable SD card
+## Create bootable SD card
 To create a bootable SD card, with the card inserted and accessible as block device _/dev/sdX_ (e..g., _/dev/sdg_), run:
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c sdcard -d /dev/sdX
 ```
-## Create a bootable image file
+## Create bootable image file
 To create a Gzip-compressed 4 GB bootable image file (saved as
 _output/disk.img.gz_), run:
 ```shell
