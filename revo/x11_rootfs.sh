@@ -448,11 +448,12 @@ make_x11_sdcard ()
 
     [ "${LPARAM_BLOCK_DEVICE}" = "na" ] && {
         pr_warning "No valid block device: ${LPARAM_BLOCK_DEVICE}"
-        return 1;
-    };
+        return 1
+    }
 
     local part=""
-    if [ `echo ${LPARAM_BLOCK_DEVICE} | grep -c mmcblk` -ne 0 ]; then
+    if [[ "${LPARAM_BLOCK_DEVICE}" =~ /dev/mmcblk ]] ||
+       is_loop_device "${LPARAM_BLOCK_DEVICE}"; then
         part="p"
     fi
 
@@ -563,12 +564,12 @@ make_x11_sdcard ()
     sync
 
     dd if=/dev/zero of=${LPARAM_BLOCK_DEVICE} bs=1024 count=4096
-    sleep 2; sync;
+    sleep 2; sync
 
     pr_info "Creating new partitions"
 
     # Create a new partition table
-    fdisk ${LPARAM_BLOCK_DEVICE} <<EOF
+    (fdisk ${LPARAM_BLOCK_DEVICE} <<EOF
 n
 p
 1
@@ -584,23 +585,26 @@ p
 p
 w
 EOF
-    sleep 2; sync;
+    ) || true
+    sleep 2; sync
 
     # Get total card size
-    total_size=`sfdisk -s ${LPARAM_BLOCK_DEVICE}`
-    total_size=`expr ${total_size} / 1024`
-    boot_rom_sizeb=`expr ${BOOT_ROM_SIZE} + ${BOOTLOAD_RESERVE}`
-    rootfs_size=`expr ${total_size} - ${boot_rom_sizeb} - ${SPARE_SIZE}`
+    total_size=$(blockdev --getsz ${LPARAM_BLOCK_DEVICE})
+    total_size=$(( total_size / 2048 ))
+    boot_rom_sizeb=$(( BOOT_ROM_SIZE + BOOTLOAD_RESERVE ))
+    rootfs_size=$(( total_size - boot_rom_sizeb - SPARE_SIZE ))
 
-    pr_info "ROOT SIZE=${rootfs_size} TOTAl SIZE=${total_size} BOOTROM SIZE=${boot_rom_sizeb}"
-    sleep 2; sync;
+    pr_info "ROOT SIZE=${rootfs_size}MB TOTAl SIZE=${total_size}MB BOOTROM SIZE=${boot_rom_sizeb}MB"
+    sleep 2; sync
+
+    partprobe ${LPARAM_BLOCK_DEVICE}
 
     # Format the partitions
     format_sdcard
-    sleep 2; sync;
+    sleep 2; sync
 
     flash_u-boot
-    sleep 2; sync;
+    sleep 2; sync
 
     # Mount the partitions
     mkdir -p ${P1_MOUNT_DIR}

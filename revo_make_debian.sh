@@ -89,6 +89,7 @@ usage ()
     echo "       rtar        -- generate or regenerate rootfs.tar.gz image from the rootfs folder"
     echo "       clean       -- clean all build artifacts (without deleting sources code or resulted images)"
     echo "       sdcard      -- create a bootable SD card"
+    echo "       diskimage   -- create a bootable image file"
     echo "  -o|--output -- custom select output directory (default: \"${PARAM_OUTPUT_DIR}\")"
     echo "  -d|--dev    -- specify SD card device (exmple: -d /dev/sde)"
     echo "  --debug     -- enable debug mode for this script"
@@ -97,6 +98,7 @@ usage ()
     echo "  make the Linux kernel only:       sudo ./${SCRIPT_NAME} --cmd kernel"
     echo "  make rootfs only:                 sudo ./${SCRIPT_NAME} --cmd rootfs"
     echo "  create SD card:                   sudo ./${SCRIPT_NAME} --cmd sdcard --dev /dev/sdX"
+    echo "  create boot image:                sudo ./${SCRIPT_NAME} --cmd diskimage"
     echo
 }
 
@@ -595,21 +597,22 @@ check_sdcard ()
     # Get device parameters
     local removable=$(cat /sys/block/${dev}/removable)
     local block_size=$(cat /sys/class/block/${dev}/queue/physical_block_size)
-    local size_bytes=$((${block_size}*$(cat /sys/class/block/${dev}/size)))
+    local size_blocks=$(cat /sys/class/block/${dev}/size)
+    local size_bytes=$(( size_blocks * block_size ))
     local size_gib=$(bc <<< "scale=1; ${size_bytes}/(1024*1024*1024)")
 
     # Non removable SD card readers require additional check
     if [ "${removable}" != "1" ]; then
         local drive=$(udisksctl info -b /dev/${dev}|grep "Drive:"|cut -d"'" -f 2)
         local mediaremovable=$(gdbus call --system --dest org.freedesktop.UDisks2 --object-path ${drive} \
-                                     --method org.freedesktop.DBus.Properties.Get org.freedesktop.UDisks2.Drive MediaRemovable)
+                                     --method org.freedesktop.DBus.Properties.Get org.freedesktop.UDisks2.Drive MediaRemovable 2>/dev/null)
         if [[ "${mediaremovable}" = *"true"* ]]; then
             removable=1
         fi
     fi
 
     # Check that device is either removable or loop
-    if [ "$removable" != "1" -a $(stat -c '%t' /dev/$dev) != ${LOOP_MAJOR} ]; then
+    if [ "$removable" != "1" ] && ! is_loop_device "$1"; then
         pr_error "$1 is not a removable device, exiting"
         return 1
     fi
@@ -625,6 +628,11 @@ check_sdcard ()
     read -p "Press Enter to continue"
 
     return 0
+}
+
+is_loop_device ()
+{
+    (( $(stat -c '%t' $1) == ${LOOP_MAJOR} ))
 }
 
 # make imx sdma firmware
@@ -804,6 +812,34 @@ cmd_make_sdcard ()
     fi
 }
 
+cmd_make_diskimage ()
+{
+    local IMAGE_FILE=${G_TMP_DIR}/disk.img
+    local IMAGE_SIZE=$(( 7774208 * 512 )) # 3.7 GB
+    local LOOP_DEVICE
+    local STATUS
+
+    pr_info "Initialize file-backed loop device"
+    mkdir -p $(dirname ${IMAGE_FILE})
+    dd if=/dev/zero of=${IMAGE_FILE} bs=${IMAGE_SIZE} seek=1 count=0
+    LOOP_DEVICE=$(losetup --nooverlap --find --show ${IMAGE_FILE})
+
+    if [ "${MACHINE}" = "imx6ul-var-dart" ] ||
+           [ "${MACHINE}" = "var-som-mx7" ] ||
+           [ "${MACHINE}" = "revo-roadrunner-mx7" ]; then
+        make_x11_sdcard ${LOOP_DEVICE} ${PARAM_OUTPUT_DIR}
+    else
+        make_weston_sdcard ${LOOP_DEVICE} ${PARAM_OUTPUT_DIR}
+    fi
+
+    losetup -d ${LOOP_DEVICE}
+
+    pr_info "Compressing image file..."
+    gzip ${IMAGE_FILE}
+    mv ${IMAGE_FILE}.gz ${PARAM_OUTPUT_DIR}
+    return $STATUS
+}
+
 cmd_make_bcmfw ()
 {
     make_bcm_fw ${G_BCM_FW_SRC_DIR} ${G_ROOTFS_DIR}
@@ -866,9 +902,11 @@ case $PARAM_CMD in
     firmware )
         cmd_make_firmware
         ;;
-
     sdcard )
         cmd_make_sdcard
+        ;;
+    diskimage )
+        cmd_make_diskimage
         ;;
     rubi )
         cmd_make_rfs_ubi

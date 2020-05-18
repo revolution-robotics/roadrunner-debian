@@ -1,13 +1,16 @@
-# Building REVO i.MX7 board boot images
+# Building REVO board boot images
+
 - [Overview](#overview)
 - [Prerequisites](#prerequisites)
 - [Fetch build suite, cross-compiler and sources](#fetch-build-suite-cross-compiler-and-sources)
 - [Build uBoot and Linux kernel and modules](#build-uboot-and-linux-kernel-and-modules)
 - [Populate root filesystem with Debian, kernel modules and firmware](#populate-root-filesystem-with-debian-kernel-modules-and-firmware)
 - [Create a bootable SD card](#create-a-bootable-sd-card)
+- [Create a bootable image file](#create-a-bootable-image-file)
 - [Subsequent builds](#subsequent-builds)
+
 ## Overview
-This is a Debian Linux build suite for REVO i.MX7 boards.
+This is a Debian GNU/Linux build suite for REVO boards.
 The following build instructions have been verified on a Ubuntu 20.04 x86 host platform.
 
 ## Prerequisites
@@ -31,36 +34,39 @@ Install the build suite under the current directory with the command:
 git clone git@github.com:revolution-robotics/roadrunner-debian.git \
     -b debian_buster_rr01 roadrunner_debian
 ```
-To download the cross-compiler and sources, enter the build suite directory:
-```shell
-cd roadrunner_debian
-```
 Download the cross-compiler and sources for uBoot and Linux kernel with:
 ```shell
-sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c deploy
+cd roadrunner_debian
+MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c deploy
 ```
 ## Build uBoot and Linux kernel and modules
-Build the uBoot bootloader with:
+Build the uBoot bootloader (and save it as _output/SPL.mmc_ and _output/u-boot.img.mmc_) with:
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c bootloader
 ```
-Build the Linux kernel (zImage) and Device Tree (DTB) files with:
+Build the Linux kernel (and save it as _output/zImage_) and Device Tree (DTB) files with:
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c kernel
 ```
-Build kernel modules with:
+Build kernel modules (and install them under _rootfs_) with:
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c modules
 ```
 ## Populate root filesystem with Debian, kernel modules and firmware
-Bootstrap Debian to rootfs and install kernel modules and firmware with:
+Bootstrap Debian to _rootfs_ and install kernel modules and firmware with:
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rootfs
 ```
 ## Create a bootable SD card
-With an SD card inserted and accessible as block device /dev/sdX (e..g., /dev/sdg), run:
+To create a bootable SD card, with the card inserted and accessible as block device _/dev/sdX_ (e..g., _/dev/sdg_), run:
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c sdcard -d /dev/sdX
+```
+## Create a bootable image file
+To create a Gzip-compressed 4 GB bootable image file (saved as
+_output/disk.img.gz_), run:
+```shell
+sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage
 ```
 ## Subsequent builds
 When editing kernel sources only, the build sequence can avoid
@@ -69,10 +75,8 @@ re-running the Debian bootstrap as follows:
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c kernel
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c modules
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rtar
-sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c sdcard -d /dev/sdX
 ```
 Likewise, when editing uBoot sources only, use:
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c bootloader
-sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c sdcard -d /dev/sdX
 ```
