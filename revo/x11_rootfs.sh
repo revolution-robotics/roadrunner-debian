@@ -15,8 +15,11 @@ make_debian_x11_rootfs ()
     rm -rf ${ROOTFS_BASE}/*
 
     pr_info "rootfs: debootstrap"
-    debootstrap --verbose --no-check-gpg --foreign --arch armhf ${DEB_RELEASE} \
-                ${ROOTFS_BASE}/ ${PARAM_DEB_LOCAL_MIRROR}
+    # debootstrap --verbose --no-check-gpg --foreign --arch armhf ${DEB_RELEASE} \
+    #             ${ROOTFS_BASE}/ ${PARAM_DEB_LOCAL_MIRROR}
+    debootstrap --verbose  --foreign --arch armhf \
+                --keyring=/usr/share/keyrings/ubuntu-archive-keyring.gpg \
+                ${DEB_RELEASE} ${ROOTFS_BASE}/ ${PARAM_DEB_LOCAL_MIRROR}
 
     # prepare qemu
     pr_info "rootfs: debootstrap in rootfs (second-stage)"
@@ -54,10 +57,10 @@ deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 " > etc/apt/sources.list
 
     # raise backports priority
-    echo "Package: *
-Pin: release n=${DEB_RELEASE}-backports
-Pin-Priority: 500
-" > etc/apt/preferences.d/backports
+#     echo "Package: *
+# Pin: release n=${DEB_RELEASE}-backports
+# Pin-Priority: 500
+# " > etc/apt/preferences.d/backports
 
     # maximize local repo priority
     echo "Package: *
@@ -401,8 +404,7 @@ rm -f cleanup
 
     # kill latest dbus-daemon instance due to qemu-arm-static
     QEMU_PROC_ID=$(ps axf | grep dbus-daemon | grep qemu-arm-static | awk '{print $1}')
-    if [ -n "$QEMU_PROC_ID" ]
-    then
+    if [ -n "$QEMU_PROC_ID" ]; then
         kill -9 $QEMU_PROC_ID
     fi
 
