@@ -64,11 +64,11 @@ GSYMS
 GTAGS
 
 # ignored dirs
-rootfs
-output
-src
-toolchain
-tmp
+/rootfs
+/output
+/src
+/toolchain
+/tmp
 
 *.log
 *.orig
