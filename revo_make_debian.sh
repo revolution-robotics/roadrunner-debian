@@ -35,9 +35,9 @@ readonly G_ROOTFS_DIR="${DEF_BUILDENV}/rootfs"
 readonly G_TMP_DIR="${DEF_BUILDENV}/tmp"
 readonly G_TOOLS_PATH="${DEF_BUILDENV}/toolchain"
 if [[ ."$MACHINE" =~ \.(imx8m-var-dart|imx8mm-var-dart|imx8qxp-var-som|imx8qm-var-som|imx6ul-var-dart|var-som-mx7) ]]; then
-    readonly G_CONFIG_PATH="${DEF_BUILDENV}/variscite"
+    readonly G_VENDOR_PATH="${DEF_BUILDENV}/variscite"
 else
-    readonly G_CONFIG_PATH="${DEF_BUILDENV}/revo"
+    readonly G_VENDOR_PATH="${DEF_BUILDENV}/revo"
 fi
 
 #64 bit CROSS_COMPILER config and paths
@@ -102,14 +102,14 @@ usage ()
     echo
 }
 
-if [ ! -e ${G_CONFIG_PATH}/${MACHINE}/${MACHINE}.sh ]; then
+if [ ! -e ${G_VENDOR_PATH}/${MACHINE}/${MACHINE}.sh ]; then
     echo "Illegal MACHINE: ${MACHINE}"
     echo
     usage
     exit 1
 fi
 
-source ${G_CONFIG_PATH}/${MACHINE}/${MACHINE}.sh
+source ${G_VENDOR_PATH}/${MACHINE}/${MACHINE}.sh
 
 # Setup cross compiler path, name, kernel dtb path, kernel image type, helper scripts
 if [ "${ARCH_CPU}" = "64BIT" ]; then
@@ -122,7 +122,7 @@ if [ "${ARCH_CPU}" = "64BIT" ]; then
     KERNEL_BOOT_IMAGE_SRC="arch/arm64/boot/"
     KERNEL_DTB_IMAGE_PATH="arch/arm64/boot/dts/freescale/"
     # Include weston backend rootfs helper
-    source ${G_CONFIG_PATH}/weston_rootfs.sh
+    source ${G_VENDOR_PATH}/weston_rootfs.sh
 elif [ "${ARCH_CPU}" = "32BIT" ]; then
     G_CROSS_COMPILER_NAME=${G_CROSS_COMPILER_32BIT_NAME}
     G_EXT_CROSS_COMPILER_LINK=${G_EXT_CROSS_32BIT_COMPILER_LINK}
@@ -130,7 +130,7 @@ elif [ "${ARCH_CPU}" = "32BIT" ]; then
     G_CROSS_COMPILER_PREFIX=${G_CROSS_COMPILER_32BIT_PREFIX}
     ARCH_ARGS="arm"
     # Include x11 backend rootfs helper
-    source ${G_CONFIG_PATH}/x11_rootfs.sh
+    source ${G_VENDOR_PATH}/x11_rootfs.sh
 else
     echo " Error unknown CPU type"
     exit 1
@@ -417,11 +417,11 @@ make_uboot ()
     cp ${1}/tools/env/fw_printenv $2
 
     if [ "${MACHINE}" = "imx8qxp-var-som" ]; then
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/scfw_tcm.bin \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/scfw_tcm.bin \
            src/imx-mkimage/iMX8QX/
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/bl31-imx8qx.bin \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/bl31-imx8qx.bin \
            src/imx-mkimage/iMX8QX/bl31.bin
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/mx8qx-ahab-container.img \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/mx8qx-ahab-container.img \
            src/imx-mkimage/iMX8QX/
         cp ${1}/u-boot.bin ${DEF_SRC_DIR}/imx-mkimage/iMX8QX/
         cp ${1}/spl/u-boot-spl.bin ${DEF_SRC_DIR}/imx-mkimage/iMX8QX/
@@ -431,17 +431,17 @@ make_uboot ()
            ${DEF_SRC_DIR}/imx-mkimage/${G_UBOOT_NAME_FOR_EMMC}
         cp ${G_UBOOT_NAME_FOR_EMMC} ${2}/${G_UBOOT_NAME_FOR_EMMC}
     elif [ "${MACHINE}" = "imx8m-var-dart" ]; then
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/bl31-imx8mq.bin \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/bl31-imx8mq.bin \
            src/imx-mkimage/iMX8M/bl31.bin
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/signed_hdmi_imx8m.bin \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/signed_hdmi_imx8m.bin \
            src/imx-mkimage/iMX8M/signed_hdmi_imx8m.bin
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_1d_imem.bin \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_1d_imem.bin \
            src/imx-mkimage/iMX8M/lpddr4_pmu_train_1d_imem.bin
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_1d_dmem.bin \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_1d_dmem.bin \
            src/imx-mkimage/iMX8M/lpddr4_pmu_train_1d_dmem.bin
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_2d_imem.bin \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_2d_imem.bin \
            src/imx-mkimage/iMX8M/lpddr4_pmu_train_2d_imem.bin
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_2d_dmem.bin \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_2d_dmem.bin \
            src/imx-mkimage/iMX8M/lpddr4_pmu_train_2d_dmem.bin
         cp ${1}/u-boot.bin ${DEF_SRC_DIR}/imx-mkimage/iMX8M/
         cp ${1}/u-boot-nodtb.bin ${DEF_SRC_DIR}/imx-mkimage/iMX8M/
@@ -454,15 +454,15 @@ make_uboot ()
            ${DEF_SRC_DIR}/imx-mkimage/${G_UBOOT_NAME_FOR_EMMC}
         cp ${G_UBOOT_NAME_FOR_EMMC} ${2}/${G_UBOOT_NAME_FOR_EMMC}
     elif [ "${MACHINE}" = "imx8mm-var-dart" ]; then
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/bl31-imx8mm.bin \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/bl31-imx8mm.bin \
            src/imx-mkimage/iMX8M/bl31.bin
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_1d_imem.bin \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_1d_imem.bin \
            src/imx-mkimage/iMX8M/lpddr4_pmu_train_1d_imem.bin
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_1d_dmem.bin \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_1d_dmem.bin \
            src/imx-mkimage/iMX8M/lpddr4_pmu_train_1d_dmem.bin
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_2d_imem.bin \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_2d_imem.bin \
            src/imx-mkimage/iMX8M/lpddr4_pmu_train_2d_imem.bin
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_2d_dmem.bin \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_2d_dmem.bin \
            src/imx-mkimage/iMX8M/lpddr4_pmu_train_2d_dmem.bin
         cp ${1}/u-boot.bin ${DEF_SRC_DIR}/imx-mkimage/iMX8M/
         cp ${1}/u-boot-nodtb.bin ${DEF_SRC_DIR}/imx-mkimage/iMX8M/
@@ -475,11 +475,11 @@ make_uboot ()
            ${DEF_SRC_DIR}/imx-mkimage/${G_UBOOT_NAME_FOR_EMMC}
         cp ${G_UBOOT_NAME_FOR_EMMC} ${2}/${G_UBOOT_NAME_FOR_EMMC}
     elif [ "${MACHINE}" = "imx8qm-var-som" ]; then
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/scfw_tcm.bin \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/scfw_tcm.bin \
            src/imx-mkimage/iMX8QM/
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/bl31-imx8qm.bin \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/bl31-imx8qm.bin \
            src/imx-mkimage/iMX8QM/bl31.bin
-        cp ${G_CONFIG_PATH}/${MACHINE}/imx-boot-tools/mx8qm-ahab-container.img \
+        cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/mx8qm-ahab-container.img \
            src/imx-mkimage/iMX8QM/
         cp ${1}/u-boot.bin ${DEF_SRC_DIR}/imx-mkimage/iMX8QM/
         cd ${DEF_SRC_DIR}/imx-mkimage

@@ -23,7 +23,7 @@ make_debian_x11_rootfs ()
 
     # prepare qemu
     pr_info "rootfs: debootstrap in rootfs (second-stage)"
-    cp ${G_CONFIG_PATH}/qemu_32bit/qemu-arm-static ${ROOTFS_BASE}/usr/bin/qemu-arm-static
+    cp ${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static ${ROOTFS_BASE}/usr/bin/qemu-arm-static
     mount -o bind /proc ${ROOTFS_BASE}/proc
     mount -o bind /dev ${ROOTFS_BASE}/dev
     mount -o bind /dev/pts ${ROOTFS_BASE}/dev/pts
@@ -40,13 +40,13 @@ make_debian_x11_rootfs ()
     mkdir -p ${ROOTFS_BASE}/srv/local-apt-repository
 
     # udisk2
-    cp -r ${G_CONFIG_PATH}/deb/udisks2/* \
+    cp -r ${G_VENDOR_PATH}/deb/udisks2/* \
        ${ROOTFS_BASE}/srv/local-apt-repository
     # gstreamer-imx
-    cp -r ${G_CONFIG_PATH}/deb/gstreamer-imx/* \
+    cp -r ${G_VENDOR_PATH}/deb/gstreamer-imx/* \
        ${ROOTFS_BASE}/srv/local-apt-repository
     # shared-mime-info
-    cp -r ${G_CONFIG_PATH}/deb/shared-mime-info/* \
+    cp -r ${G_VENDOR_PATH}/deb/shared-mime-info/* \
        ${ROOTFS_BASE}/srv/local-apt-repository
 
     # add mirror to source list
@@ -270,60 +270,70 @@ EOF
     chmod +x third-stage
     LANG=C chroot ${ROOTFS_BASE} /third-stage
     # fourth-stage
+
+    # BEGIN -- REVO i.MX7D updates
+    install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/bash.bashrc \
+            ${ROOTFS_BASE}/etc
+    install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/profile \
+            ${ROOTFS_BASE}/etc
+    install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/NetworkManager.conf \
+            ${ROOTFS_BASE}/etc/NetworkManager
+    # END -- REVO i.MX7D update
+
     # install variscite-bt service
-    install -m 0755 ${G_CONFIG_PATH}/x11_resources/brcm_patchram_plus \
+    install -m 0755 ${G_VENDOR_PATH}/x11_resources/brcm_patchram_plus \
             ${ROOTFS_BASE}/usr/bin
     install -d ${ROOTFS_BASE}/etc/bluetooth
-    install -m 0644 ${G_CONFIG_PATH}/${MACHINE}/variscite-bt.conf \
+    install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/variscite-bt.conf \
             ${ROOTFS_BASE}/etc/bluetooth
-    install -m 0755 ${G_CONFIG_PATH}/x11_resources/variscite-bt \
+    install -m 0755 ${G_VENDOR_PATH}/x11_resources/variscite-bt \
             ${ROOTFS_BASE}/etc/bluetooth
-    install -m 0644 ${G_CONFIG_PATH}/x11_resources/variscite-bt.service \
+    install -m 0644 ${G_VENDOR_PATH}/x11_resources/variscite-bt.service \
             ${ROOTFS_BASE}/lib/systemd/system
     ln -s /lib/systemd/system/variscite-bt.service \
        ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-bt.service
 
     # install BT audio and main config
-    install -m 0644 ${G_CONFIG_PATH}/x11_resources/bluez5/files/audio.conf \
+    install -m 0644 ${G_VENDOR_PATH}/x11_resources/bluez5/files/audio.conf \
             ${ROOTFS_BASE}/etc/bluetooth/
-    install -m 0644 ${G_CONFIG_PATH}/x11_resources/bluez5/files/main.conf \
+    install -m 0644 ${G_VENDOR_PATH}/x11_resources/bluez5/files/main.conf \
             ${ROOTFS_BASE}/etc/bluetooth/
 
     # install obexd configuration
-    install -m 0644 ${G_CONFIG_PATH}/x11_resources/bluez5/files/obexd.conf \
+    install -m 0644 ${G_VENDOR_PATH}/x11_resources/bluez5/files/obexd.conf \
             ${ROOTFS_BASE}/etc/dbus-1/system.d
 
-    install -m 0644 ${G_CONFIG_PATH}/x11_resources/bluez5/files/obex.service \
+    install -m 0644 ${G_VENDOR_PATH}/x11_resources/bluez5/files/obex.service \
             ${ROOTFS_BASE}/lib/systemd/system
     ln -s /lib/systemd/system/obex.service \
        ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service
 
     # install pulse audio configuration
-    install -m 0644 ${G_CONFIG_PATH}/x11_resources/pulseaudio/pulseaudio.service \
+    install -m 0644 ${G_VENDOR_PATH}/x11_resources/pulseaudio/pulseaudio.service \
             ${ROOTFS_BASE}/lib/systemd/system
     ln -s /lib/systemd/system/pulseaudio.service \
        ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service
-    install -m 0644 ${G_CONFIG_PATH}/x11_resources/pulseaudio/pulseaudio-bluetooth.conf \
+    install -m 0644 ${G_VENDOR_PATH}/x11_resources/pulseaudio/pulseaudio-bluetooth.conf \
             ${ROOTFS_BASE}/etc/dbus-1/system.d
-    install -m 0644 ${G_CONFIG_PATH}/x11_resources/pulseaudio/system.pa \
+    install -m 0644 ${G_VENDOR_PATH}/x11_resources/pulseaudio/system.pa \
             ${ROOTFS_BASE}/etc/pulse/
 
     # Add alsa default configs
-    install -m 0644 ${G_CONFIG_PATH}/x11_resources/asound.state \
+    install -m 0644 ${G_VENDOR_PATH}/x11_resources/asound.state \
             ${ROOTFS_BASE}/var/lib/alsa/
-    install -m 0644 ${G_CONFIG_PATH}/x11_resources/asound.conf ${ROOTFS_BASE}/etc/
+    install -m 0644 ${G_VENDOR_PATH}/x11_resources/asound.conf ${ROOTFS_BASE}/etc/
 
     # install variscite-wifi service
     install -d ${ROOTFS_BASE}/etc/wifi
-    install -m 0644 ${G_CONFIG_PATH}/x11_resources/blacklist.conf \
+    install -m 0644 ${G_VENDOR_PATH}/x11_resources/blacklist.conf \
             ${ROOTFS_BASE}/etc/wifi
-    install -m 0644 ${G_CONFIG_PATH}/${MACHINE}/variscite-wifi.conf \
+    install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/variscite-wifi.conf \
             ${ROOTFS_BASE}/etc/wifi
-    install -m 0644 ${G_CONFIG_PATH}/x11_resources/variscite-wifi-common.sh \
+    install -m 0644 ${G_VENDOR_PATH}/x11_resources/variscite-wifi-common.sh \
             ${ROOTFS_BASE}/etc/wifi
-    install -m 0755 ${G_CONFIG_PATH}/x11_resources/variscite-wifi \
+    install -m 0755 ${G_VENDOR_PATH}/x11_resources/variscite-wifi \
             ${ROOTFS_BASE}/etc/wifi
-    install -m 0644 ${G_CONFIG_PATH}/x11_resources/variscite-wifi.service \
+    install -m 0644 ${G_VENDOR_PATH}/x11_resources/variscite-wifi.service \
             ${ROOTFS_BASE}/lib/systemd/system
     ln -s /lib/systemd/system/variscite-wifi.service \
        ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-wifi.service
@@ -332,10 +342,10 @@ EOF
     rm -rf ${ROOTFS_BASE}/usr/lib/pm-utils/sleep.d/
     rm -rf ${ROOTFS_BASE}/usr/lib/pm-utils/module.d/
     rm -rf ${ROOTFS_BASE}/usr/lib/pm-utils/power.d/
-    install -m 0755 ${G_CONFIG_PATH}/${MACHINE}/wifi.sh \
+    install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/wifi.sh \
             ${ROOTFS_BASE}/etc/pm/sleep.d/
 
-    tar -xzf ${G_CONFIG_PATH}/deb/shared-mime-info/mime_image_prebuilt.tar.gz -C \
+    tar -xzf ${G_VENDOR_PATH}/deb/shared-mime-info/mime_image_prebuilt.tar.gz -C \
         ${ROOTFS_BASE}/
     ## end packages stage ##
     [ "${G_USER_PACKAGES}" != "" ] && {
@@ -359,19 +369,19 @@ rm -f user-stage
     }
 
     # binaries rootfs patching
-    install -m 0644 ${G_CONFIG_PATH}/issue ${ROOTFS_BASE}/etc/
-    install -m 0644 ${G_CONFIG_PATH}/issue.net ${ROOTFS_BASE}/etc/
-    install -m 0755 ${G_CONFIG_PATH}/x11_resources/rc.local ${ROOTFS_BASE}/etc/
-    install -m 0644 ${G_CONFIG_PATH}/x11_resources/hostapd.conf ${ROOTFS_BASE}/etc/
+    install -m 0644 ${G_VENDOR_PATH}/issue ${ROOTFS_BASE}/etc/
+    install -m 0644 ${G_VENDOR_PATH}/issue.net ${ROOTFS_BASE}/etc/
+    install -m 0755 ${G_VENDOR_PATH}/x11_resources/rc.local ${ROOTFS_BASE}/etc/
+    install -m 0644 ${G_VENDOR_PATH}/x11_resources/hostapd.conf ${ROOTFS_BASE}/etc/
     install -d ${ROOTFS_BASE}/boot/
-    install -m 0644 ${G_CONFIG_PATH}/splash.bmp ${ROOTFS_BASE}/boot/
-    install -m 0644 ${G_CONFIG_PATH}/wallpaper.png \
+    install -m 0644 ${G_VENDOR_PATH}/splash.bmp ${ROOTFS_BASE}/boot/
+    install -m 0644 ${G_VENDOR_PATH}/wallpaper.png \
             ${ROOTFS_BASE}/usr/share/images/desktop-base/default
 
     # disable light-locker
-    install -m 0755 ${G_CONFIG_PATH}/x11_resources/disable-lightlocker \
+    install -m 0755 ${G_VENDOR_PATH}/x11_resources/disable-lightlocker \
             ${ROOTFS_BASE}/usr/local/bin/
-    install -m 0644 ${G_CONFIG_PATH}/x11_resources/disable-lightlocker.desktop \
+    install -m 0644 ${G_VENDOR_PATH}/x11_resources/disable-lightlocker.desktop \
             ${ROOTFS_BASE}/etc/xdg/autostart/
 
     # Revert regular booting
@@ -391,14 +401,14 @@ rm -f user-stage
        ${ROOTFS_BASE}/usr/local/src/linux-imx/
 
     # copy custom files
-    cp ${G_CONFIG_PATH}/${MACHINE}/kobs-ng ${ROOTFS_BASE}/usr/bin
+    cp ${G_VENDOR_PATH}/${MACHINE}/kobs-ng ${ROOTFS_BASE}/usr/bin
     cp ${PARAM_OUTPUT_DIR}/fw_printenv-mmc ${ROOTFS_BASE}/usr/bin
     # cp ${PARAM_OUTPUT_DIR}/fw_printenv-nand ${ROOTFS_BASE}/usr/bin
     # ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_printenv-nand
     # ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_setenv
     ln -sf fw_printenv-mmc ${ROOTFS_BASE}/usr/bin/fw_printenv
     ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_setenv
-    cp ${G_CONFIG_PATH}/${MACHINE}/fw_env.config ${ROOTFS_BASE}/etc
+    cp ${G_VENDOR_PATH}/${MACHINE}/fw_env.config ${ROOTFS_BASE}/etc
 
     ## clenup command
     echo "#!/bin/bash
@@ -551,7 +561,7 @@ make_x11_sdcard ()
         if [ "${MACHINE}" = "imx6ul-var-dart" ] ||
                [ "${MACHINE}" = "var-som-mx7" ]
                [ "${MACHINE}" = "revo-roadrunner-mx7" ]; then
-            cp ${G_CONFIG_PATH}/mx6ul_mx7_install_debian.sh \
+            cp ${G_VENDOR_PATH}/mx6ul_mx7_install_debian.sh \
                ${P2_MOUNT_DIR}/usr/sbin/install_debian.sh
         fi
     }
