@@ -30,10 +30,7 @@ KERNEL_BOOT_IMAGE_SRC="arch/arm/boot/"
 KERNEL_DTB_IMAGE_PATH="arch/arm/boot/dts/"
 
 # SDMA Firmware
-readonly G_IMX_SDMA_FW_SRC_DIR="${DEF_SRC_DIR}/linux-firmware"
-readonly G_IMX_SDMA_FW_GIT="git://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git"
-readonly G_IMX_SDMA_FW_GIT_BRANCH="master"
-readonly G_IMX_SDMA_FW_GIT_REV="710963fe53ee3f227556d36839df3858daf6e232"
+readonly G_IMX_SDMA_FW_SRC_DIR="${G_VENDOR_PATH}/deb/firmware-misc-nonfree"
 
 # Broadcom BT/WIFI firmware
 readonly G_BCM_FW_SRC_DIR="${DEF_SRC_DIR}/bcmfw"

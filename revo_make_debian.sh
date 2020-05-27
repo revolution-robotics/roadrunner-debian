@@ -55,7 +55,7 @@ readonly G_CROSS_COMPILER_32BIT_PREFIX="arm-linux-gnueabihf-"
 readonly G_CROSS_COMPILER_JOPTION="-j 6"
 
 #### user rootfs packages ####
-readonly G_USER_PACKAGES=""
+readonly G_USER_PACKAGES="audacious bash-completion binutils cockpit cockpit-networkmanager curl dnsutils ed git openvpn network-manager-openvpn pciutils python3-cryptography python3-dateutil python3-lxml python3-pip python3-psutil python3-websockets python3-zmq sudo traceroute"
 
 export LC_ALL=C
 
@@ -650,12 +650,12 @@ make_imx_sdma_fw ()
     pr_info "Install imx sdma firmware"
     install -d ${2}/lib/firmware/imx/sdma
     if [ "${MACHINE}" = "imx6ul-var-dart" ]; then
-        install -m 0644 ${1}/imx/sdma/sdma-imx6q.bin \
+        install -m 0644 ${1}/sdma-imx6q.bin \
                 ${2}/lib/firmware/imx/sdma
     elif  [ "${MACHINE}" = "var-som-mx7" ] ||
               [ "${MACHINE}" = "revo-roadrunner-mx7" ]; then
-        install -m 0644 ${1}/imx/sdma/sdma-imx7d.bin \
-                ${2}/lib/firmware/imx/sdma
+        install -m 0644 ${1}/sdma-imx7d.bin \
+            ${2}/lib/firmware/imx/sdma
     fi
     install -m 0644 ${1}/LICENSE.sdma_firmware ${2}/lib/firmware/
 }
@@ -718,18 +718,6 @@ cmd_make_deploy ()
         }
     fi
 
-    # SDMA firmware
-    if [ "${MACHINE}" = "imx6ul-var-dart" ] ||
-           [ "${MACHINE}" = "var-som-mx7" ] ||
-           [ "${MACHINE}" = "revo-roadrunner-mx7" ]; then
-        # get linux-frimwrae source repository
-        (( $(ls ${G_IMX_SDMA_FW_SRC_DIR}  2>/dev/null | wc -l) == 0 )) && {
-            pr_info "Get Linux-Firmware"
-            get_git_src ${G_IMX_SDMA_FW_GIT} \
-                        ${G_IMX_SDMA_FW_GIT_BRANCH} ${G_IMX_SDMA_FW_SRC_DIR} \
-                        ${G_IMX_SDMA_FW_GIT_REV}
-        }
-    fi
     return 0
 }
 

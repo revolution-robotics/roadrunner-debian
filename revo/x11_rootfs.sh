@@ -57,10 +57,10 @@ deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 " > etc/apt/sources.list
 
     # raise backports priority
-#     echo "Package: *
-# Pin: release n=${DEB_RELEASE}-backports
-# Pin-Priority: 500
-# " > etc/apt/preferences.d/backports
+    echo "Package: *
+Pin: release n=${DEB_RELEASE}-backports
+Pin-Priority: 500
+" > etc/apt/preferences.d/backports
 
     # maximize local repo priority
     echo "Package: *
@@ -68,16 +68,15 @@ Pin: origin ""
 Pin-Priority: 1000
 " > etc/apt/preferences.d/local
 
-    # raise backports priority
     echo "
 # /dev/mmcblk0p1  /boot           vfat    defaults        0       0
 " > etc/fstab
 
     echo "${MACHINE}" > etc/hostname
 
-    echo "auto lo
-iface lo inet loopback
-" > etc/network/interfaces
+#     echo "auto lo
+# iface lo inet loopback
+# " > etc/network/interfaces
 
     echo "
 locales locales/locales_to_be_generated multiselect en_US.UTF-8 UTF-8
@@ -154,20 +153,17 @@ protected_install dosfstools
 # fix config for sshd (permit root login)
 sed -i -e 's/#PermitRootLogin.*/PermitRootLogin\tyes/g' /etc/ssh/sshd_config
 
-#rng-tools
+# rng-tools
 protected_install rng-tools
 
-#udisk2
+# udisk2
 protected_install udisks2
 
-#gvfs
+# gvfs
 protected_install gvfs
 
-#gvfs-daemons
+# gvfs-daemons
 protected_install gvfs-daemons
-
-# network manager
-#protected_install network-manager-gnome
 
 # net-tools (ifconfig, etc.)
 protected_install net-tools
@@ -177,8 +173,7 @@ protected_install xorg
 protected_install xfce4
 protected_install xfce4-goodies
 
-
-#network manager
+# network manager
 protected_install network-manager-gnome
 
 # net-tools (ifconfig, etc.)
@@ -224,11 +219,11 @@ protected_install gconf2
 protected_install shared-mime-info
 
 # wifi support packages
-protected_install hostapd
-protected_install udhcpd
+# protected_install hostapd
+# protected_install udhcpd
 
 # disable the hostapd service by default
-systemctl disable hostapd.service
+# systemctl disable hostapd.service
 
 # can support
 protected_install can-utils
@@ -237,9 +232,10 @@ protected_install can-utils
 protected_install pm-utils
 
 apt-get -y autoremove
-#update iptables alternatives to legacy
-update-alternatives --set iptables /usr/sbin/iptables-legacy
-update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
+
+# update iptables alternatives to legacy
+# update-alternatives --set iptables /usr/sbin/iptables-legacy
+# update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
 
 apt-get install -y --reinstall libgdk-pixbuf2.0-0
 
@@ -251,6 +247,20 @@ usermod -a -G video x_user
 echo "user:user" | chpasswd
 echo "root:root" | chpasswd
 passwd -d x_user
+
+# BEGIN -- REVO i.MX7D users
+# groupadd revo
+# useradd -m -G revo -s /bin/bash revo
+# usermod -aG audio revo
+# usermod -aG bluetooth revo
+# usermod -aG lp revo
+# usermod -aG pulse revo
+# usermod -aG pulse-access revo
+# usermod -aG sudo revo
+# usermod -aG video revo
+
+# echo "revo:revo" | chpasswd
+# END -- REVO i.MX7D users
 
 # sado kill
 rm -f third-stage
@@ -337,8 +347,8 @@ EOF
 # update packages
 apt-get update
 
-# install all user packages
-apt-get -y install ${G_USER_PACKAGES}
+# install all user packages from backports
+apt-get -y -t ${DEB_RELEASE}-backports install ${G_USER_PACKAGES}
 
 rm -f user-stage
 " > user-stage
