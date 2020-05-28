@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#
 # Must be called after make_prepare in main script
 # function generate rootfs in input dir
 # $1 - rootfs base dir
@@ -456,6 +457,7 @@ prepare_x11_ubifs_rootfs ()
     # Remove deb package lists
     rm -rf ${UBIFS_ROOTFS_BASE}/var/lib/apt/lists/deb.*
 }
+
 # make sdcard for device
 # $1 -- block device
 # $2 -- output images dir

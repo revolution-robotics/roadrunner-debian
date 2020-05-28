@@ -97,7 +97,7 @@ usage ()
     echo "  deploy and build:                 ./${SCRIPT_NAME} --cmd deploy && sudo ./${SCRIPT_NAME} --cmd all"
     echo "  make the Linux kernel only:       sudo ./${SCRIPT_NAME} --cmd kernel"
     echo "  make rootfs only:                 sudo ./${SCRIPT_NAME} --cmd rootfs"
-    echo "  create SD card:                   sudo ./${SCRIPT_NAME} --cmd sdcard --dev /dev/sdX"
+    echo "  create bootable SD card:          sudo ./${SCRIPT_NAME} --cmd sdcard --dev /dev/sdX"
     echo "  create boot image:                sudo ./${SCRIPT_NAME} --cmd diskimage"
     echo
 }
@@ -155,32 +155,32 @@ fi
 
 while true; do
     case $1 in
-        -c|--cmd ) # script command
+        -c|--cmd) # script command
             shift
             PARAM_CMD=$1
             ;;
-        -o|--output ) # select output dir
+        -o|--output) # select output dir
             shift
             PARAM_OUTPUT_DIR=$1
             ;;
-        -d|--dev ) # SD card block device
+        -d|--dev) # SD card block device
             shift
             [ -e $1 ] && {
                 PARAM_BLOCK_DEVICE=$1
             }
             ;;
-        --debug ) # enable debug
+        --debug) # enable debug
             PARAM_DEBUG=1
             ;;
-        -h|--help ) # get help
+        -h|--help) # get help
             usage
             exit 0
             ;;
-        -- )
+        --)
             shift
             break
             ;;
-        * )
+        *)
             shift
             break
             ;;
@@ -809,10 +809,10 @@ cmd_make_sdcard ()
 
 cmd_make_diskimage ()
 {
-    local IMAGE_FILE=${G_TMP_DIR}/disk.img
+    local ISO8601=$(python -c "import re, datetime; print re.sub(r'\..*', 'Z', datetime.datetime.utcnow().isoformat()).translate(None, ':-')")
+    local IMAGE_FILE=${G_TMP_DIR}/${MACHINE}-${ISO8601}.img
     local IMAGE_SIZE=$(( 7774208 * 512 )) # 3.7 GB
     local LOOP_DEVICE
-    local STATUS
 
     pr_info "Initialize file-backed loop device"
     mkdir -p $(dirname ${IMAGE_FILE})
@@ -832,7 +832,6 @@ cmd_make_diskimage ()
     pr_info "Compressing image file..."
     gzip ${IMAGE_FILE}
     mv ${IMAGE_FILE}.gz ${PARAM_OUTPUT_DIR}
-    return $STATUS
 }
 
 cmd_make_bcmfw ()
@@ -874,49 +873,49 @@ pr_info "Command: \"$PARAM_CMD\" start..."
 make_prepare
 
 case $PARAM_CMD in
-    deploy )
+    deploy)
         cmd_make_deploy
         ;;
-    rootfs )
+    rootfs)
         cmd_make_rootfs
         ;;
-    bootloader )
+    bootloader)
         cmd_make_uboot
         ;;
-    kernel )
+    kernel)
         cmd_make_kernel
         ;;
-    modules )
+    modules)
         cmd_make_kmodules
         ;;
-    bcmfw )
+    bcmfw)
         cmd_make_bcmfw
         ;;
-    firmware )
+    firmware)
         cmd_make_firmware
         ;;
-    sdcard )
+    sdcard)
         cmd_make_sdcard
         ;;
-    diskimage )
+    diskimage)
         cmd_make_diskimage
         ;;
-    rubi )
+    rubi)
         cmd_make_rfs_ubi
         ;;
-    rtar )
+    rtar)
         cmd_make_rfs_tar
         ;;
-    all )
+    all)
         cmd_make_uboot  &&
             cmd_make_kernel &&
             cmd_make_kmodules &&
             cmd_make_rootfs
         ;;
-    clean )
+    clean)
         cmd_make_clean
         ;;
-    * )
+    *)
         pr_error "Invalid input command: \"${PARAM_CMD}\""
         ;;
 esac

@@ -64,13 +64,13 @@ Bootstrap Debian to _rootfs_ and install kernel modules and firmware with:
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rootfs
 ```
 ## Create bootable SD card
-To create a bootable SD card, with the card inserted and accessible as block device _/dev/sdX_ (e..g., _/dev/sdg_), run:
+After a successful build, to create a bootable SD card, with the card inserted and accessible as block device _/dev/sdX_ (e..g., _/dev/sdg_), run:
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c sdcard -d /dev/sdX
 ```
 ## Create bootable image file
-To create a Gzip-compressed 4 GB bootable image file (saved as
-_output/disk.img.gz_), run:
+After a successful build, to create a Gzip-compressed 4 GB bootable image file (saved as
+_output/\${MACHINE}-\${ISO8601}.img.gz_), run:
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage
 ```

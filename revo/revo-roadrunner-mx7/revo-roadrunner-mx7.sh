@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#
 readonly ARCH_CPU="32BIT"
 
 # U-Boot
