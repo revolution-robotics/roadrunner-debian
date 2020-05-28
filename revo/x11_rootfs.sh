@@ -18,16 +18,16 @@ make_debian_x11_rootfs ()
     # debootstrap --verbose --no-check-gpg --foreign --arch armhf ${DEB_RELEASE} \
     #             ${ROOTFS_BASE}/ ${PARAM_DEB_LOCAL_MIRROR}
     debootstrap --verbose  --foreign --arch armhf \
-                --keyring=/usr/share/keyrings/ubuntu-archive-keyring.gpg \
+                --keyring=/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg \
                 ${DEB_RELEASE} ${ROOTFS_BASE}/ ${PARAM_DEB_LOCAL_MIRROR}
 
     # prepare qemu
     pr_info "rootfs: debootstrap in rootfs (second-stage)"
     cp ${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static ${ROOTFS_BASE}/usr/bin/qemu-arm-static
-    mount -o bind /proc ${ROOTFS_BASE}/proc
+    mount -t proc /proc ${ROOTFS_BASE}/proc
+    mount -t sysfs /sys ${ROOTFS_BASE}/sys
     mount -o bind /dev ${ROOTFS_BASE}/dev
     mount -o bind /dev/pts ${ROOTFS_BASE}/dev/pts
-    mount -o bind /sys ${ROOTFS_BASE}/sys
     chroot $ROOTFS_BASE /debootstrap/debootstrap --second-stage
 
     # delete unused folder
@@ -46,8 +46,8 @@ make_debian_x11_rootfs ()
     cp -r ${G_VENDOR_PATH}/deb/gstreamer-imx/* \
        ${ROOTFS_BASE}/srv/local-apt-repository
     # shared-mime-info
-    cp -r ${G_VENDOR_PATH}/deb/shared-mime-info/* \
-       ${ROOTFS_BASE}/srv/local-apt-repository
+    # cp -r ${G_VENDOR_PATH}/deb/shared-mime-info/* \
+    #    ${ROOTFS_BASE}/srv/local-apt-repository
 
     # add mirror to source list
     echo "deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
@@ -63,10 +63,10 @@ Pin-Priority: 500
 " > etc/apt/preferences.d/backports
 
     # maximize local repo priority
-    echo "Package: *
+    echo 'Package: *
 Pin: origin ""
 Pin-Priority: 1000
-" > etc/apt/preferences.d/local
+' > etc/apt/preferences.d/local
 
     echo "
 # /dev/mmcblk0p1  /boot           vfat    defaults        0       0
@@ -108,8 +108,7 @@ protected_install ()
     local repeated_cnt=5
     local RET_CODE=1
 
-    for (( c=0; c < \${repeated_cnt}; c++ ))
-    do
+    for (( c=0; c < \${repeated_cnt}; c++ )); do
         apt-get install -y \${_name} && {
             RET_CODE=0
             break
@@ -224,6 +223,10 @@ protected_install shared-mime-info
 
 # disable the hostapd service by default
 # systemctl disable hostapd.service
+
+# ifupdown is superceded by NetworkManager
+apt-get -y purge ifupdown
+rm -f /etc/network/interfaces
 
 # can support
 protected_install can-utils
@@ -345,8 +348,8 @@ EOF
     install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/wifi.sh \
             ${ROOTFS_BASE}/etc/pm/sleep.d/
 
-    tar -xzf ${G_VENDOR_PATH}/deb/shared-mime-info/mime_image_prebuilt.tar.gz -C \
-        ${ROOTFS_BASE}/
+    # tar -xzf ${G_VENDOR_PATH}/deb/shared-mime-info/mime_image_prebuilt.tar.gz -C \
+    #     ${ROOTFS_BASE}/
     ## end packages stage ##
     [ "${G_USER_PACKAGES}" != "" ] && {
 
@@ -484,8 +487,7 @@ make_x11_sdcard ()
         return 1
     fi
 
-    for (( i=0; i < 10; i++ ))
-    do
+    for (( i=0; i < 10; i++ )); do
         if [ $(mount | grep -c ${LPARAM_BLOCK_DEVICE}${part}$i) -ne 0 ]; then
             umount ${LPARAM_BLOCK_DEVICE}${part}$i
         fi
@@ -574,15 +576,14 @@ make_x11_sdcard ()
     }
 
     # Delete the partitions
-    for (( i=0; i < 10; i++ ))
-    do
+    for (( i=0; i < 10; i++ )); do
         if [ -e ${LPARAM_BLOCK_DEVICE}${part}${i} ]; then
             dd if=/dev/zero of=${LPARAM_BLOCK_DEVICE}${part}$i bs=512 count=1024 2> /dev/null || true
         fi
     done
     sync
 
-    ( (echo d; echo 1; echo d; echo 2; echo d; echo 3; echo d; echo w) | fdisk ${LPARAM_BLOCK_DEVICE} &> /dev/null) || true
+    ( (echo d; echo 1; echo d; echo 2; echo d; echo 3; echo d; echo w) | fdisk ${LPARAM_BLOCK_DEVICE} >/dev/null 2>&1) || true
     sync
 
     dd if=/dev/zero of=${LPARAM_BLOCK_DEVICE} bs=1024 count=4096
@@ -617,9 +618,9 @@ EOF
     rootfs_size=$(( total_size - boot_rom_sizeb - SPARE_SIZE ))
 
     pr_info "ROOT SIZE=${rootfs_size}MB TOTAl SIZE=${total_size}MB BOOTROM SIZE=${boot_rom_sizeb}MB"
-    sleep 2; sync
 
     partprobe ${LPARAM_BLOCK_DEVICE}
+    sleep 2; sync
 
     # Format the partitions
     format_sdcard

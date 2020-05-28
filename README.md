@@ -53,6 +53,12 @@ Build kernel modules (and install them under _rootfs_) with:
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c modules
 ```
 ## Populate root filesystem with Debian, kernel modules and firmware
+Import a Debian GPG-signing key so that the integrity of installed packages
+can be verified:
+```shell
+curl https://ftp-master.debian.org/keys/release-10.asc |
+sudo gpg --import --no-default-keyring --keyring /usr/share/keyrings/debian-buster-release.gpg
+```
 Bootstrap Debian to _rootfs_ and install kernel modules and firmware with:
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rootfs
