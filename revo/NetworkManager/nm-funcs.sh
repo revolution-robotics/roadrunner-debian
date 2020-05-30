@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# @(#) wifi-funcs.sh
+# @(#) nm-funcs.sh
 #
 # Copyright © 2020, Revolution Robotics, Inc.
 #
@@ -16,6 +16,42 @@ mapfile -t DEVICES < <(
     $NMCLI --terse --field GENERAL.DEVICE device show |
         $SED -e '/^$/d' -e 's/.*://'
 )
+
+get_managed_interfaces ()
+{
+    local interface_type=$1
+
+    # interface=$(ls /sys/class/ieee80211/*/device/net/)
+    local -a interfaces
+    local managed_interface
+    local interface
+    local device
+    local status
+
+    for device in "${DEVICES[@]}"; do
+        device_type=$(
+            $NMCLI --terse --field GENERAL.TYPE device show "$device" |
+                $SED -e 's/.*://'
+                   )
+        if test ."$device_type" = ."$interface_type"; then
+            interfaces+=($device)
+        fi
+    done
+
+    if (( ${#interfaces[*]} == 0 )); then
+        echo "${FUNCNAME[0]}: $interface_type interface not found" >&2
+        return 1
+    fi
+
+    for interface in "${interfaces[@]}"; do
+        status=$($NMCLI | $AWK '/^'$interface':/ { print $2 }')
+        if test ."$status" = .'unmanaged'; then
+            continue
+        else
+            echo $interface
+        fi
+    done
+}
 
 # get_wifi_interface: Return WiFi interface managed by NetworkManager.
 get_wifi_interface ()

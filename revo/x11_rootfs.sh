@@ -276,12 +276,23 @@ EOF
     # fourth-stage
 
     # BEGIN -- REVO i.MX7D updates
-    install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/bash.bashrc \
-            ${ROOTFS_BASE}/etc
-    install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/profile \
-            ${ROOTFS_BASE}/etc
-    install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/NetworkManager.conf \
-            ${ROOTFS_BASE}/etc/NetworkManager
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/bash.bashrc" \
+            "${ROOTFS_BASE}/etc"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/profile" \
+            "${ROOTFS_BASE}/etc"
+    install -m 0755 "${G_VENDOR_PATH}/NetworkManager/access-point.sh" \
+            "${ROOTFS_BASE}/usr/lib/NetworkManager"
+    install -m 0755 "${G_VENDOR_PATH}/NetworkManager/wifi-client.sh" \
+            "${ROOTFS_BASE}/usr/lib/NetworkManager"
+    install -m 0755 "${G_VENDOR_PATH}/NetworkManager/nm-funcs.sh" \
+            "${ROOTFS_BASE}/usr/lib/NetworkManager"
+    install -m 0755 "${G_VENDOR_PATH}/NetworkManager/ip-funcs.sh" \
+            "${ROOTFS_BASE}/usr/lib/NetworkManager"
+    install -m 0750 "${G_VENDOR_PATH}/NetworkManager/50-default-wifi-ap" \
+            "${ROOTFS_BASE}/etc/NetworkManager/dispatcher.d"
+    install -m 0755 "${G_VENDOR_PATH}/NetworkManager/NetworkManager.conf" \
+            "${ROOTFS_BASE}/etc/NetworkManager"
+    rm -f "${ROOTFS_BASE}/etc/NetworkManager/dispatcher.d/"*ifupdown
     # END -- REVO i.MX7D update
 
     # install variscite-bt service

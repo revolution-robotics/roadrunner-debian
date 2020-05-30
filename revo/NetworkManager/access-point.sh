@@ -27,7 +27,7 @@ script_dir=${0%/*}
 declare -r DEFAULT_IP4_ADDR='10.100.0.1/24'
 
 source "${script_dir}/ip-funcs.sh"
-source "${script_dir}/wifi-funcs.sh"
+source "${script_dir}/nm-funcs.sh"
 
 if (( $# == 0 )) || [[ ."$1" =~ ^\.(-h|--h|-\?) ]]; then
     $CAT <<EOF

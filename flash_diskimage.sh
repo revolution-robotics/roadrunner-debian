@@ -4,6 +4,9 @@
 #
 # Copyright © 2020 Revolution Robotics, Inc.
 #
+declare -r COMPRESSION_SUFFIX='gz'
+declare -r ZCAT='zcat'
+
 pr_error ()
 {
     echo "E: $@"
@@ -24,7 +27,6 @@ get_range ()
         echo "$(sed -e 's/ /|/g' <<< $(echo $(seq $size)))"
     fi
 }
-
 
 select_from_list ()
 {
@@ -63,12 +65,11 @@ select_from_list ()
 get_disk_images ()
 {
     local -a archives
-    local -a diskimages
     local kind
 
-    mapfile -t archives < <(ls output/*.gz)
+    mapfile -t archives < <(ls output/*.$COMPRESSION_SUFFIX)
     for archive in "${archives[@]}"; do
-        kind=$(zcat "$archive" | file - | awk '{ print $2 }')
+        kind=$($ZCAT "$archive" | file - | awk '{ print $2 }')
         case "$kind" in
             DOS/MBR)
                 echo "$archive"
@@ -79,17 +80,19 @@ get_disk_images ()
 
 get_removable_devices ()
 {
-    local devices
+    local -a devices
     local device
     local vendor
     local model
 
-    mapfile -t devices < <(grep -lv ^0$ '/sys/block/'*'/removable' |
-                               sed -e 's;removable$;device/uevent;' |
-                               xargs grep -l '^DRIVER=sd$' |
-                               sed -e 's;device/uevent;size;' |
-                               xargs grep -lv '^0' |
-                               cut -d/ -f4)
+    mapfile -t devices < <(
+        grep -lv ^0$ '/sys/block/'*'/removable' |
+            sed -e 's;removable$;device/uevent;' |
+            xargs grep -l '^DRIVER=sd$' |
+            sed -e 's;device/uevent;size;' |
+            xargs grep -lv '^0' |
+            cut -d/ -f4
+    )
 
     for device in "${devices[@]}"; do
         vendor=$(sed -e 's/^  *//' -e 's/  *$//' "/sys/block/${device}/device/vendor")
@@ -118,34 +121,53 @@ is_loop_device ()
 {
     local device=$1
 
-    (( $(stat -c '%t' "$device") == ${LOOP_MAJOR} ))
+    (( $(stat -c '%t' "$device") == LOOP_MAJOR ))
 }
 
 
 is_removable_device ()
 {
-    local device=$1
+    local device=${1#/dev/}
 
     local removable
+    local drive
+    local gdbus_resp
 
     # Check that parameter is a valid block device
-    if [ ! -b "$device" ]; then
-        pr_error "$device: Not a valid block device"
+    if [ ! -b "/dev/$device" ]; then
+        pr_error "/dev/$device: Not a valid block device"
         return 1
     fi
 
     # Check that /sys/block/$dev exists
-    if [ ! -d "/sys/block/${device#/dev/}" ]; then
-        pr_error "/sys/block/${device#/dev/}: No such directory"
+    if [ ! -d "/sys/block/$device" ]; then
+        pr_error "/sys/block/$device: No such directory"
         return 1
     fi
 
     # Get device parameters
-    removable=$(cat /sys/block/${device#/dev/}/removable)
+    removable=$(cat "/sys/block/${device}/removable")
+
+    # Non removable SD card readers require additional check
+    if test ."$removable" != .'1'; then
+        local drive=$(
+            udisksctl info -b "/dev/$device" |
+                grep "Drive:"|
+                cut -d"'" -f 2
+              )
+        local gdbus_resp=$(
+            gdbus call --system --dest org.freedesktop.UDisks2 \
+                  --object-path ${drive} \
+                  --method org.freedesktop.DBus.Properties.Get org.freedesktop.UDisks2.Drive MediaRemovable 2>/dev/null
+              )
+        if [[ ."$gdbus_resp" =~ ^\..*true ]]; then
+            removable=1
+        fi
+    fi
 
     # Check that device is either removable or loop
-    if [ "$removable" != "1" ] && ! is_loop_device "$device"; then
-        pr_error "$device: Not a removable device"
+    if [ "$removable" != "1" ] && ! is_loop_device "/dev/$device"; then
+        pr_error "/dev/$device: Not a removable device"
         return 1
     fi
 }
@@ -154,10 +176,9 @@ flash_diskimage ()
 {
     local image=$1
     local device=$2
-    local block_size
-    local size_block
-    local size_bytes
-    local size_gib
+    local total_size
+    local total_size_bytes
+    local total_size_gib
     local -i i
 
     if test ! -e "$image"; then
@@ -176,25 +197,24 @@ flash_diskimage ()
         fi
     fi
 
-    block_size=$(cat /sys/class/block/${device#/dev/}/queue/physical_block_size)
-    size_blocks=$(cat /sys/class/block/${device#/dev/}/size)
-    size_bytes=$(( size_blocks * block_size ))
-    size_gib=$(bc <<< "scale=1; ${size_bytes}/(1024*1024*1024)")
+    total_size=$(blockdev --getsz "$LPARAM_BLOCK_DEVICE")
+    total_size_bytes=$(( total_size * 512 ))
+    total_size_gib=$(bc <<< "scale=1; ${total_size_bytes}/(1024*1024*1024)")
 
     echo '============================================='
     echo "Image: $image"
-    echo "Device: $device, ${size_gib} GB"
+    echo "Device: $device, ${size_gib} GiB"
     echo '============================================='
     read -p "Press Enter to continue"
 
     pr_info "Flashing image to device..."
 
     for (( i=0; i < 10; i++ )); do
-        if test -n "$(findmnt ${device}${i})"; then
+        if test -n "$(findmnt "${device}${i}")"; then
             sudo umount -f "${device}${i}"
         fi
     done
-    zcat "$image" | sudo dd of="$device" bs=1M
+    $ZCAT "$image" | sudo dd of="$device" bs=1M
 }
 
 
