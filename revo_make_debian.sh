@@ -19,48 +19,48 @@ SCRIPT_NAME=${0##*/}
 
 #### Exports Variables ####
 #### global variables ####
-readonly ABSOLUTE_FILENAME=$(readlink -e "$0")
-readonly ABSOLUTE_DIRECTORY=$(dirname ${ABSOLUTE_FILENAME})
-readonly SCRIPT_POINT=${ABSOLUTE_DIRECTORY}
-readonly SCRIPT_START_DATE=$(date +%Y%m%d)
-readonly LOOP_MAJOR=7
+declare -r ABSOLUTE_FILENAME=$(readlink -e "$0")
+declare -r ABSOLUTE_DIRECTORY=$(dirname "$ABSOLUTE_FILENAME")
+declare -r SCRIPT_POINT=$ABSOLUTE_DIRECTORY
+declare -r SCRIPT_START_DATE=$(date +%Y%m%d)
+declare -r LOOP_MAJOR=7
 declare -r COMPRESSION_SUFFIX=gz
 declare -r GZIP=gzip
 declare -r ZCAT=zcat
 
 # default mirror
-readonly DEF_DEBIAN_MIRROR="https://deb.debian.org/debian/"
-readonly DEB_RELEASE="buster"
-readonly DEF_ROOTFS_TARBALL_NAME="rootfs.tar.gz"
+declare -r DEF_DEBIAN_MIRROR=https://deb.debian.org/debian/
+declare -r DEB_RELEASE=buster
+declare -r DEF_ROOTFS_TARBALL_NAME=rootfs.tar.gz
 
 # base paths
-readonly DEF_BUILDENV="${ABSOLUTE_DIRECTORY}"
-readonly DEF_SRC_DIR="${DEF_BUILDENV}/src"
-readonly G_ROOTFS_DIR="${DEF_BUILDENV}/rootfs"
-readonly G_TMP_DIR="${DEF_BUILDENV}/tmp"
-readonly G_TOOLS_PATH="${DEF_BUILDENV}/toolchain"
-if [[ ."$MACHINE" =~ \.(imx8m-var-dart|imx8mm-var-dart|imx8qxp-var-som|imx8qm-var-som|imx6ul-var-dart|var-som-mx7) ]]; then
-    readonly G_VENDOR_PATH="${DEF_BUILDENV}/variscite"
+declare -r DEF_BUILDENV=$ABSOLUTE_DIRECTORY
+declare -r DEF_SRC_DIR=${DEF_BUILDENV}/src
+declare -r G_ROOTFS_DIR=${DEF_BUILDENV}/rootfs
+declare -r G_TMP_DIR=${DEF_BUILDENV}/tmp
+declare -r G_TOOLS_PATH=${DEF_BUILDENV}/toolchain
+if [[ ."$MACHINE" =~ \.(revo-roadrunner-mx7) ]]; then
+    declare -r G_VENDOR_PATH=${DEF_BUILDENV}/revo
 else
-    readonly G_VENDOR_PATH="${DEF_BUILDENV}/revo"
+    declare -r G_VENDOR_PATH=${DEF_BUILDENV}/variscite
 fi
 
 #64 bit CROSS_COMPILER config and paths
-readonly G_CROSS_COMPILER_64BIT_NAME="gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu"
-readonly G_CROSS_COMPILER_ARCHIVE_64BIT="${G_CROSS_COMPILER_64BIT_NAME}.tar.xz"
-readonly G_EXT_CROSS_64BIT_COMPILER_LINK="http://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/aarch64-linux-gnu/${G_CROSS_COMPILER_ARCHIVE_64BIT}"
-readonly G_CROSS_COMPILER_64BIT_PREFIX="aarch64-linux-gnu-"
+declare -r G_CROSS_COMPILER_64BIT_NAME=gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu
+declare -r G_CROSS_COMPILER_ARCHIVE_64BIT=${G_CROSS_COMPILER_64BIT_NAME}.tar.xz
+declare -r G_EXT_CROSS_64BIT_COMPILER_LINK=http://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/aarch64-linux-gnu/${G_CROSS_COMPILER_ARCHIVE_64BIT}
+declare -r G_CROSS_COMPILER_64BIT_PREFIX=aarch64-linux-gnu-
 
 #32 bit CROSS_COMPILER config and paths
-readonly G_CROSS_COMPILER_32BIT_NAME="gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf"
-readonly G_CROSS_COMPILER_ARCHIVE_32BIT="${G_CROSS_COMPILER_32BIT_NAME}.tar.xz"
-readonly G_EXT_CROSS_32BIT_COMPILER_LINK="http://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/arm-linux-gnueabihf/${G_CROSS_COMPILER_ARCHIVE_32BIT}"
-readonly G_CROSS_COMPILER_32BIT_PREFIX="arm-linux-gnueabihf-"
+declare -r G_CROSS_COMPILER_32BIT_NAME=gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf
+declare -r G_CROSS_COMPILER_ARCHIVE_32BIT=${G_CROSS_COMPILER_32BIT_NAME}.tar.xz
+declare -r G_EXT_CROSS_32BIT_COMPILER_LINK=http://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/arm-linux-gnueabihf/${G_CROSS_COMPILER_ARCHIVE_32BIT}
+declare -r G_CROSS_COMPILER_32BIT_PREFIX=arm-linux-gnueabihf-
 
-readonly G_CROSS_COMPILER_JOPTION="-j 6"
+declare -r G_CROSS_COMPILER_JOPTION="-j 6"
 
 #### user rootfs packages ####
-readonly G_USER_PACKAGES="audacious bash-completion binutils cockpit cockpit-networkmanager curl dnsutils ed git openvpn network-manager-openvpn pciutils python3-cryptography python3-dateutil python3-lxml python3-pip python3-psutil python3-websockets python3-zmq sudo traceroute"
+declare -r G_USER_PACKAGES="audacious bash-completion binutils cockpit cockpit-networkmanager curl dnsutils ed git openvpn network-manager-openvpn pciutils python3-cryptography python3-dateutil python3-lxml python3-pip python3-psutil python3-websockets python3-zmq sudo traceroute"
 
 export LC_ALL=C
 
@@ -111,41 +111,41 @@ Examples of use:
 EOF
 }
 
-if [ ! -e ${G_VENDOR_PATH}/${MACHINE}/${MACHINE}.sh ]; then
-    echo "Illegal MACHINE: ${MACHINE}"
+if test ! -e "${G_VENDOR_PATH}/${MACHINE}/${MACHINE}.sh"; then
+    echo "Illegal MACHINE: $MACHINE"
     echo
     usage
     exit 1
 fi
 
-source ${G_VENDOR_PATH}/${MACHINE}/${MACHINE}.sh
+source "${G_VENDOR_PATH}/${MACHINE}/${MACHINE}.sh"
 
 # Setup cross compiler path, name, kernel dtb path, kernel image type, helper scripts
-if [ "${ARCH_CPU}" = "64BIT" ]; then
-    G_CROSS_COMPILER_NAME=${G_CROSS_COMPILER_64BIT_NAME}
-    G_EXT_CROSS_COMPILER_LINK=${G_EXT_CROSS_64BIT_COMPILER_LINK}
-    G_CROSS_COMPILER_ARCHIVE=${G_CROSS_COMPILER_ARCHIVE_64BIT}
-    G_CROSS_COMPILER_PREFIX=${G_CROSS_COMPILER_64BIT_PREFIX}
-    ARCH_ARGS="arm64"
-    BUILD_IMAGE_TYPE="Image.gz"
-    KERNEL_BOOT_IMAGE_SRC="arch/arm64/boot/"
-    KERNEL_DTB_IMAGE_PATH="arch/arm64/boot/dts/freescale/"
+if test ."$ARCH_CPU" = .'64BIT'; then
+    declare G_CROSS_COMPILER_NAME=$G_CROSS_COMPILER_64BIT_NAME
+    declare G_EXT_CROSS_COMPILER_LINK=$G_EXT_CROSS_64BIT_COMPILER_LINK
+    declare G_CROSS_COMPILER_ARCHIVE=$G_CROSS_COMPILER_ARCHIVE_64BIT
+    declare G_CROSS_COMPILER_PREFIX=$G_CROSS_COMPILER_64BIT_PREFIX
+    declare ARCH_ARGS=arm64
+    declare BUILD_IMAGE_TYPE=Image.gz
+    declare KERNEL_BOOT_IMAGE_SRC=arch/arm64/boot/
+    declare KERNEL_DTB_IMAGE_PATH=arch/arm64/boot/dts/freescale/
     # Include weston backend rootfs helper
-    source ${G_VENDOR_PATH}/weston_rootfs.sh
-elif [ "${ARCH_CPU}" = "32BIT" ]; then
-    G_CROSS_COMPILER_NAME=${G_CROSS_COMPILER_32BIT_NAME}
-    G_EXT_CROSS_COMPILER_LINK=${G_EXT_CROSS_32BIT_COMPILER_LINK}
-    G_CROSS_COMPILER_ARCHIVE=${G_CROSS_COMPILER_ARCHIVE_32BIT}
-    G_CROSS_COMPILER_PREFIX=${G_CROSS_COMPILER_32BIT_PREFIX}
-    ARCH_ARGS="arm"
+    source "${G_VENDOR_PATH}/weston_rootfs.sh"
+elif test ."$ARCH_CPU" = .'32BIT'; then
+    declare G_CROSS_COMPILER_NAME=$G_CROSS_COMPILER_32BIT_NAME
+    declare G_EXT_CROSS_COMPILER_LINK=$G_EXT_CROSS_32BIT_COMPILER_LINK
+    declare G_CROSS_COMPILER_ARCHIVE=$G_CROSS_COMPILER_ARCHIVE_32BIT
+    declare G_CROSS_COMPILER_PREFIX=$G_CROSS_COMPILER_32BIT_PREFIX
+    declare ARCH_ARGS=arm
     # Include x11 backend rootfs helper
-    source ${G_VENDOR_PATH}/x11_rootfs.sh
+    source "${G_VENDOR_PATH}/x11_rootfs.sh"
 else
     echo " Error unknown CPU type"
     exit 1
 fi
 
-G_CROSS_COMPILER_PATH="${G_TOOLS_PATH}/${G_CROSS_COMPILER_NAME}/bin"
+declare G_CROSS_COMPILER_PATH=${G_TOOLS_PATH}/${G_CROSS_COMPILER_NAME}/bin
 
 ## parse input arguments ##
 declare -r SHORTOPTS='c:d:i:o:h'
@@ -206,10 +206,10 @@ while true; do
 done
 
 # enable trace option in debug mode
-[ "${PARAM_DEBUG}" = "1" ] && {
+if test ."$PARAM_DEBUG" = .'1'; then
     echo "Debug mode enabled!"
     set -x
-}
+fi
 
 if test ."$PARAM_CMD" != .'flashimage'; then
     echo "=============== Build summary ==============="
@@ -223,7 +223,7 @@ if test ."$PARAM_CMD" != .'flashimage'; then
 fi
 
 ## declarate dynamic variables ##
-readonly G_ROOTFS_TARBALL_PATH="${PARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}"
+declare -r G_ROOTFS_TARBALL_PATH="${PARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}"
 
 ###### local functions ######
 
@@ -267,37 +267,39 @@ pr_debug ()
 get_git_src ()
 {
     # clone src code
-    git clone $1 -b $2 $3
-    cd $3
-    git reset --hard $4
-    cd -
+    git clone "$1" -b "$2" "$3"
+    (cd "$3" && git reset --hard "$4")
 }
 
 # get remote file
 # $1 - remote file
-# $2 - local file
+# $2 - local directory
 get_remote_file ()
 {
+    uri=$1
+    destdir=$2
+
     # download remote file
-    wget -c $1 -O $2
+    # wget -c "$1" -O "$2"
+    (cd "$destdir" && curl -C - -LO "$uri")
 }
 
 make_prepare ()
 {
     # create src dir
-    mkdir -p ${DEF_SRC_DIR}
+    mkdir -p "$DEF_SRC_DIR"
 
     # create toolchain dir
-    mkdir -p ${G_TOOLS_PATH}
+    mkdir -p "$G_TOOLS_PATH"
 
     # create rootfs dir
-    mkdir -p ${G_ROOTFS_DIR}
+    mkdir -p "$G_ROOTFS_DIR"
 
     # create out dir
-    mkdir -p ${PARAM_OUTPUT_DIR}
+    mkdir -p "$PARAM_OUTPUT_DIR"
 
     # create tmp dir
-    mkdir -p ${G_TMP_DIR}
+    mkdir -p "$G_TMP_DIR"
 }
 
 
@@ -306,23 +308,20 @@ make_prepare ()
 # $2 -- output tarball file (full name)
 make_tarball ()
 {
-    cd $1
+    (
+        cd "$1"
+        chown root:root .
+        pr_info "make tarball from folder $1"
+        pr_info "Remove old tarball $2"
+        rm -f "$2"
 
-    chown root:root .
-    pr_info "make tarball from folder $1"
-    pr_info "Remove old tarball $2"
-    rm -f $2
+        pr_info "Create $2"
 
-    pr_info "Create $2"
-
-    RETVAL=0
-    tar czf $2 . || {
-        RETVAL=1
-        rm -f $2
-    }
-
-    cd -
-    return $RETVAL
+        tar czf "$2" . || {
+            rm -f "$2"
+            exit 1
+        }
+    )
 }
 
 # make Linux kernel image & dtbs
@@ -334,24 +333,21 @@ make_tarball ()
 make_kernel ()
 {
     pr_info "make kernel .config"
-    make ARCH=${ARCH_ARGS} CROSS_COMPILE=$1 ${G_CROSS_COMPILER_JOPTION} -C $4 $2
+    make ARCH="$ARCH_ARGS" CROSS_COMPILE="$1" $G_CROSS_COMPILER_JOPTION -C "$4" "$2"
 
     pr_info "make kernel"
-    if [ ! -z "${UIMAGE_LOADADDR}" ]; then
-        IMAGE_EXTRA_ARGS="LOADADDR=${UIMAGE_LOADADDR}"
+    if test ! -z "$UIMAGE_LOADADDR"; then
+        IMAGE_EXTRA_ARGS=LOADADDR=$UIMAGE_LOADADDR
     fi
-    echo "make CROSS_COMPILE=$1 ARCH=${ARCH_ARGS} ${G_CROSS_COMPILER_JOPTION} \
-         ${IMAGE_EXTRA_ARGS} -C $4 ${BUILD_IMAGE_TYPE}"
-    make CROSS_COMPILE=$1 ARCH=${ARCH_ARGS} ${G_CROSS_COMPILER_JOPTION} \
-         ${IMAGE_EXTRA_ARGS} -C $4 ${BUILD_IMAGE_TYPE}
+    make CROSS_COMPILE="$1" ARCH="$ARCH_ARGS" $G_CROSS_COMPILER_JOPTION \
+         $IMAGE_EXTRA_ARGS -C "$4" "$BUILD_IMAGE_TYPE"
 
     pr_info "make $3"
-    echo "make CROSS_COMPILE=$1 ARCH=${ARCH_ARGS} ${G_CROSS_COMPILER_JOPTION} -C $4 $3"
-    make CROSS_COMPILE=$1 ARCH=${ARCH_ARGS} ${G_CROSS_COMPILER_JOPTION} -C $4 $3
+    make CROSS_COMPILE="$1" ARCH="$ARCH_ARGS" $G_CROSS_COMPILER_JOPTION -C "$4" "$3"
 
     pr_info "Copy kernel and dtb files to output dir: $5"
-    cp ${4}/${KERNEL_BOOT_IMAGE_SRC}/${BUILD_IMAGE_TYPE} ${5}/
-    cp ${4}/${KERNEL_DTB_IMAGE_PATH}*.dtb ${5}/
+    cp "${4}/${KERNEL_BOOT_IMAGE_SRC}/${BUILD_IMAGE_TYPE}" "$5"
+    cp "${4}/${KERNEL_DTB_IMAGE_PATH}"*.dtb "$5"
 }
 
 # clean kernel
@@ -360,7 +356,7 @@ clean_kernel ()
 {
     pr_info "Clean the Linux kernel"
 
-    make ARCH=${ARCH_ARGS} -C $1 mrproper
+    make ARCH="$ARCH_ARGS" -C "$1" mrproper
 }
 
 # make Linux kernel modules
@@ -371,10 +367,10 @@ clean_kernel ()
 make_kernel_modules ()
 {
     pr_info "make kernel defconfig"
-    make ARCH=${ARCH_ARGS} CROSS_COMPILE=$1 ${G_CROSS_COMPILER_JOPTION} -C $3 $2
+    make ARCH="$ARCH_ARGS" CROSS_COMPILE="$1" $G_CROSS_COMPILER_JOPTION -C "$3" "$2"
 
     pr_info "Compiling kernel modules"
-    make ARCH=${ARCH_ARGS} CROSS_COMPILE=$1 ${G_CROSS_COMPILER_JOPTION} -C $3 modules
+    make ARCH="$ARCH_ARGS" CROSS_COMPILE="$1" $G_CROSS_COMPILER_JOPTION -C "$3" modules
 }
 
 # install the Linux kernel modules
@@ -385,16 +381,12 @@ make_kernel_modules ()
 install_kernel_modules ()
 {
     pr_info "Installing kernel headers to $4"
-    echo "make ARCH=${ARCH_ARGS} CROSS_COMPILE=$1 ${G_CROSS_COMPILER_JOPTION} -C $3 \
-         INSTALL_HDR_PATH=$4/usr/local headers_install"
-    make ARCH=${ARCH_ARGS} CROSS_COMPILE=$1 ${G_CROSS_COMPILER_JOPTION} -C $3 \
-         INSTALL_HDR_PATH=$4/usr/local headers_install
+    make ARCH="$ARCH_ARGS" CROSS_COMPILE="$1" $G_CROSS_COMPILER_JOPTION -C "$3" \
+         INSTALL_HDR_PATH="$4/usr/local" headers_install
 
     pr_info "Installing kernel modules to $4"
-    echo "make ARCH=${ARCH_ARGS} CROSS_COMPILE=$1 ${G_CROSS_COMPILER_JOPTION} -C $3 \
-         INSTALL_MOD_PATH=$4 modules_install"
-    make ARCH=${ARCH_ARGS} CROSS_COMPILE=$1 ${G_CROSS_COMPILER_JOPTION} -C $3 \
-         INSTALL_MOD_PATH=$4 modules_install
+    make ARCH="$ARCH_ARGS" CROSS_COMPILE="$1" $G_CROSS_COMPILER_JOPTION -C "$3" \
+         INSTALL_MOD_PATH="$4" modules_install
 }
 
 # make U-Boot
@@ -402,40 +394,31 @@ install_kernel_modules ()
 # $2 Output dir
 make_uboot ()
 {
-    pr_info "Make U-Boot: ${G_UBOOT_DEF_CONFIG_MMC}"
+    pr_info "Make U-Boot: $G_UBOOT_DEF_CONFIG_MMC"
 
     # clean work directory
-    echo "make ARCH=${ARCH_ARGS} -C $1 \
-         CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-         ${G_CROSS_COMPILER_JOPTION} mrproper"
-    make ARCH=${ARCH_ARGS} -C $1 \
-         CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-         ${G_CROSS_COMPILER_JOPTION} mrproper
+    make ARCH="$ARCH_ARGS" -C "$1" \
+         CROSS_COMPILE="${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
+         $G_CROSS_COMPILER_JOPTION mrproper
 
     # make U-Boot mmc defconfig
-    echo "make ARCH=${ARCH_ARGS} -C $1 \
-         CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-         ${G_CROSS_COMPILER_JOPTION} ${G_UBOOT_DEF_CONFIG_MMC}"
-    make ARCH=${ARCH_ARGS} -C $1 \
-         CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-         ${G_CROSS_COMPILER_JOPTION} ${G_UBOOT_DEF_CONFIG_MMC}
+    make ARCH="$ARCH_ARGS" -C "$1" \
+         CROSS_COMPILE="${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
+         $G_CROSS_COMPILER_JOPTION "$G_UBOOT_DEF_CONFIG_MMC"
 
     # make U-Boot
-    echo "make -C $1 \
-         CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-         ${G_CROSS_COMPILER_JOPTION}"
-    make -C $1 \
-         CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-         ${G_CROSS_COMPILER_JOPTION}
+    make -C "$1" \
+         CROSS_COMPILE="${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
+         $G_CROSS_COMPILER_JOPTION
 
     # make fw_printenv
-    make envtools -C $1 \
-         CROSS_COMPILE=${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-         ${G_CROSS_COMPILER_JOPTION}
+    make envtools -C "$1" \
+         CROSS_COMPILE="${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
+         $G_CROSS_COMPILER_JOPTION
 
-    cp ${1}/tools/env/fw_printenv $2
+    cp "${1}/tools/env/fw_printenv" "$2"
 
-    if [ "${MACHINE}" = "imx8qxp-var-som" ]; then
+    if test ."$MACHINE" = .'imx8qxp-var-som'; then
         cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/scfw_tcm.bin \
            src/imx-mkimage/iMX8QX/
         cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/bl31-imx8qx.bin \
@@ -449,7 +432,7 @@ make_uboot ()
         cp ${DEF_SRC_DIR}/imx-mkimage/iMX8QX/flash.bin \
            ${DEF_SRC_DIR}/imx-mkimage/${G_UBOOT_NAME_FOR_EMMC}
         cp ${G_UBOOT_NAME_FOR_EMMC} ${2}/${G_UBOOT_NAME_FOR_EMMC}
-    elif [ "${MACHINE}" = "imx8m-var-dart" ]; then
+    elif test ."$MACHINE" = .'imx8m-var-dart'; then
         cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/bl31-imx8mq.bin \
            src/imx-mkimage/iMX8M/bl31.bin
         cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/signed_hdmi_imx8m.bin \
@@ -472,7 +455,7 @@ make_uboot ()
         cp ${DEF_SRC_DIR}/imx-mkimage/iMX8M/flash.bin \
            ${DEF_SRC_DIR}/imx-mkimage/${G_UBOOT_NAME_FOR_EMMC}
         cp ${G_UBOOT_NAME_FOR_EMMC} ${2}/${G_UBOOT_NAME_FOR_EMMC}
-    elif [ "${MACHINE}" = "imx8mm-var-dart" ]; then
+    elif test ."$MACHINE" = .'imx8mm-var-dart'; then
         cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/bl31-imx8mm.bin \
            src/imx-mkimage/iMX8M/bl31.bin
         cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/lpddr4_pmu_train_1d_imem.bin \
@@ -493,7 +476,7 @@ make_uboot ()
         cp ${DEF_SRC_DIR}/imx-mkimage/iMX8M/flash.bin \
            ${DEF_SRC_DIR}/imx-mkimage/${G_UBOOT_NAME_FOR_EMMC}
         cp ${G_UBOOT_NAME_FOR_EMMC} ${2}/${G_UBOOT_NAME_FOR_EMMC}
-    elif [ "${MACHINE}" = "imx8qm-var-som" ]; then
+    elif test ."$MACHINE" = .'imx8qm-var-som'; then
         cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/scfw_tcm.bin \
            src/imx-mkimage/iMX8QM/
         cp ${G_VENDOR_PATH}/${MACHINE}/imx-boot-tools/bl31-imx8qm.bin \
@@ -507,9 +490,9 @@ make_uboot ()
            ${DEF_SRC_DIR}/imx-mkimage/${G_UBOOT_NAME_FOR_EMMC}
         cp ${G_UBOOT_NAME_FOR_EMMC} ${2}/${G_UBOOT_NAME_FOR_EMMC}
         cp ${1}/tools/env/fw_printenv ${2}
-    elif [ "${MACHINE}" = "imx6ul-var-dart" ] ||
-             [ "${MACHINE}" = "var-som-mx7" ] ||
-             [ "${MACHINE}" = "revo-roadrunner-mx7" ]; then
+    elif test ."$MACHINE" = .'imx6ul-var-dart' ||
+             test ."$MACHINE" = .'var-som-mx7' ||
+             test ."$MACHINE" = .'revo-roadrunner-mx7'; then
         mv ${2}/fw_printenv ${2}/fw_printenv-mmc
         #copy MMC SPL, u-boot, SPL binaries
         cp ${1}/SPL ${2}/${G_SPL_NAME_FOR_EMMC}
@@ -552,44 +535,44 @@ make_uboot ()
 #  $4 -- ubi file name
 make_ubi ()
 {
-    readonly local _rootfs=$1
-    readonly local _tmp=$2
-    readonly local _output=$3
-    readonly local _ubi_file_name=$4
+    local _rootfs=$1
+    local _tmp=$2
+    local _output=$3
+    local _ubi_file_name=$4
 
-    readonly local UBI_CFG="${_tmp}/ubi.cfg"
-    readonly local UBIFS_IMG="${_tmp}/rootfs.ubifs"
-    readonly local UBI_IMG="${_output}/${_ubi_file_name}"
-    readonly local UBIFS_ROOTFS_DIR="${DEF_BUILDENV}/rootfs_ubi_tmp"
+    local UBI_CFG="${_tmp}/ubi.cfg"
+    local UBIFS_IMG="${_tmp}/rootfs.ubifs"
+    local UBI_IMG="${_output}/${_ubi_file_name}"
+    local UBIFS_ROOTFS_DIR="${DEF_BUILDENV}/rootfs_ubi_tmp"
 
-    rm -rf ${UBIFS_ROOTFS_DIR}
-    cp -a ${_rootfs} ${UBIFS_ROOTFS_DIR}
-    prepare_x11_ubifs_rootfs ${UBIFS_ROOTFS_DIR}
+    rm -rf "$UBIFS_ROOTFS_DIR"
+    cp -a ${_rootfs} "$UBIFS_ROOTFS_DIR"
+    prepare_x11_ubifs_rootfs "$UBIFS_ROOTFS_DIR"
     # gnerate ubifs file
     pr_info "Generate ubi config file: ${UBI_CFG}"
-    cat > ${UBI_CFG} << EOF
+    cat > "$UBI_CFG" << EOF
 [ubifs]
 mode=ubi
-image=${UBIFS_IMG}
+image=$UBIFS_IMG
 vol_id=0
 vol_type=dynamic
 vol_name=rootfs
 vol_flags=autoresize
 EOF
     # delete previus images
-    rm -f ${UBI_IMG}
-    rm -f ${UBIFS_IMG}
+    rm -f "$UBI_IMG"
+    rm -f "$UBIFS_IMG"
 
     pr_info "Creating $UBIFS_IMG image"
-    mkfs.ubifs -x zlib -m 2048  -e 124KiB -c 3965 -r ${UBIFS_ROOTFS_DIR} $UBIFS_IMG
+    mkfs.ubifs -x zlib -m 2048  -e 124KiB -c 3965 -r "$UBIFS_ROOTFS_DIR" $UBIFS_IMG
 
     pr_info "Creating $UBI_IMG image"
-    ubinize -o ${UBI_IMG} -m 2048 -p 128KiB -s 2048 -O 2048 ${UBI_CFG}
+    ubinize -o "$UBI_IMG" -m 2048 -p 128KiB -s 2048 -O 2048 "$UBI_CFG"
 
     # delete unused file
-    rm -f ${UBIFS_IMG}
-    rm -f ${UBI_CFG}
-    rm -rf ${UBIFS_ROOTFS_DIR}
+    rm -f "$UBIFS_IMG"
+    rm -f "$UBI_CFG"
+    rm -rf "$UBIFS_ROOTFS_DIR"
 
     return 0
 }
@@ -794,130 +777,128 @@ make_bcm_fw ()
 cmd_make_deploy ()
 {
     # get linaro toolchain
-    (( $(ls ${G_CROSS_COMPILER_PATH} 2>/dev/null | wc -l) == 0 )) && {
+    if (( $(ls "$G_CROSS_COMPILER_PATH" 2>/dev/null | wc -l) == 0 )); then
         pr_info "Get and unpack cross compiler"
-        get_remote_file ${G_EXT_CROSS_COMPILER_LINK} \
-                        ${DEF_SRC_DIR}/${G_CROSS_COMPILER_ARCHIVE}
-        tar -xJf ${DEF_SRC_DIR}/${G_CROSS_COMPILER_ARCHIVE} \
-            -C ${G_TOOLS_PATH}/
-    }
+        get_remote_file "$G_EXT_CROSS_COMPILER_LINK" "$DEF_SRC_DIR"
+        tar -xJf "${DEF_SRC_DIR}/${G_CROSS_COMPILER_ARCHIVE}" \
+            -C "$G_TOOLS_PATH"/
+    fi
 
     # get U-Boot repository
-    (( $(ls ${G_UBOOT_SRC_DIR} 2>/dev/null | wc -l) == 0 )) && {
+    if (( $(ls "$G_UBOOT_SRC_DIR" 2>/dev/null | wc -l) == 0 )); then
         pr_info "Get U-Boot repository"
-        get_git_src ${G_UBOOT_GIT} ${G_UBOOT_BRANCH} \
-                    ${G_UBOOT_SRC_DIR} ${G_UBOOT_REV}
-    }
+        get_git_src "$G_UBOOT_GIT" "$G_UBOOT_BRANCH" \
+                    "$G_UBOOT_SRC_DIR" "$G_UBOOT_REV"
+    fi
 
     # get kernel repository
-    (( $(ls ${G_LINUX_KERNEL_SRC_DIR} 2>/dev/null | wc -l) == 0 )) && {
+    if (( $(ls "$G_LINUX_KERNEL_SRC_DIR" 2>/dev/null | wc -l) == 0 )); then
         pr_info "Get kernel repository"
-        get_git_src ${G_LINUX_KERNEL_GIT} ${G_LINUX_KERNEL_BRANCH} \
-                    ${G_LINUX_KERNEL_SRC_DIR} ${G_LINUX_KERNEL_REV}
-    }
-    if [ ! -z "${G_BCM_FW_GIT}" ]; then
+        get_git_src "$G_LINUX_KERNEL_GIT" "$G_LINUX_KERNEL_BRANCH" \
+                    "$G_LINUX_KERNEL_SRC_DIR" "$G_LINUX_KERNEL_REV"
+    fi
+    if test ! -z "$G_BCM_FW_GIT"; then
         # get bcm firmware repository
-        (( $(ls ${G_BCM_FW_SRC_DIR}  2>/dev/null | wc -l) == 0 )) && {
+        if (( $(ls "$G_BCM_FW_SRC_DIR"  2>/dev/null | wc -l) == 0 )); then
             pr_info "Get bcmhd firmware repository"
-            get_git_src ${G_BCM_FW_GIT} ${G_BCM_FW_GIT_BRANCH} \
-                        ${G_BCM_FW_SRC_DIR} ${G_BCM_FW_GIT_REV}
-        }
+            get_git_src "$G_BCM_FW_GIT" "$G_BCM_FW_GIT_BRANCH" \
+                        "$G_BCM_FW_SRC_DIR" "$G_BCM_FW_GIT_REV"
+        fi
     fi
-    if [ ! -z "${G_IMXBOOT_GIT}" ]; then
+    if test ! -z "$G_IMXBOOT_GIT"; then
         # get IMXBoot Source repository
-        (( $(ls ${G_IMXBOOT_SRC_DIR}  2>/dev/null | wc -l) == 0 )) && {
+        if (( $(ls "$G_IMXBOOT_SRC_DIR"  2>/dev/null | wc -l) == 0 )); then
             pr_info "Get imx-boot"
-            get_git_src ${G_IMXBOOT_GIT} \
-                        ${G_IMXBOOT_BRACH} ${G_IMXBOOT_SRC_DIR} ${G_IMXBOOT_REV}
-        }
+            get_git_src "$G_IMXBOOT_GIT" \
+                        "$G_IMXBOOT_BRACH" "$G_IMXBOOT_SRC_DIR" "$G_IMXBOOT_REV"
+        fi
     fi
-
-    return 0
 }
 
 cmd_make_rootfs ()
 {
     make_prepare
 
-    if [ "${MACHINE}" = "imx6ul-var-dart" ] ||
-           [ "${MACHINE}" = "var-som-mx7" ] ||
-           [ "${MACHINE}" = "revo-roadrunner-mx7" ]; then
-        # make debian x11 backend rootfs
-        cd ${G_ROOTFS_DIR}
-        make_debian_x11_rootfs ${G_ROOTFS_DIR}
-        # make imx sdma firmware
-        make_imx_sdma_fw ${G_IMX_SDMA_FW_SRC_DIR} ${G_ROOTFS_DIR}
-        cd -
+    if test ."$MACHINE" = .'imx6ul-var-dart' ||
+           test ."$MACHINE" = .'var-som-mx7' ||
+           test ."$MACHINE" = .'revo-roadrunner-mx7'; then
+
+        (
+            cd "$G_ROOTFS_DIR"
+            # make debian x11 backend rootfs
+            make_debian_x11_rootfs "$G_ROOTFS_DIR"
+            # make imx sdma firmware
+            make_imx_sdma_fw "$G_IMX_SDMA_FW_SRC_DIR" "$G_ROOTFS_DIR"
+        )
     else
-        # make debian weston backend rootfs for imx8 family
-        cd ${G_ROOTFS_DIR}
-        make_debian_weston_rootfs ${G_ROOTFS_DIR}
-        cd -
+        (
+            cd "$G_ROOTFS_DIR"
+            make_debian_weston_rootfs "$G_ROOTFS_DIR"
+        )
     fi
 
     # make bcm firmwares
-    if [ ! -z "${G_BCM_FW_GIT}" ]; then
-        make_bcm_fw ${G_BCM_FW_SRC_DIR} ${G_ROOTFS_DIR}
+    if test ! -z "$G_BCM_FW_GIT"; then
+        make_bcm_fw "$G_BCM_FW_SRC_DIR" "$G_ROOTFS_DIR"
     fi
 
     # pack rootfs
-    make_tarball ${G_ROOTFS_DIR} ${G_ROOTFS_TARBALL_PATH}
+    make_tarball "$G_ROOTFS_DIR" "$G_ROOTFS_TARBALL_PATH"
 
-    if [ "${MACHINE}" = "imx6ul-var-dart" ] ||
-           [ "${MACHINE}" = "var-som-mx7" ] ||
-           [ "${MACHINE}" = "revo-roadrunner-mx7" ]; then
-        :
-        # pack to ubi
-        # make_ubi ${G_ROOTFS_DIR} ${G_TMP_DIR} ${PARAM_OUTPUT_DIR} \
-        #          ${G_UBI_FILE_NAME}
-    fi
+    # if test ."$MACHINE" = .'imx6ul-var-dart' ||
+    #        test ."$MACHINE" = .'var-som-mx7' ||
+    #        test ."$MACHINE" = .'revo-roadrunner-mx7'; then
+    #     pack to ubi
+    #     make_ubi "$G_ROOTFS_DIR" "$G_TMP_DIR" "$PARAM_OUTPUT_DIR" \
+    #              "$G_UBI_FILE_NAME"
+    # fi
 }
 
 cmd_make_uboot ()
 {
-    make_uboot ${G_UBOOT_SRC_DIR} ${PARAM_OUTPUT_DIR}
+    make_uboot "$G_UBOOT_SRC_DIR" "$PARAM_OUTPUT_DIR"
 }
 
 cmd_make_kernel ()
 {
-    make_kernel ${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-                ${G_LINUX_KERNEL_DEF_CONFIG} "${G_LINUX_DTB}" \
-                ${G_LINUX_KERNEL_SRC_DIR} ${PARAM_OUTPUT_DIR}
+    make_kernel "${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
+                "$G_LINUX_KERNEL_DEF_CONFIG" "$G_LINUX_DTB" \
+                "$G_LINUX_KERNEL_SRC_DIR" "$PARAM_OUTPUT_DIR"
 }
 
 cmd_make_kmodules ()
 {
-    rm -rf ${G_ROOTFS_DIR}/lib/modules/*
+    rm -rf "${G_ROOTFS_DIR}/lib/modules/"*
 
-    make_kernel_modules ${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-                        ${G_LINUX_KERNEL_DEF_CONFIG} ${G_LINUX_KERNEL_SRC_DIR} \
-                        ${G_ROOTFS_DIR}
+    make_kernel_modules "${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
+                        "$G_LINUX_KERNEL_DEF_CONFIG" "$G_LINUX_KERNEL_SRC_DIR" \
+                        "$G_ROOTFS_DIR"
 
-    install_kernel_modules ${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-                           ${G_LINUX_KERNEL_DEF_CONFIG} \
-                           ${G_LINUX_KERNEL_SRC_DIR} ${G_ROOTFS_DIR}
+    install_kernel_modules "${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
+                           "$G_LINUX_KERNEL_DEF_CONFIG" \
+                           "$G_LINUX_KERNEL_SRC_DIR" "$G_ROOTFS_DIR"
 }
 
 cmd_make_rfs_ubi ()
 {
-    make_ubi ${G_ROOTFS_DIR} ${G_TMP_DIR} ${PARAM_OUTPUT_DIR} \
-             ${G_UBI_FILE_NAME}
+    make_ubi "$G_ROOTFS_DIR" "$G_TMP_DIR" "$PARAM_OUTPUT_DIR" \
+             "$G_UBI_FILE_NAME"
 }
 
 cmd_make_rfs_tar ()
 {
     # pack rootfs
-    make_tarball ${G_ROOTFS_DIR} ${G_ROOTFS_TARBALL_PATH}
+    make_tarball "$G_ROOTFS_DIR" "$G_ROOTFS_TARBALL_PATH"
 }
 
 cmd_make_sdcard ()
 {
-    if [ "${MACHINE}" = "imx6ul-var-dart" ] ||
-           [ "${MACHINE}" = "var-som-mx7" ] ||
-           [ "${MACHINE}" = "revo-roadrunner-mx7" ]; then
-        make_x11_sdcard ${PARAM_BLOCK_DEVICE} ${PARAM_OUTPUT_DIR}
+    if test ."$MACHINE" = .'imx6ul-var-dart' ||
+           test ."$MACHINE" = .'var-som-mx7' ||
+           test ."$MACHINE" = .'revo-roadrunner-mx7'; then
+        make_x11_image "$PARAM_BLOCK_DEVICE" "$PARAM_OUTPUT_DIR"
     else
-        make_weston_sdcard ${PARAM_BLOCK_DEVICE} ${PARAM_OUTPUT_DIR}
+        make_weston_sdcard "$PARAM_BLOCK_DEVICE" "$PARAM_OUTPUT_DIR"
     fi
 }
 
@@ -1000,34 +981,34 @@ cmd_flash_diskimage ()
 
 cmd_make_bcmfw ()
 {
-    make_bcm_fw ${G_BCM_FW_SRC_DIR} ${G_ROOTFS_DIR}
+    make_bcm_fw "$G_BCM_FW_SRC_DIR" "$G_ROOTFS_DIR"
 }
 
 cmd_make_firmware ()
 {
-    make_imx_sdma_fw ${G_IMX_SDMA_FW_SRC_DIR} ${G_ROOTFS_DIR}
+    make_imx_sdma_fw "$G_IMX_SDMA_FW_SRC_DIR" "$G_ROOTFS_DIR"
 }
 
 cmd_make_clean ()
 {
     # clean kernel, dtb, modules
-    clean_kernel ${G_LINUX_KERNEL_SRC_DIR}
+    clean_kernel "$G_LINUX_KERNEL_SRC_DIR"
 
     # clean U-Boot
-    clean_uboot ${G_UBOOT_SRC_DIR}
+    clean_uboot "$G_UBOOT_SRC_DIR"
 
     # delete tmp dirs and etc
     pr_info "Delete tmp dir ${G_TMP_DIR}"
-    rm -rf ${G_TMP_DIR}
+    rm -rf "$G_TMP_DIR"
 
     pr_info "Delete rootfs dir ${G_ROOTFS_DIR}"
-    rm -rf ${G_ROOTFS_DIR}
+    rm -rf "$G_ROOTFS_DIR"
 }
 
 ################ main function ################
 
 # test for root access support
-if [[ "$PARAM_CMD" != "deploy"  && ${EUID} -ne 0 ]]; then
+if [[ "$PARAM_CMD" != "deploy"  && "$EUID" != 0 ]]; then
     pr_error "This command must be run as root (or sudo/su)"
     exit 1
 fi
@@ -1083,7 +1064,7 @@ case $PARAM_CMD in
         cmd_make_clean
         ;;
     *)
-        pr_error "Invalid input command: \"${PARAM_CMD}\""
+        pr_error "Invalid input command: \"$PARAM_CMD\""
         ;;
 esac
 
