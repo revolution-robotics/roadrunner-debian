@@ -83,14 +83,16 @@ sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rootfs
 ```
 
 ## Create bootable SD card
-After a successful build, to create a bootable SD card directly (i.e.,
-without the intermediate step of creating an image file), with the
-card inserted and accessible as block device _/dev/sdX_ (e..g.,
-_/dev/sdg_), run:
+After a successful build, a bootable SD card can be created directly
+(i.e., without first creating an image file) by inserting a flash
+drive (that can be fully overwritten) and then running:
 
 ```shell
-sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c sdcard -d /dev/sdX
+sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c sdcard
 ```
+
+If more than one removable drive is available, you'll be prompted to
+select the drive to flash to.
 
 ## Create bootable image file
 Alternatively, to create a Gzip-compressed 4 GB bootable
@@ -101,18 +103,18 @@ sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage
 ```
 
 ## Flash bootable image to SD card
-After creating a bootable image file, it can flashed to SD card by running:
+Once a bootable image file is available, it can flashed to SD card by running:
 
 ```shell
-./flash_diskimage.sh
+sudo ./revo_make_debian.sh -c flashimage
 ```
 
-whereupon you'll be prompted to select an image from the _output_
-directory as well as a removable storage device to flash to.
+whereupon you'll be prompted to select from the _output_ directory an
+image to flash from as well as a removable drive to flash to.
 
 ## Subsequent builds
-After editing kernel sources, it can be rebuilt without re-running
-the Debian bootstrap step as follows:
+After editing kernel sources, the kernel and modules can be rebuilt
+without re-running Debian bootstrap as follows:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c kernel

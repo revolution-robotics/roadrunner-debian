@@ -15,6 +15,8 @@ set -e
 
 SCRIPT_NAME=${0##*/}
 
+: ${MACHINE:='revo-roadrunner-mx7'}
+
 #### Exports Variables ####
 #### global variables ####
 readonly ABSOLUTE_FILENAME=$(readlink -e "$0")
@@ -22,6 +24,9 @@ readonly ABSOLUTE_DIRECTORY=$(dirname ${ABSOLUTE_FILENAME})
 readonly SCRIPT_POINT=${ABSOLUTE_DIRECTORY}
 readonly SCRIPT_START_DATE=$(date +%Y%m%d)
 readonly LOOP_MAJOR=7
+declare -r COMPRESSION_SUFFIX=gz
+declare -r GZIP=gzip
+declare -r ZCAT=zcat
 
 # default mirror
 readonly DEF_DEBIAN_MIRROR="https://deb.debian.org/debian/"
@@ -60,46 +65,50 @@ readonly G_USER_PACKAGES="audacious bash-completion binutils cockpit cockpit-net
 export LC_ALL=C
 
 #### Input params ####
-PARAM_DEB_LOCAL_MIRROR="${DEF_DEBIAN_MIRROR}"
-PARAM_OUTPUT_DIR="${DEF_BUILDENV}/output"
-PARAM_DEBUG="0"
-PARAM_CMD=""
-PARAM_BLOCK_DEVICE="na"
+declare PARAM_DEB_LOCAL_MIRROR=$DEF_DEBIAN_MIRROR
+declare PARAM_OUTPUT_DIR=${DEF_BUILDENV}/output
+declare PARAM_DEBUG=0
+declare PARAM_CMD=''
+declare PARAM_BLOCK_DEVICE='na'
+declare PARAM_DISK_IMAGE=''
 
 ### usage ###
 usage ()
 {
-    echo "Make Debian ${DEB_RELEASE} image and create a bootabled SD card"
-    echo
-    echo "Usage:"
-    echo " MACHINE=<imx8m-var-dart|imx8mm-var-dart|imx8qxp-var-som|imx8qm-var-som|imx6ul-var-dart|var-som-mx7|revo-roadrunner-mx7> ./${SCRIPT_NAME} options"
-    echo
-    echo "Options:"
-    echo "  -h|--help   -- print this help"
-    echo "  -c|--cmd <command>"
-    echo "     Supported commands:"
-    echo "       deploy      -- prepare environment for all commands"
-    echo "       all         -- build or rebuild kernel/bootloader/rootfs"
-    echo "       bootloader  -- build or rebuild U-Boot"
-    echo "       kernel      -- build or rebuild the Linux kernel"
-    echo "       modules     -- build or rebuild the Linux kernel modules & headers and install them in the rootfs dir"
-    echo "       rootfs      -- build or rebuild the Debian root filesystem and create rootfs.tar.gz"
-    echo "                       (including: make & install Debian packages, firmware and kernel modules & headers)"
-    echo "       rubi        -- generate or regenerate rootfs.ubi.img image from rootfs folder "
-    echo "       rtar        -- generate or regenerate rootfs.tar.gz image from the rootfs folder"
-    echo "       clean       -- clean all build artifacts (without deleting sources code or resulted images)"
-    echo "       sdcard      -- create a bootable SD card"
-    echo "       diskimage   -- create a bootable image file"
-    echo "  -o|--output -- custom select output directory (default: \"${PARAM_OUTPUT_DIR}\")"
-    echo "  -d|--dev    -- specify SD card device (exmple: -d /dev/sde)"
-    echo "  --debug     -- enable debug mode for this script"
-    echo "Examples of use:"
-    echo "  deploy and build:                 ./${SCRIPT_NAME} --cmd deploy && sudo ./${SCRIPT_NAME} --cmd all"
-    echo "  make the Linux kernel only:       sudo ./${SCRIPT_NAME} --cmd kernel"
-    echo "  make rootfs only:                 sudo ./${SCRIPT_NAME} --cmd rootfs"
-    echo "  create bootable SD card:          sudo ./${SCRIPT_NAME} --cmd sdcard --dev /dev/sdX"
-    echo "  create boot image:                sudo ./${SCRIPT_NAME} --cmd diskimage"
-    echo
+    cat <<EOF
+Make Debian $DEB_RELEASE image and create a bootabled SD card
+
+Usage:
+ MACHINE=<imx8m-var-dart|imx8mm-var-dart|imx8qxp-var-som|imx8qm-var-som|imx6ul-var-dart|var-som-mx7|revo-roadrunner-mx7> ./$SCRIPT_NAME options
+
+Options:
+  -h|--help   -- print this help
+  -c|--cmd <command>
+     Supported commands:
+       deploy      -- prepare environment for all commands
+       all         -- build or rebuild kernel/bootloader/rootfs
+       bootloader  -- build or rebuild U-Boot
+       kernel      -- build or rebuild the Linux kernel
+       modules     -- build or rebuild the Linux kernel modules & headers and install them in the rootfs dir
+       rootfs      -- build or rebuild the Debian root filesystem and create rootfs.tar.gz
+                       (including: make & install Debian packages, firmware and kernel modules & headers)
+       rubi        -- generate or regenerate rootfs.ubi.img image from rootfs folder
+       rtar        -- generate or regenerate rootfs.tar.gz image from the rootfs folder
+       clean       -- clean all build artifacts (without deleting sources code or resulted images)
+       sdcard      -- create a bootable SD card
+       diskimage   -- create a bootable image file
+       flashimage  -- flash a disk image to SD card
+       -o|--output -- custom select output directory (default: \"$PARAM_OUTPUT_DIR\")
+       -d|--dev    -- specify SD card device (exmple: -d /dev/sde)
+       --debug     -- enable debug mode for this script
+Examples of use:
+  deploy and build:                 ./${SCRIPT_NAME} --cmd deploy && sudo ./${SCRIPT_NAME} --cmd all
+  make the Linux kernel only:       sudo ./${SCRIPT_NAME} --cmd kernel
+  make rootfs only:                 sudo ./${SCRIPT_NAME} --cmd rootfs
+  create bootable SD card:          sudo ./${SCRIPT_NAME} --cmd sdcard [--dev /dev/sdX]
+  create boot image:                sudo ./${SCRIPT_NAME} --cmd diskimage
+  flash image to SD card:           sudo ./${SCRIPT_NAME} --cmd flashimage
+EOF
 }
 
 if [ ! -e ${G_VENDOR_PATH}/${MACHINE}/${MACHINE}.sh ]; then
@@ -139,11 +148,13 @@ fi
 G_CROSS_COMPILER_PATH="${G_TOOLS_PATH}/${G_CROSS_COMPILER_NAME}/bin"
 
 ## parse input arguments ##
-readonly SHORTOPTS="c:o:d:h"
-readonly LONGOPTS="cmd:,output:,dev:,help,debug"
+declare -r SHORTOPTS='c:d:i:o:h'
+declare -r LONGOPTS='cmd:,dev:,image:,output:,help,debug'
 
-ARGS=$(getopt -s bash --options ${SHORTOPTS}  \
-              --longoptions ${LONGOPTS} --name ${SCRIPT_NAME} -- "$@" )
+declare ARGS=$(
+    getopt -s bash --options ${SHORTOPTS}  \
+           --longoptions ${LONGOPTS} --name ${SCRIPT_NAME} -- "$@"
+        )
 
 eval set -- "$ARGS"
 
@@ -159,15 +170,21 @@ while true; do
             shift
             PARAM_CMD=$1
             ;;
+        -d|--dev) # SD card block device
+            shift
+            if test -e "$1"; then
+                PARAM_BLOCK_DEVICE=$1
+            fi
+            ;;
+        -i|--image) # Disk image
+            shift
+            if test -e "$1"; then
+                PARM_DISK_IMAGE=$1
+            fi
+            ;;
         -o|--output) # select output dir
             shift
             PARAM_OUTPUT_DIR=$1
-            ;;
-        -d|--dev) # SD card block device
-            shift
-            [ -e $1 ] && {
-                PARAM_BLOCK_DEVICE=$1
-            }
             ;;
         --debug) # enable debug
             PARAM_DEBUG=1
@@ -194,14 +211,16 @@ done
     set -x
 }
 
-echo "=============== Build summary ==============="
-echo "Building Debian ${DEB_RELEASE} for ${MACHINE}"
-echo "U-Boot config:      ${G_UBOOT_DEF_CONFIG_MMC}"
-echo "Kernel config:      ${G_LINUX_KERNEL_DEF_CONFIG}"
-echo "Default kernel dtb: ${DEFAULT_BOOT_DTB}"
-echo "kernel dtbs:        ${G_LINUX_DTB}"
-echo "============================================="
-echo
+if test ."$PARAM_CMD" != .'flashimage'; then
+    echo "=============== Build summary ==============="
+    echo "Building Debian $DEB_RELEASE for $MACHINE"
+    echo "U-Boot config:      $G_UBOOT_DEF_CONFIG_MMC"
+    echo "Kernel config:      $G_LINUX_KERNEL_DEF_CONFIG"
+    echo "Default kernel dtb: $DEFAULT_BOOT_DTB"
+    echo "kernel dtbs:        $G_LINUX_DTB"
+    echo "============================================="
+    echo
+fi
 
 ## declarate dynamic variables ##
 readonly G_ROOTFS_TARBALL_PATH="${PARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}"
@@ -580,80 +599,175 @@ EOF
 clean_uboot ()
 {
     pr_info "Clean U-Boot"
-    make ARCH=${ARCH_ARGS} -C $1 mrproper
+    make ARCH="$ARCH_ARGS" -C "$1" mrproper
 }
 
-# verify the SD card
-# $1 -- block device
-check_sdcard ()
+is_removable_device ()
 {
+    local device=${1#/dev/}
+
+    local removable
+    local drive
+    local gdbus_is_removable
+
     # Check that parameter is a valid block device
-    if [ ! -b "$1" ]; then
-        pr_error "$1 is not a valid block device, exiting"
+    if test ! -b "/dev/$device"; then
+        pr_error "/dev/$device: Not a valid block device"
         return 1
     fi
 
-    local dev=$(basename $1)
-
     # Check that /sys/block/$dev exists
-    if [ ! -d /sys/block/$dev ]; then
-        pr_error "Directory /sys/block/${dev} missing, exiting"
+    if test ! -d "/sys/block/$device"; then
+        pr_error "/sys/block/$device: No such directory"
         return 1
     fi
 
     # Get device parameters
-    local removable=$(cat /sys/block/${dev}/removable)
-    local block_size=$(cat /sys/class/block/${dev}/queue/physical_block_size)
-    local size_blocks=$(cat /sys/class/block/${dev}/size)
-    local size_bytes=$(( size_blocks * block_size ))
-    local size_gib=$(bc <<< "scale=1; ${size_bytes}/(1024*1024*1024)")
+    removable=$(cat "/sys/block/${device}/removable")
 
     # Non removable SD card readers require additional check
-    if [ "${removable}" != "1" ]; then
-        local drive=$(udisksctl info -b /dev/${dev}|grep "Drive:"|cut -d"'" -f 2)
-        local mediaremovable=$(gdbus call --system --dest org.freedesktop.UDisks2 --object-path ${drive} \
-                                     --method org.freedesktop.DBus.Properties.Get org.freedesktop.UDisks2.Drive MediaRemovable 2>/dev/null)
-        if [[ "${mediaremovable}" = *"true"* ]]; then
+    if test ."$removable" != .'1'; then
+        local drive=$(
+            udisksctl info -b "/dev/$device" |
+                grep "Drive:"|
+                cut -d"'" -f 2
+              )
+        local gdbus_is_removable=$(
+            gdbus call --system --dest org.freedesktop.UDisks2 \
+                  --object-path ${drive} \
+                  --method org.freedesktop.DBus.Properties.Get org.freedesktop.UDisks2.Drive MediaRemovable 2>/dev/null
+              )
+        if [[ ."$gdbus_is_removable" =~ ^\..*true ]]; then
             removable=1
         fi
     fi
 
     # Check that device is either removable or loop
-    if [ "$removable" != "1" ] && ! is_loop_device "$1"; then
-        pr_error "$1 is not a removable device, exiting"
+    if test ."$removable" != .'1' && ! is_loop_device "/dev/$device"; then
+        pr_error "/dev/$device: Not a removable device"
         return 1
     fi
-
-    # Check that device is attached
-    if [ ${size_bytes} -eq 0 ]; then
-        pr_error "$1 is not attached, exiting"
-        return 1
-    fi
-
-    pr_info "Device: ${LPARAM_BLOCK_DEVICE}, ${size_gib}GiB"
-    echo "============================================="
-    read -p "Press Enter to continue"
-
-    return 0
 }
 
 is_loop_device ()
 {
-    (( $(stat -c '%t' $1) == ${LOOP_MAJOR} ))
+    local device=$1
+
+    (( $(stat -c '%t' "$device") == LOOP_MAJOR ))
+}
+
+get_range ()
+{
+    size=$1
+
+    if (( size > 10 )); then
+        echo "1-$size"
+    else
+        echo "$(sed -e 's/ /|/g' <<< $(echo $(seq $size)))"
+    fi
+}
+
+select_from_list ()
+{
+    local -n choices=$1
+    local prompt=$2
+
+    local choice
+    local count
+
+    count=${#choices[*]}
+    case "$count" in
+        0)
+            pr_error "Nothing to choose"
+            return 1
+            ;;
+        1)
+            choice=${choices[0]}
+            ;;
+        *)
+            echo "$prompt" >&2
+            PS3="Selection [$(get_range $count)]? "
+            select choice in "${choices[@]}"; do
+                case "$choice" in
+                    '')
+                        echo "$REPLY: Invalid choice - Please try again:" >&2
+                        ;;
+                    *)
+                        break
+                        ;;
+                esac
+            done
+    esac
+    echo "$choice"
+}
+
+get_disk_images ()
+{
+    local -a archives
+    local kind
+
+    mapfile -t archives < <(ls "${PARAM_OUTPUT_DIR}/"*.$COMPRESSION_SUFFIX)
+    for archive in "${archives[@]}"; do
+        kind=$($ZCAT "$archive" | file - | awk '{ print $2 }')
+        case "$kind" in
+            DOS/MBR)
+                echo "$archive"
+                ;;
+        esac
+    done
+}
+
+get_removable_devices ()
+{
+    local -a devices
+    local device
+    local vendor
+    local model
+
+    mapfile -t devices < <(
+        grep -lv ^0$ '/sys/block/'*'/removable' |
+            sed -e 's;removable$;device/uevent;' |
+            xargs grep -l '^DRIVER=sd$' |
+            sed -e 's;device/uevent;size;' |
+            xargs grep -lv '^0' |
+            cut -d/ -f4
+    )
+
+    for device in "${devices[@]}"; do
+        vendor=$(sed -e 's/^  *//' -e 's/  *$//' "/sys/block/${device}/device/vendor")
+        model=$(sed -e 's/^  *//' -e 's/  *$//' "/sys/block/${device}/device/model")
+        echo "/dev/$device ($vendor $model)"
+    done
+}
+
+select_disk_image ()
+{
+    declare -a disk_images
+
+    mapfile -t disk_images < <(get_disk_images)
+    select_from_list disk_images 'Please choose an image to flash from:'
+}
+
+select_removable_device ()
+{
+    declare -a removable_devices
+
+    mapfile -t removable_devices < <(get_removable_devices)
+    select_from_list removable_devices 'Please choose a device to flash to:'
 }
 
 # make imx sdma firmware
-# $1 -- linux-firmware directory
+# $1 -- SDMA firmware directory
 # $2 -- rootfs output dir
 make_imx_sdma_fw ()
 {
     pr_info "Install imx sdma firmware"
     install -d ${2}/lib/firmware/imx/sdma
-    if [ "${MACHINE}" = "imx6ul-var-dart" ]; then
+    if test ."$MACHINE" = .'imx6ul-var-dart'; then
         install -m 0644 ${1}/sdma-imx6q.bin \
                 ${2}/lib/firmware/imx/sdma
-    elif  [ "${MACHINE}" = "var-som-mx7" ] ||
-              [ "${MACHINE}" = "revo-roadrunner-mx7" ]; then
+    elif  test ."$MACHINE" = .'var-som-mx7' ||
+              test ."$MACHINE" = .'revo-roadrunner-mx7'; then
         install -m 0644 ${1}/sdma-imx7d.bin \
             ${2}/lib/firmware/imx/sdma
     fi
@@ -811,27 +925,77 @@ cmd_make_diskimage ()
 {
     local ISO8601=$(python -c "import re, datetime; print re.sub(r'\..*', 'Z', datetime.datetime.utcnow().isoformat()).translate(None, ':-')")
     local IMAGE_FILE=${G_TMP_DIR}/${MACHINE}-${ISO8601}.img
-    local IMAGE_SIZE=$(( 7774208 * 512 )) # 3.7 GB
+    local IMAGE_SIZE=$(( 7774208 * 512 )) # 3.7 GiB
     local LOOP_DEVICE
 
     pr_info "Initialize file-backed loop device"
-    mkdir -p $(dirname ${IMAGE_FILE})
-    dd if=/dev/zero of=${IMAGE_FILE} bs=${IMAGE_SIZE} seek=1 count=0
-    LOOP_DEVICE=$(losetup --nooverlap --find --show ${IMAGE_FILE})
+    mkdir -p $(dirname "$IMAGE_FILE")
+    dd if=/dev/zero of="$IMAGE_FILE" bs="$IMAGE_SIZE" seek=1 count=0
+    LOOP_DEVICE=$(losetup --nooverlap --find --show "$IMAGE_FILE")
 
-    if [ "${MACHINE}" = "imx6ul-var-dart" ] ||
-           [ "${MACHINE}" = "var-som-mx7" ] ||
-           [ "${MACHINE}" = "revo-roadrunner-mx7" ]; then
-        make_x11_sdcard ${LOOP_DEVICE} ${PARAM_OUTPUT_DIR}
+    if test ."$MACHINE" = .'imx6ul-var-dart' ||
+           test ."$MACHINE" = .'var-som-mx7' ||
+           test ."$MACHINE" = .'revo-roadrunner-mx7'; then
+        make_x11_image "$LOOP_DEVICE" "$PARAM_OUTPUT_DIR"
     else
-        make_weston_sdcard ${LOOP_DEVICE} ${PARAM_OUTPUT_DIR}
+        make_weston_sdcard "$LOOP_DEVICE" "$PARAM_OUTPUT_DIR"
     fi
 
-    losetup -d ${LOOP_DEVICE}
+    losetup -d "$LOOP_DEVICE"
 
-    pr_info "Compressing image file..."
-    gzip ${IMAGE_FILE}
-    mv ${IMAGE_FILE}.gz ${PARAM_OUTPUT_DIR}
+    pr_info "Compressing image file \"$(basename $IMAGE_FILE)\"..."
+    $GZIP "$IMAGE_FILE"
+    mv "${IMAGE_FILE}.${COMPRESSION_SUFFIX}" "$PARAM_OUTPUT_DIR"
+}
+
+cmd_flash_diskimage ()
+{
+    local LPARAM_DISK_IMAGE=$PARAM_DISK_IMAGE
+    local LPARAM_BLOCK_DEVICE=$PARAM_BLOCK_DEVICE
+
+    local total_size
+    local total_size_bytes
+    local total_size_gib
+    local -i i
+
+    if test ! -e "$LPARAM_DISK_IMAGE"; then
+        LPARAM_DISK_IMAGE=$(select_disk_image)
+        if test ."$LPARAM_DISK_IMAGE" = .''; then
+            pr_error "Image not available"
+            exit 1
+        fi
+    fi
+
+    if ! is_removable_device "$LPARAM_BLOCK_DEVICE"; then
+        LPARAM_BLOCK_DEVICE=$(sed -e 's/ .*//' <<<$(select_removable_device))
+        if test ."$LPARAM_BLOCK_DEVICE" = .''; then
+            pr_error "Device not available"
+            exit 1
+        fi
+    fi
+
+    total_size=$(blockdev --getsz "$LPARAM_BLOCK_DEVICE")
+    total_size_bytes=$(( total_size * 512 ))
+    total_size_gib=$(bc <<< "scale=1; ${total_size_bytes}/(1024*1024*1024)")
+
+    echo '============================================='
+    pr_info "Image: $LPARAM_DISK_IMAGE"
+    pr_info "Device: $LPARAM_BLOCK_DEVICE, $total_size_gib GiB"
+    echo '============================================='
+    read -p "Press Enter to continue"
+
+    pr_info "Flashing image to device..."
+
+    for (( i=0; i < 10; i++ )); do
+        if test -n "$(findmnt "${LPARAM_BLOCK_DEVICE}${i}")"; then
+            umount -f "${LPARAM_BLOCK_DEVICE}${i}"
+        fi
+    done
+
+    if ! $ZCAT "$LPARAM_DISK_IMAGE" | dd of="$LPARAM_BLOCK_DEVICE" bs=1M; then
+        pr_error "Flash did not complete successfully."
+        echo "*** Please check media and try again! ***"
+    fi
 }
 
 cmd_make_bcmfw ()
@@ -899,6 +1063,9 @@ case $PARAM_CMD in
         ;;
     diskimage)
         cmd_make_diskimage
+        ;;
+    flashimage)
+        cmd_flash_diskimage
         ;;
     rubi)
         cmd_make_rfs_ubi

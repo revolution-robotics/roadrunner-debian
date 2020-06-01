@@ -469,103 +469,93 @@ prepare_x11_ubifs_rootfs ()
     rm -rf ${UBIFS_ROOTFS_BASE}/var/lib/apt/lists/deb.*
 }
 
-# make sdcard for device
+# make bootable image for device
 # $1 -- block device
 # $2 -- output images dir
-make_x11_sdcard ()
+make_x11_image ()
 {
-    readonly local LPARAM_BLOCK_DEVICE=${1}
-    readonly local LPARAM_OUTPUT_DIR=${2}
-    readonly local P1_MOUNT_DIR="${G_TMP_DIR}/p1"
-    readonly local P2_MOUNT_DIR="${G_TMP_DIR}/p2"
-    readonly local DEBIAN_IMAGES_TO_ROOTFS_POINT="opt/images/Debian"
+    local LPARAM_BLOCK_DEVICE=$1
+    local LPARAM_OUTPUT_DIR=$2
 
-    readonly local BOOTLOAD_RESERVE=4
-    readonly local BOOT_ROM_SIZE=8
-    readonly local SPARE_SIZE=0
+    local P1_MOUNT_DIR="${G_TMP_DIR}/p1"
+    local P2_MOUNT_DIR="${G_TMP_DIR}/p2"
+    local DEBIAN_IMAGES_TO_ROOTFS_POINT="opt/images/Debian"
 
-    [ "${LPARAM_BLOCK_DEVICE}" = "na" ] && {
-        pr_warning "No valid block device: ${LPARAM_BLOCK_DEVICE}"
-        return 1
-    }
+    local BOOTLOAD_RESERVE_SIZE=4
+    local SPARE_SIZE=8
+    local part=''
 
-    local part=""
-    if [[ "${LPARAM_BLOCK_DEVICE}" =~ /dev/mmcblk ]] ||
-       is_loop_device "${LPARAM_BLOCK_DEVICE}"; then
-        part="p"
-    fi
-
-    # Check that we're using a valid device
-    if ! check_sdcard ${LPARAM_BLOCK_DEVICE}; then
-        return 1
-    fi
-
-    for (( i=0; i < 10; i++ )); do
-        if [ $(mount | grep -c ${LPARAM_BLOCK_DEVICE}${part}$i) -ne 0 ]; then
-            umount ${LPARAM_BLOCK_DEVICE}${part}$i
-        fi
-    done
-
-    format_sdcard ()
+    format_device ()
     {
-        pr_info "Formating SDCARD partitions"
-        mkfs.vfat ${LPARAM_BLOCK_DEVICE}${part}1 -n BOOT
-        mkfs.ext4 ${LPARAM_BLOCK_DEVICE}${part}2 -L rootfs
+        pr_info "Formating device partitions"
+        if ! mkfs.vfat "${LPARAM_BLOCK_DEVICE}${part}1" -n BOOT ||
+                ! mkfs.ext4 "${LPARAM_BLOCK_DEVICE}${part}2" -L rootfs; then
+            pr_error "Format did not complete successfully."
+            echo "*** Please check media and try again! ***"
+            return 1
+        fi
     }
 
     flash_u-boot ()
     {
         pr_info "Flashing U-Boot"
-        dd if=${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC} \
-           of=${LPARAM_BLOCK_DEVICE} bs=1K seek=1; sync
-        dd if=${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC} \
-           of=${LPARAM_BLOCK_DEVICE} bs=1K seek=69; sync
+        dd if="${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC}" \
+           of="$LPARAM_BLOCK_DEVICE" bs=1K seek=1
+        sync
+        if ! dd if="${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC}" \
+             of="$LPARAM_BLOCK_DEVICE" bs=1K seek=69; then
+            pr_error "Flash did not complete successfully."
+            echo "*** Please check media and try again! ***"
+            return 1
+        fi
     }
 
-    flash_sdcard ()
+    flash_device ()
     {
         pr_info "Flashing \"BOOT\" partition"
-        cp ${LPARAM_OUTPUT_DIR}/*.dtb	${P1_MOUNT_DIR}/
-        cp ${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE} \
-           ${P1_MOUNT_DIR}/${BUILD_IMAGE_TYPE}
+        cp "${LPARAM_OUTPUT_DIR}/"*.dtb	"$P1_MOUNT_DIR"
+        cp "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
+           "${P1_MOUNT_DIR}/${BUILD_IMAGE_TYPE}"
         sync
 
         pr_info "Flashing \"rootfs\" partition"
-        tar -xpf ${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME} \
-            -C ${P2_MOUNT_DIR}/
+        if ! tar -C "$P2_MOUNT_DIR" -xpf "${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}"; then
+            pr_error "Flash did not complete successfully."
+            echo "*** Please check media and try again! ***"
+            return 1
+        fi
     }
 
     copy_debian_images ()
     {
-        mkdir -p ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}
+        mkdir -p "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
 
         pr_info "Copying Debian images to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
-        cp ${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE} \
-           ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
-        if [ "${MACHINE}" = "imx6ul-var-dart" ] ||
-               [ "${MACHINE}" = "var-som-mx7" ] ||
-               [ "${MACHINE}" = "revo-roadrunner-mx7" ]; then
-            :
-            # cp ${LPARAM_OUTPUT_DIR}/rootfs.ubi.img \
-            #    ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
-        fi
-        cp ${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME} \
-           ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/${DEF_ROOTFS_TARBALL_NAME}
+        cp "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
+           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        # if test ."$MACHINE" = .'imx6ul-var-dart' ||
+        #        test ."$MACHINE" = .'var-som-mx7' ||
+        #        test ."$MACHINE" = .'revo-roadrunner-mx7'; then
+        #     cp ${LPARAM_OUTPUT_DIR}/rootfs.ubi.img \
+        #        ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
+        # fi
+        cp "${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}" \
+           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/${DEF_ROOTFS_TARBALL_NAME}"
 
-        cp ${LPARAM_OUTPUT_DIR}/*.dtb \
-           ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
+        cp "${LPARAM_OUTPUT_DIR}/"*.dtb \
+           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
 
         # pr_info "Copying NAND U-Boot to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
-        # cp ${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_NAND} \
-        #    ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
-        # cp ${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_NAND} \
-        #    ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
+        # cp "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_NAND}" \
+        #    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        # cp "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_NAND}" \
+        #    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
 
         pr_info "Copying MMC U-Boot to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
-        cp ${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC} \
-           ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
-        cp ${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC} \
-           ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
+        cp "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC}" \
+           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        cp "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC}" \
+           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
 
         return 0
     }
@@ -573,95 +563,122 @@ make_x11_sdcard ()
     copy_scripts ()
     {
         pr_info "Copying scripts to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
-        if [ "${MACHINE}" = "imx6ul-var-dart" ] ||
-               [ "${MACHINE}" = "var-som-mx7" ]
-               [ "${MACHINE}" = "revo-roadrunner-mx7" ]; then
-            cp ${G_VENDOR_PATH}/mx6ul_mx7_install_debian.sh \
-               ${P2_MOUNT_DIR}/usr/sbin/install_debian.sh
+        if test ."$MACHINE" = .'imx6ul-var-dart'  ||
+               test ."$MACHINE" = .'var-som-mx7' ||
+               test ."$MACHINE" = .'revo-roadrunner-mx7'; then
+            cp "${G_VENDOR_PATH}/mx6ul_mx7_install_debian.sh" \
+               "${P2_MOUNT_DIR}/usr/sbin/install_debian.sh"
         fi
     }
 
-    ceildiv ()
-    {
-        local num=$1
-        local div=$2
-        echo $(( (num + div - 1) / div ))
-    }
+    if test ."$LPARAM_BLOCK_DEVICE" = .'na'; then
+        LPARAM_BLOCK_DEVICE=$(sed -e 's/ .*//' <<<$(select_removable_device))
+        if test ."$LPARAM_BLOCK_DEVICE" = .''; then
+            pr_error "Device not available"
+            exit 1
+        fi
+    fi
+
+    if [[ ."$LPARAM_BLOCK_DEVICE" =~ \./dev/mmcblk ]] ||
+       is_loop_device "$LPARAM_BLOCK_DEVICE"; then
+        part="p"
+    fi
+
+    # Check that we're using a valid device
+    if ! is_removable_device "$LPARAM_BLOCK_DEVICE"; then
+        LPARAM_BLOCK_DEVICE=$(sed -e 's/ .*//' <<<$(select_removable_device))
+        if test ."$LPARAM_BLOCK_DEVICE" = .''; then
+            pr_error "Device not available"
+            exit 1
+        fi
+    fi
+
 
     # Delete the partitions
-    for (( i=0; i < 10; i++ )); do
-        if [ -e ${LPARAM_BLOCK_DEVICE}${part}${i} ]; then
-            dd if=/dev/zero of=${LPARAM_BLOCK_DEVICE}${part}$i bs=512 count=1024 2> /dev/null || true
-        fi
-    done
-    sync
+    # for (( i=0; i < 10; i++ )); do
+    #     if [ -e ${LPARAM_BLOCK_DEVICE}${part}${i} ]; then
+    #         dd if=/dev/zero of=${LPARAM_BLOCK_DEVICE}${part}$i bs=512 count=1024 2> /dev/null || true
+    #     fi
+    # done
+    # sync
 
-    ( (echo d; echo 1; echo d; echo 2; echo d; echo 3; echo d; echo w) | fdisk ${LPARAM_BLOCK_DEVICE} >/dev/null 2>&1) || true
-    sync
+    # ( (echo d; echo 1; echo d; echo 2; echo d; echo 3; echo d; echo w) | fdisk ${LPARAM_BLOCK_DEVICE} >/dev/null 2>&1) || true
+    # sync
 
-    dd if=/dev/zero of=${LPARAM_BLOCK_DEVICE} bs=1024 count=4096
-    sleep 2; sync
+    # Get total card size in blocks
+    local total_size=$(blockdev --getsz "$LPARAM_BLOCK_DEVICE")
+    local total_size_bytes=$(( total_size * 512 ))
+    local total_size_gib=$(bc <<< "scale=1; ${total_size_bytes}/(1024*1024*1024)")
+
+    # Convert to MB
+    total_size=$(( total_size / 2048 ))
+    local rootfs_offset=$(( BOOTLOAD_RESERVE_SIZE + SPARE_SIZE ))
+    local rootfs_size=$(( total_size - rootfs_offset ))
+
+    pr_info "Device: ${LPARAM_BLOCK_DEVICE}, ${total_size_gib}GiB"
+    echo "============================================="
+    read -p "Press Enter to continue"
 
     pr_info "Creating new partitions"
+    pr_info "ROOT SIZE=$rootfs_size MiB, TOTAl SIZE=$total_size MiB"
 
-    # Create a new partition table
-    (fdisk ${LPARAM_BLOCK_DEVICE} <<EOF
-n
-p
-1
-8192
-24575
-t
-c
-n
-p
-2
-24576
+    local part1_start="${BOOTLOAD_RESERVE_SIZE}MiB"
+    local part1_size="${SPARE_SIZE}MiB"
+    local part2_start="${rootfs_offset}MiB"
 
-p
-w
-EOF
-    ) || true
-    sleep 2; sync
+    for (( i=0; i < 10; i++ )); do
+        if test -n "$(findmnt "${LPARAM_BLOCK_DEVICE}${part}${i}")"; then
+            umount "${LPARAM_BLOCK_DEVICE}${part}${i}"
+        fi
+        if test -e "${LPARAM_BLOCK_DEVICE}${part}${i}"; then
+            wipefs -a "${LPARAM_BLOCK_DEVICE}${part}${i}"
+        fi
+    done
+    wipefs -a "$LPARAM_BLOCK_DEVICE"
 
-    # Get total card size
-    total_size=$(blockdev --getsz ${LPARAM_BLOCK_DEVICE})
-    total_size=$(( total_size / 2048 ))
-    boot_rom_sizeb=$(( BOOT_ROM_SIZE + BOOTLOAD_RESERVE ))
-    rootfs_size=$(( total_size - boot_rom_sizeb - SPARE_SIZE ))
-
-    pr_info "ROOT SIZE=${rootfs_size}MB TOTAl SIZE=${total_size}MB BOOTROM SIZE=${boot_rom_sizeb}MB"
-
-    partprobe ${LPARAM_BLOCK_DEVICE}
-    sleep 2; sync
-
-    # Format the partitions
-    format_sdcard
-    sleep 2; sync
-
-    flash_u-boot
-    sleep 2; sync
-
-    # Mount the partitions
-    mkdir -p ${P1_MOUNT_DIR}
-    mkdir -p ${P2_MOUNT_DIR}
+    dd if=/dev/zero of="$LPARAM_BLOCK_DEVICE" bs=1M count="$rootfs_offset"
+    sleep 2
     sync
 
-    mount ${LPARAM_BLOCK_DEVICE}${part}1  ${P1_MOUNT_DIR}
-    mount ${LPARAM_BLOCK_DEVICE}${part}2  ${P2_MOUNT_DIR}
-    sleep 2; sync
+    flock "$LPARAM_BLOCK_DEVICE" sfdisk "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1 <<EOF
+$part1_start,$part1_size,c
+$part2_start,-,L
+EOF
 
-    flash_sdcard
+    partprobe "$LPARAM_BLOCK_DEVICE"
+    sleep 2
+    sync
+
+    # Format the partitions
+    format_device || return 1
+    sleep 2
+    sync
+
+    flash_u-boot || return 1
+    sleep 2
+    sync
+
+    # Mount the partitions
+    mkdir -p "$P1_MOUNT_DIR"
+    mkdir -p "$P2_MOUNT_DIR"
+    sync
+
+    mount "${LPARAM_BLOCK_DEVICE}${part}1"  "$P1_MOUNT_DIR"
+    mount "${LPARAM_BLOCK_DEVICE}${part}2"  "$P2_MOUNT_DIR"
+    sleep 2
+    sync
+
+    flash_device || return 1
     copy_debian_images
     copy_scripts
 
-    pr_info "Sync sdcard..."
+    pr_info "Sync device..."
     sync
-    umount ${P1_MOUNT_DIR}
-    umount ${P2_MOUNT_DIR}
+    umount "$P1_MOUNT_DIR"
+    umount "$P2_MOUNT_DIR"
 
-    rm -rf ${P1_MOUNT_DIR}
-    rm -rf ${P2_MOUNT_DIR}
+    rm -rf "$P1_MOUNT_DIR"
+    rm -rf "$P2_MOUNT_DIR"
 
-    pr_info "Done make sdcard!"
+    pr_info "Done make bootable image!"
 }
