@@ -1,0 +1,12 @@
+[Unit]
+Description=Cleanup NetworkManager auto-shared connections
+Documentation=man:NetworkManager(8)
+DefaultDependencies=no
+Before=basic.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/NetworkManager/nm-autoshare-clean.sh
+
+[Install]
+WantedBy=sysinit.target

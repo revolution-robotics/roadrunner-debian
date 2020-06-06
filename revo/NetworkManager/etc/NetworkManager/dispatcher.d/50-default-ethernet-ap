@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+#
+# @(#) 50-default-ethernet-ap
+#
+# Copyright © 2020, Revolution Robotics, Inc.
+#
+: ${AWK:='/bin/awk'}
+: ${NMCLI:='/bin/nmcli'}
+: ${SED:='/bin/sed'}
+: ${TR:='/bin/tr'}
+
+declare interface=$1
+declare status=$2
+
+declare -r LOCKDIR=/var/run/NetworkManager/defaul-ethernet-ap-lock
+declare -r ACCESS_POINT=/usr/lib/NetworkManager/ethernet-access-point.sh
+
+declare -a interfaces
+declare -a profiles
+declare interface
+declare profile
+
+source "/usr/lib/NetworkManager/nm-funcs.sh"
+
+# Use $LOCKDIR to avoid multiple instances of this script.
+if mkdir 2>/dev/null "$LOCKDIR"; then
+    trap "rm -rf $LOCKDIR" 0 1 2 15
+else
+    exit 1
+fi
+
+if test ."$status" = .'down'; then
+
+    # and Internet not accessible...
+    if ! internet_accessible; then
+
+        # Shut down and remove active shared connections
+        mapfile -t profiles < <(get_active_profiles ethernet)
+
+        for profile in "${profiles[@]}"; do
+            if is_shared "$profile"; then
+                $NMCLI connection down "$profile"
+                $NMCLI connection delete "$profile"
+            fi
+        done
+    fi
+elif test ."$status" = .'up'; then
+
+    # Wait until connected to the Internet.
+    if ! internet_accessible; then
+        exit 1
+    fi
+
+    # Make every disconnected Ethernet interface an access point.
+    mapfile -t interfaces < <(get_managed_interfaces ethernet)
+
+    declare -i i=0
+    for interface in "${interfaces[@]}"; do
+        if ! is_connected "$interface"; then
+            $ACCESS_POINT "REVO auto-shared ${interface}" "$interface" "10.$(( ETHERNET_CLASS_B + i++ )).0.1/24"
+        fi
+    done
+fi

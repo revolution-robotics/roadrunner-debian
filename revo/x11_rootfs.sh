@@ -25,10 +25,21 @@ make_debian_x11_rootfs ()
     # prepare qemu
     pr_info "rootfs: debootstrap in rootfs (second-stage)"
     cp ${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static ${ROOTFS_BASE}/usr/bin/qemu-arm-static
+
+    umount_rootfs ()
+    {
+        umount -f ${ROOTFS_BASE}/{sys,proc,dev/pts,dev} 2>/dev/null || true
+        umount -f ${ROOTFS_BASE}/dev 2>/dev/null || true
+    }
+
+    trap 'umount_rootfs' RETURN
+    trap 'umount_rootfs; exit' 0 1 2 15
+
     mount -t proc /proc ${ROOTFS_BASE}/proc
-    mount -t sysfs /sys ${ROOTFS_BASE}/sys
+    mount -o bind /sys ${ROOTFS_BASE}/sys
     mount -o bind /dev ${ROOTFS_BASE}/dev
     mount -o bind /dev/pts ${ROOTFS_BASE}/dev/pts
+
     chroot $ROOTFS_BASE /debootstrap/debootstrap --second-stage
 
     # delete unused folder
@@ -280,19 +291,23 @@ EOF
             "${ROOTFS_BASE}/etc"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/profile" \
             "${ROOTFS_BASE}/etc"
-    install -m 0755 "${G_VENDOR_PATH}/NetworkManager/access-point.sh" \
-            "${ROOTFS_BASE}/usr/lib/NetworkManager"
-    install -m 0755 "${G_VENDOR_PATH}/NetworkManager/wifi-client.sh" \
-            "${ROOTFS_BASE}/usr/lib/NetworkManager"
-    install -m 0755 "${G_VENDOR_PATH}/NetworkManager/nm-funcs.sh" \
-            "${ROOTFS_BASE}/usr/lib/NetworkManager"
-    install -m 0755 "${G_VENDOR_PATH}/NetworkManager/ip-funcs.sh" \
-            "${ROOTFS_BASE}/usr/lib/NetworkManager"
-    install -m 0750 "${G_VENDOR_PATH}/NetworkManager/50-default-wifi-ap" \
-            "${ROOTFS_BASE}/etc/NetworkManager/dispatcher.d"
-    install -m 0755 "${G_VENDOR_PATH}/NetworkManager/NetworkManager.conf" \
-            "${ROOTFS_BASE}/etc/NetworkManager"
     rm -f "${ROOTFS_BASE}/etc/NetworkManager/dispatcher.d/"*ifupdown
+
+    # Fix permissions set by Git
+    chmod -R g-w "${G_VENDOR_PATH}/NetworkManager/"*
+    chmod 750 "${G_VENDOR_PATH}/NetworkManager/etc/NetworkManager/dispatcher.d/50-default-ethernet-ap"
+    chmod 750 "${G_VENDOR_PATH}/NetworkManager/etc/NetworkManager/dispatcher.d/51-default-wifi-ap"
+
+    tar -C "${G_VENDOR_PATH}/NetworkManager" -cf - . |
+        tar -C "${ROOTFS_BASE}" -oxf -
+
+    # Install systemd NetworkManager-dispatcher.service
+    ln -sf /lib/systemd/system/NetworkManager-dispatcher.service \
+       ${ROOTFS_BASE}/etc/systemd/system/dbus-org.freedesktop.nm-dispatcher.service
+
+    # Install systemd NetworkManager-autoshare-clean.service
+    ln -s /lib/systemd/system/NetworkManager-autoshare-clean.service \
+       ${ROOTFS_BASE}/usr/lib/systemd/system/sysinit.target.wants/NetworkManager-autoshare-clean.service
     # END -- REVO i.MX7D update
 
     # install variscite-bt service
@@ -435,7 +450,6 @@ rm -f cleanup
     pr_info "rootfs: clean"
     chmod +x cleanup
     chroot ${ROOTFS_BASE} /cleanup
-    umount ${ROOTFS_BASE}/{sys,proc,dev/pts,dev} 2>/dev/null || true
 
     # kill latest dbus-daemon instance due to qemu-arm-static
     QEMU_PROC_ID=$(ps axf | grep dbus-daemon | grep qemu-arm-static | awk '{print $1}')

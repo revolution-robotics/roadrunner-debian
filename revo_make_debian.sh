@@ -9,6 +9,7 @@
 #  sudo apt-get install docbook-utils python-pysqlite2 help2man make gcc g++ desktop-file-utils libgl1-mesa-dev
 #  sudo apt-get install libglu1-mesa-dev mercurial automake groff curl lzop asciidoc u-boot-tools mtd-utils
 #
+umask 022
 
 # -e  Exit immediately if a command exits with a non-zero status.
 set -e
@@ -813,6 +814,8 @@ cmd_make_deploy ()
                         "$G_IMXBOOT_BRACH" "$G_IMXBOOT_SRC_DIR" "$G_IMXBOOT_REV"
         fi
     fi
+
+
 }
 
 cmd_make_rootfs ()
@@ -827,6 +830,9 @@ cmd_make_rootfs ()
             cd "$G_ROOTFS_DIR"
             # make debian x11 backend rootfs
             make_debian_x11_rootfs "$G_ROOTFS_DIR"
+
+            trap - 0 1 2 15 RETURN
+
             # make imx sdma firmware
             make_imx_sdma_fw "$G_IMX_SDMA_FW_SRC_DIR" "$G_ROOTFS_DIR"
         )
@@ -904,7 +910,7 @@ cmd_make_sdcard ()
 
 cmd_make_diskimage ()
 {
-    local ISO8601=$(python -c "import re, datetime; print re.sub(r'\..*', 'Z', datetime.datetime.utcnow().isoformat()).translate(None, ':-')")
+    local ISO8601=$(date  +'%Y%m%dT%H%M%SZ')
     local IMAGE_FILE=${G_TMP_DIR}/${MACHINE}-${ISO8601}.img
     local IMAGE_SIZE=$(( 7774208 * 512 )) # 3.7 GiB
     local LOOP_DEVICE
@@ -913,6 +919,8 @@ cmd_make_diskimage ()
     mkdir -p $(dirname "$IMAGE_FILE")
     dd if=/dev/zero of="$IMAGE_FILE" bs="$IMAGE_SIZE" seek=1 count=0
     LOOP_DEVICE=$(losetup --nooverlap --find --show "$IMAGE_FILE")
+
+    trap 'losetup -d "$LOOP_DEVICE"; exit' 0 1 2 15
 
     if test ."$MACHINE" = .'imx6ul-var-dart' ||
            test ."$MACHINE" = .'var-som-mx7' ||
@@ -923,6 +931,8 @@ cmd_make_diskimage ()
     fi
 
     losetup -d "$LOOP_DEVICE"
+
+    trap - 0 1 2 15
 
     pr_info "Compressing image file \"$(basename $IMAGE_FILE)\"..."
     $GZIP "$IMAGE_FILE"
