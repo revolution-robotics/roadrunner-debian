@@ -38,7 +38,7 @@ if test ."$status" = .'down'; then
         mapfile -t profiles < <(get_active_profiles ethernet)
 
         for profile in "${profiles[@]}"; do
-            if is_shared "$profile"; then
+            if is_shared_profile "$profile"; then
                 $NMCLI connection down "$profile"
                 $NMCLI connection delete "$profile"
             fi
@@ -56,7 +56,7 @@ elif test ."$status" = .'up'; then
 
     declare -i i=0
     for interface in "${interfaces[@]}"; do
-        if ! is_connected "$interface"; then
+        if ! is_connected_interface "$interface"; then
             $ACCESS_POINT "REVO auto-shared ${interface}" "$interface" "10.$(( ETHERNET_CLASS_B + i++ )).0.1/24"
         fi
     done

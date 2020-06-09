@@ -12,14 +12,14 @@ declare -i TWO_BYTE_MASK=$(( ( 1 << 16 ) - 1 ))
 declare -i THREE_BYTE_MASK=$(( ( 1 << 24 ) - 1 ))
 declare -i FOUR_BYTE_MASK=$(( ( 1 << 32 ) - 1 ))
 
-# is_ip4_addr: Sanity check IP4 address.  Expected format: dotted-quad/netmask,
-#     e.g., 192.168.0.1/24
-is_ip4_addr ()
+# is_ipv4_addr: Sanity check IPv4 address. Expected format:
+#     dotted-quad/netmask, e.g., 192.168.0.1/24
+is_ipv4_addr ()
 {
-    local ip4_addr=$1
+    local ipv4_addr=$1
 
-    local quad=${ip4_addr%/*}
-    local mask=${ip4_addr#*/}
+    local quad=${ipv4_addr%/*}
+    local mask=${ipv4_addr#*/}
 
     is_dotted_quad "$quad" &&
         [[ ."$mask" =~ ^\.(0|[1-9]|[12][0-9]|3[0-2])$ ]]
@@ -89,18 +89,18 @@ inet_ntoa ()
     echo "${quad[3]:=0}.${quad[2]:=0}.${quad[1]:=0}.${quad[0]:=0}"
 }
 
-# network_exclusive: Given two IP4 addresses, check if either is in the
+# network_exclusive: Given two IPv4 addresses, check if either is in the
 #     other's network. Expected format: dotted-quad/netmask,
 #     e.g., 10.0.0.1/24
 network_exclusive ()
 {
-    local ip4_addr1=$1
-    local ip4_addr2=$2
+    local ipv4_addr1=$1
+    local ipv4_addr2=$2
 
-    quad1=${ip4_addr1%/*}
-    mask1=${ip4_addr1##*/}
-    quad2=${ip4_addr2%/*}
-    mask2=${ip4_addr2##*/}
+    quad1=${ipv4_addr1%/*}
+    mask1=${ipv4_addr1##*/}
+    quad2=${ipv4_addr2%/*}
+    mask2=${ipv4_addr2##*/}
 
     nq1=$(inet_aton "$quad1")
     qm1=$(inet_mask_ntoa "$mask1")

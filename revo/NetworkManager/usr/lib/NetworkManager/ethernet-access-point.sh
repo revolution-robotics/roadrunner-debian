@@ -13,7 +13,7 @@
 #
 #     profile
 #     interface (e.g., eth0)
-#     ip4_addr (default: $DEFAULT_IP4_ADDR)
+#     ipv4_addr (default: $DEFAULT_IPV4_ADDR)
 #
 script_name=${0##*/}
 script_dir=${0%/*}
@@ -23,28 +23,28 @@ script_dir=${0%/*}
 source "${script_dir}/ip-funcs.sh"
 source "${script_dir}/nm-funcs.sh"
 
-declare -r DEFAULT_IP4_ADDR=10.${ETHERNET_CLASS_B}.0.1/24
+declare -r DEFAULT_IPV4_ADDR=10.${ETHERNET_CLASS_B}.0.1/24
 
 if (( $# == 0 )) || [[ ."$1" =~ ^\.(-h|--h|-\?) ]]; then
     $CAT <<EOF
-Usage: $script_name [-h] profile [iface [ip4_addr]]
+Usage: $script_name [-h] profile [iface [ipv4_addr]]
 where:
   -h        - Display help, then exit
   profile   - NetworkManger profile name (default: $(hostname))
   iface     - Ethernet interface (default: $(get_managed_interfaces ethernet | head -1))
-  ip4_addr  - IP4 address and netmask (default: $DEFAULT_IP4_ADDR)
+  ipv4_addr - IPv4 address and netmask (default: $DEFAULT_IPV4_ADDR)
 EOF
     exit 0
 fi
 
 declare profile=$1
 declare interface=${2:-$(get_managed_interfaces ethernet | head -1)}
-declare ip4_addr=${3:-"$DEFAULT_IP4_ADDR"}
+declare ipv4_addr=${3:-"$DEFAULT_IPV4_ADDR"}
 
 validate_interface "$interface" || exit $?
-validate_ip4_network "$interface" "$ip4_addr" || exit $?
+validate_ipv4_network "$interface" "$ipv4_addr" || exit $?
 
-disconnect "$interface"
-remove_previous "$profile"
-create_ethernet ap "$profile" "$interface" "$ip4_addr"
-activate "$profile"
+disconnect_interface "$interface"
+remove_previous_profile "$profile"
+create_ethernet_profile ap "$profile" "$interface" "$ipv4_addr"
+activate_profile "$profile"

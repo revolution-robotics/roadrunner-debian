@@ -606,6 +606,11 @@ is_removable_device ()
         return 1
     fi
 
+    # Loop device is removable for our purposes
+    if is_loop_device "/dev/$device"; then
+        return 0
+    fi
+
     # Get device parameters
     removable=$(cat "/sys/block/${device}/removable")
 
@@ -627,7 +632,7 @@ is_removable_device ()
     fi
 
     # Check that device is either removable or loop
-    if test ."$removable" != .'1' && ! is_loop_device "/dev/$device"; then
+    if test ."$removable" != .'1'; then
         pr_error "/dev/$device: Not a removable device"
         return 1
     fi
