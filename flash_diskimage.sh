@@ -4,8 +4,30 @@
 #
 # Copyright © 2020 Revolution Robotics, Inc.
 #
+declare -r SCRIPT_NAME=${0##*/}
+
 declare -r COMPRESSION_SUFFIX='gz'
 declare -r ZCAT='zcat'
+
+declare PARAM_OUTPUT_DIR=output
+declare PARAM_BLOCK_DEVICE='na'
+declare PARAM_DISK_IMAGE='na'
+
+usage ()
+{
+    cat <<EOF
+Usage: $SCRIPT_NAME OPTIONS
+Options:
+  -h|--help   -- print this help
+  -o|--output -- directory of disk image(s) (default: "$PARAM_OUTPUT_DIR")
+  -d|--dev    -- removable block device to flash to (e.g., -d /dev/sde)
+  -i|--image diskimage
+              -- disk image to flash from (see also option -o)
+
+Example:
+  flash image to SD card:           ./${SCRIPT_NAME}
+EOF
+}
 
 pr_error ()
 {
@@ -24,7 +46,7 @@ get_range ()
     if (( size > 10 )); then
         echo "1-$size"
     else
-        echo "$(sed -e 's/ /|/g' <<< $(echo $(seq $size)))"
+        echo $(seq $size) | tr ' ' '|'
     fi
 }
 
@@ -65,6 +87,7 @@ select_from_list ()
 get_disk_images ()
 {
     local -a archives
+    local archive
     local kind
 
     mapfile -t archives < <(ls output/*.$COMPRESSION_SUFFIX)
@@ -131,18 +154,23 @@ is_removable_device ()
 
     local removable
     local drive
-    local gdbus_resp
+    local gdbus_is_removable
 
     # Check that parameter is a valid block device
-    if [ ! -b "/dev/$device" ]; then
+    if test ! -b "/dev/$device"; then
         pr_error "/dev/$device: Not a valid block device"
         return 1
     fi
 
     # Check that /sys/block/$dev exists
-    if [ ! -d "/sys/block/$device" ]; then
+    if test ! -d "/sys/block/$device"; then
         pr_error "/sys/block/$device: No such directory"
         return 1
+    fi
+
+    # Loop device is removable for our purposes
+    if is_loop_device "/dev/$device"; then
+        return 0
     fi
 
     # Get device parameters
@@ -155,18 +183,18 @@ is_removable_device ()
                 grep "Drive:"|
                 cut -d"'" -f 2
               )
-        local gdbus_resp=$(
+        gdbus_is_removable=$(
             gdbus call --system --dest org.freedesktop.UDisks2 \
                   --object-path ${drive} \
                   --method org.freedesktop.DBus.Properties.Get org.freedesktop.UDisks2.Drive MediaRemovable 2>/dev/null
               )
-        if [[ ."$gdbus_resp" =~ ^\..*true ]]; then
+        if [[ ."$gdbus_is_removable" =~ ^\..*true ]]; then
             removable=1
         fi
     fi
 
     # Check that device is either removable or loop
-    if [ "$removable" != "1" ] && ! is_loop_device "/dev/$device"; then
+    if test ."$removable" != .'1'; then
         pr_error "/dev/$device: Not a removable device"
         return 1
     fi
@@ -174,48 +202,102 @@ is_removable_device ()
 
 flash_diskimage ()
 {
-    local image=$1
-    local device=$2
+    local LPARAM_DISK_IMAGE=$PARAM_DISK_IMAGE
+    local LPARAM_BLOCK_DEVICE=$PARAM_BLOCK_DEVICE
+
     local total_size
     local total_size_bytes
     local total_size_gib
     local -i i
 
-    if test ! -e "$image"; then
-        image=$(select_disk_image)
-        if test ."$image" = .''; then
+    if test ! -f "$LPARAM_DISK_IMAGE"; then
+        if test -f "${PARAM_OUTPUT_DIR}/${LPARAM_DISK_IMAGE}"; then
+            LPARAM_DISK_IMAGE=${PARAM_OUTPUT_DIR}/${LPARAM_DISK_IMAGE}
+        else
+            LPARAM_DISK_IMAGE=$(select_disk_image)
+        fi
+        if test ! -f "$LPARAM_DISK_IMAGE"; then
             pr_error "Image not available"
             exit 1
         fi
     fi
 
-    if ! is_removable_device "$device"; then
-        device=$(sed -e 's/ .*//' <<<$(select_removable_device))
-        if test ."$device" = .''; then
+    if ! is_removable_device "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1; then
+        LPARAM_BLOCK_DEVICE=$(select_removable_device | awk '{ print $1 }')
+        if test ."$LPARAM_BLOCK_DEVICE" = .''; then
             pr_error "Device not available"
             exit 1
         fi
     fi
 
-    total_size=$(blockdev --getsz "$LPARAM_BLOCK_DEVICE")
+    total_size=$(sudo blockdev --getsz "$LPARAM_BLOCK_DEVICE")
     total_size_bytes=$(( total_size * 512 ))
     total_size_gib=$(bc <<< "scale=1; ${total_size_bytes}/(1024*1024*1024)")
 
     echo '============================================='
-    echo "Image: $image"
-    echo "Device: $device, ${size_gib} GiB"
+    pr_info "Image: ${LPARAM_DISK_IMAGE##*/}"
+    pr_info "Device: $LPARAM_BLOCK_DEVICE, $total_size_gib GiB"
     echo '============================================='
     read -p "Press Enter to continue"
 
     pr_info "Flashing image to device..."
 
     for (( i=0; i < 10; i++ )); do
-        if test -n "$(findmnt "${device}${i}")"; then
-            sudo umount -f "${device}${i}"
+        if test -n "$(findmnt "${LPARAM_BLOCK_DEVICE}${i}")"; then
+            sudo umount -f "${LPARAM_BLOCK_DEVICE}${i}"
         fi
     done
-    $ZCAT "$image" | sudo dd of="$device" bs=1M
+
+    if ! $ZCAT "$LPARAM_DISK_IMAGE" | sudo dd of="$LPARAM_BLOCK_DEVICE" bs=1M; then
+        pr_error "Flash did not complete successfully."
+        echo "*** Please check media and try again! ***"
+    fi
 }
 
 
-flash_diskimage "$@"
+## parse input arguments ##
+declare -r SHORTOPTS='d:i:o:h'
+declare -r LONGOPTS='dev:,image:,output:,help'
+
+declare ARGS=$(
+    getopt -s bash --options ${SHORTOPTS}  \
+           --longoptions ${LONGOPTS} --name ${SCRIPT_NAME} -- "$@"
+        )
+
+eval set -- "$ARGS"
+
+while true; do
+    case $1 in
+        -d|--dev) # SD card block device
+            shift
+            if test -e "$1"; then
+                PARAM_BLOCK_DEVICE=$1
+            fi
+            ;;
+        -i|--image) # Disk image
+            shift
+            if test -e "$1"; then
+                PARAM_DISK_IMAGE=$1
+            fi
+            ;;
+        -o|--output) # select output dir
+            shift
+            PARAM_OUTPUT_DIR=$1
+            ;;
+        -h|--help) # get help
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            shift
+            break
+            ;;
+    esac
+    shift
+done
+
+flash_diskimage

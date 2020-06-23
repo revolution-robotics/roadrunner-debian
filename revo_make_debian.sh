@@ -14,7 +14,7 @@ umask 022
 # -e  Exit immediately if a command exits with a non-zero status.
 set -e
 
-SCRIPT_NAME=${0##*/}
+declare -r SCRIPT_NAME=${0##*/}
 
 : ${MACHINE:='revo-roadrunner-mx7'}
 
@@ -71,7 +71,7 @@ declare PARAM_OUTPUT_DIR=${DEF_BUILDENV}/output
 declare PARAM_DEBUG=0
 declare PARAM_CMD=''
 declare PARAM_BLOCK_DEVICE='na'
-declare PARAM_DISK_IMAGE=''
+declare PARAM_DISK_IMAGE='na'
 
 ### usage ###
 usage ()
@@ -80,10 +80,9 @@ usage ()
 Make Debian $DEB_RELEASE image and create a bootabled SD card
 
 Usage:
- MACHINE=<imx8m-var-dart|imx8mm-var-dart|imx8qxp-var-som|imx8qm-var-som|imx6ul-var-dart|var-som-mx7|revo-roadrunner-mx7> ./$SCRIPT_NAME options
-
+ MACHINE=<imx8m-var-dart|imx8mm-var-dart|imx8qxp-var-som|imx8qm-var-som|imx6ul-var-dart|var-som-mx7|revo-roadrunner-mx7> ./$SCRIPT_NAME OPTIONS
 Options:
-  -h|--help   -- print this help
+  -h|--help        -- print this help
   -c|--cmd <command>
      Supported commands:
        deploy      -- prepare environment for all commands
@@ -99,10 +98,13 @@ Options:
        sdcard      -- create a bootable SD card
        diskimage   -- create a bootable image file
        flashimage  -- flash a disk image to SD card
-       -o|--output -- custom select output directory (default: \"$PARAM_OUTPUT_DIR\")
-       -d|--dev    -- specify SD card device (exmple: -d /dev/sde)
-       --debug     -- enable debug mode for this script
-Examples of use:
+  -o|--output dir  -- destination directory for build images (default: "$PARAM_OUTPUT_DIR")
+  -d|--dev         -- removable block device to write to (e.g., -d /dev/sde)
+  -i|--image diskimage
+                   -- disk image to flash (image directory -- cf. option -o)
+  --debug          -- enable debug mode for this script
+
+Examples:
   deploy and build:                 ./${SCRIPT_NAME} --cmd deploy && sudo ./${SCRIPT_NAME} --cmd all
   make the Linux kernel only:       sudo ./${SCRIPT_NAME} --cmd kernel
   make rootfs only:                 sudo ./${SCRIPT_NAME} --cmd rootfs
@@ -180,7 +182,7 @@ while true; do
         -i|--image) # Disk image
             shift
             if test -e "$1"; then
-                PARM_DISK_IMAGE=$1
+                PARAM_DISK_IMAGE=$1
             fi
             ;;
         -o|--output) # select output dir
@@ -621,11 +623,11 @@ is_removable_device ()
                 grep "Drive:"|
                 cut -d"'" -f 2
               )
-        local gdbus_is_removable=$(
+        gdbus_is_removable=$(
             gdbus call --system --dest org.freedesktop.UDisks2 \
                   --object-path ${drive} \
                   --method org.freedesktop.DBus.Properties.Get org.freedesktop.UDisks2.Drive MediaRemovable 2>/dev/null
-              )
+                          )
         if [[ ."$gdbus_is_removable" =~ ^\..*true ]]; then
             removable=1
         fi
@@ -652,7 +654,7 @@ get_range ()
     if (( size > 10 )); then
         echo "1-$size"
     else
-        echo "$(sed -e 's/ /|/g' <<< $(echo $(seq $size)))"
+        echo $(seq $size) | tr ' ' '|'
     fi
 }
 
@@ -693,6 +695,7 @@ select_from_list ()
 get_disk_images ()
 {
     local -a archives
+    local archive
     local kind
 
     mapfile -t archives < <(ls "${PARAM_OUTPUT_DIR}/"*.$COMPRESSION_SUFFIX)
@@ -954,16 +957,20 @@ cmd_flash_diskimage ()
     local total_size_gib
     local -i i
 
-    if test ! -e "$LPARAM_DISK_IMAGE"; then
-        LPARAM_DISK_IMAGE=$(select_disk_image)
-        if test ."$LPARAM_DISK_IMAGE" = .''; then
+    if test ! -f "$LPARAM_DISK_IMAGE"; then
+        if test -f "${PARAM_OUTPUT_DIR}/${LPARAM_DISK_IMAGE}"; then
+            LPARAM_DISK_IMAGE=${PARAM_OUTPUT_DIR}/${LPARAM_DISK_IMAGE}
+        else
+            LPARAM_DISK_IMAGE=$(select_disk_image)
+        fi
+        if test ! -f "$LPARAM_DISK_IMAGE"; then
             pr_error "Image not available"
             exit 1
         fi
     fi
 
-    if ! is_removable_device "$LPARAM_BLOCK_DEVICE"; then
-        LPARAM_BLOCK_DEVICE=$(sed -e 's/ .*//' <<<$(select_removable_device))
+    if ! is_removable_device "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1; then
+        LPARAM_BLOCK_DEVICE=$(select_removable_device | awk '{ print $1 }')
         if test ."$LPARAM_BLOCK_DEVICE" = .''; then
             pr_error "Device not available"
             exit 1
@@ -975,7 +982,7 @@ cmd_flash_diskimage ()
     total_size_gib=$(bc <<< "scale=1; ${total_size_bytes}/(1024*1024*1024)")
 
     echo '============================================='
-    pr_info "Image: $LPARAM_DISK_IMAGE"
+    pr_info "Image: ${LPARAM_DISK_IMAGE##*/}"
     pr_info "Device: $LPARAM_BLOCK_DEVICE, $total_size_gib GiB"
     echo '============================================='
     read -p "Press Enter to continue"
