@@ -226,7 +226,7 @@ protected_install bluez-tools
 protected_install blueman
 protected_install gconf2
 
-#shared-mime-info
+# shared-mime-info
 protected_install shared-mime-info
 
 # wifi support packages
@@ -236,21 +236,30 @@ protected_install shared-mime-info
 # disable the hostapd service by default
 # systemctl disable hostapd.service
 
-# ifupdown is superceded by NetworkManager
-apt-get -y purge ifupdown
-rm -f /etc/network/interfaces
-
 # can support
 protected_install can-utils
 
 # pm-utils
 protected_install pm-utils
 
-apt-get -y autoremove
+# BEGIN -- REVO i.MX7D networking
+# ifupdown is superceded by NetworkManager
+apt-get -y purge ifupdown
+rm -f /etc/network/interfaces
 
-# update iptables alternatives to legacy
-# update-alternatives --set iptables /usr/sbin/iptables-legacy
-# update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
+# iptables is superceded by nftables, but NetworkManager still depends
+# on compatibility interface, iptables-nft, provided by iptables.
+# See https://www.redhat.com/en/blog/using-iptables-nft-hybrid-linux-firewall.
+# apt-get -y purge iptables
+
+# Defaults, starting with Debian buster:
+# update-alternatives --set iptables /usr/sbin/iptables-nft
+# update-alternatives --set ip6tables /usr/sbin/ip6tables-nft
+# update-alternatives --set arptables /usr/sbin/arptables-nft
+# update-alternatives --set ebtables /usr/sbin/ebtables-nft
+# END -- REVO i.MX7D networking
+
+apt-get -y autoremove
 
 apt-get install -y --reinstall libgdk-pixbuf2.0-0
 

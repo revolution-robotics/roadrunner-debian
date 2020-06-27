@@ -4,15 +4,22 @@
 #
 # Copyright © 2020, Revolution Robotics, Inc.
 #
-: ${AWK:='/bin/awk'}
-: ${NMCLI:='/bin/nmcli'}
+exit 0
+
+: ${AWK:='/usr/bin/awk'}
+: ${FLOCK:='/usr/bin/flock'}
+: ${NMCLI:='/usr/bin/nmcli'}
 : ${SED:='/bin/sed'}
-: ${TR:='/bin/tr'}
+: ${TR:='/usr/bin/tr'}
+
+#  Avoid multiple instances of this script.
+if test ."$0" != ."$LOCKED"; then
+    exec env LOCKED=$0 $FLOCK -en "$0" "$0" "$@" || :
+fi
 
 declare interface=$1
 declare status=$2
 
-declare -r LOCKDIR=/var/run/NetworkManager/defaul-ethernet-ap-lock
 declare -r ACCESS_POINT=/usr/lib/NetworkManager/ethernet-access-point.sh
 
 declare -a interfaces
@@ -21,13 +28,6 @@ declare interface
 declare profile
 
 source "/usr/lib/NetworkManager/nm-funcs.sh"
-
-# Use $LOCKDIR to avoid multiple instances of this script.
-if mkdir 2>/dev/null "$LOCKDIR"; then
-    trap "rm -rf $LOCKDIR" 0 1 2 15
-else
-    exit 1
-fi
 
 if test ."$status" = .'down'; then
 
