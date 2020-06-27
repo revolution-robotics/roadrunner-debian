@@ -320,7 +320,7 @@ make_tarball ()
 
         pr_info "Create $2"
 
-        tar czf "$2" . || {
+        tar -zcf "$2" --exclude '*~' . || {
             rm -f "$2"
             exit 1
         }
