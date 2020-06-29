@@ -56,9 +56,8 @@ select_from_list ()
     local prompt=$2
 
     local choice
-    local count
+    local count=${#choices[*]}
 
-    count=${#choices[*]}
     case "$count" in
         0)
             pr_error "Nothing to choose"
@@ -90,7 +89,7 @@ get_disk_images ()
     local archive
     local kind
 
-    mapfile -t archives < <(ls output/*.$COMPRESSION_SUFFIX)
+    mapfile -t archives < <(ls "${PARAM_OUTPUT_DIR}/"*.$COMPRESSION_SUFFIX 2>/dev/null)
     for archive in "${archives[@]}"; do
         kind=$($ZCAT "$archive" | file - | awk '{ print $2 }')
         case "$kind" in

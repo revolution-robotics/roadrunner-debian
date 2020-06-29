@@ -698,7 +698,7 @@ get_disk_images ()
     local archive
     local kind
 
-    mapfile -t archives < <(ls "${PARAM_OUTPUT_DIR}/"*.$COMPRESSION_SUFFIX)
+    mapfile -t archives < <(ls "${PARAM_OUTPUT_DIR}/"*.$COMPRESSION_SUFFIX 2>/dev/null)
     for archive in "${archives[@]}"; do
         kind=$($ZCAT "$archive" | file - | awk '{ print $2 }')
         case "$kind" in
@@ -923,12 +923,29 @@ cmd_make_diskimage ()
     local IMAGE_SIZE=$(( 7774208 * 512 )) # 3.7 GiB
     local LOOP_DEVICE
 
+    cleanup_make_diskimage ()
+    {
+        local loop_device=$1
+
+        pr_info "Cleaning up file-backed loop device"
+        if test -e "${loop_device}"; then
+            if test -e "${loop_device}p1"; then
+                umount -f "${loop_device}p1"
+            fi
+            if test -e "${loop_device}p2"; then
+                umount -f "${loop_device}p2"
+            fi
+            losetup -d "$loop_device"
+        fi
+        rm -rf "${G_TMP_DIR}/"*
+    }
+
     pr_info "Initialize file-backed loop device"
     mkdir -p $(dirname "$IMAGE_FILE")
     dd if=/dev/zero of="$IMAGE_FILE" bs="$IMAGE_SIZE" seek=1 count=0
     LOOP_DEVICE=$(losetup --nooverlap --find --show "$IMAGE_FILE")
 
-    trap 'losetup -d "$LOOP_DEVICE"; exit' 0 1 2 15
+    trap 'cleanup_make_diskimage "$LOOP_DEVICE"; exit' 0 1 2 15
 
     if test ."$MACHINE" = .'imx6ul-var-dart' ||
            test ."$MACHINE" = .'var-som-mx7' ||
