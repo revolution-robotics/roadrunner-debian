@@ -309,7 +309,7 @@ EOF
             "${ROOTFS_BASE}/etc"
 
     # Set Exim hostname to $MACHINE
-    echo "$MACHINE" >"${ROOTFS_BASE}/etc/mailname"
+    echo "$MACHINE" > "${ROOTFS_BASE}/etc/mailname"
     sed -i -e 's/\(^dc_other_hostname\).*/\1='\'"$MACHINE"\''/' \
         "${ROOTFS_BASE}/etc/exim4/update-exim4.conf.conf"
     sed -i -e 's/\(^MAIN_LOCAL_DOMAINS=@:localhost\).*/\1:'"$MACHINE"'/' \
@@ -325,7 +325,7 @@ EOF
             "${ROOTFS_BASE}/usr/lib/tmpfiles.d"
 
     # Mount systemd journal on tmpfs
-    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf \
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
             "${ROOTFS_BASE}/etc/systemd"
 
     # Install NetworkManager auto-share dispatcher.
@@ -412,12 +412,13 @@ EOF
     # tar -xzf ${G_VENDOR_PATH}/deb/shared-mime-info/mime_image_prebuilt.tar.gz -C \
     #     ${ROOTFS_BASE}/
     ## end packages stage ##
-    [ "${G_USER_PACKAGES}" != "" ] && {
+    if test ."${G_USER_PACKAGES}" != .''; then
 
         pr_info "rootfs: install user defined packages (user-stage)"
         pr_info "rootfs: G_USER_PACKAGES \"${G_USER_PACKAGES}\" "
 
-        echo "#!/bin/bash
+        cat > user-stage << EOF
+"#!/bin/bash
 # update packages
 apt-get update
 
@@ -425,12 +426,12 @@ apt-get update
 apt-get -y -t ${DEB_RELEASE}-backports install ${G_USER_PACKAGES}
 
 rm -f user-stage
-" > user-stage
+EOF
 
         chmod +x user-stage
         LANG=C chroot ${ROOTFS_BASE} /user-stage
 
-    }
+    fi
 
     # binaries rootfs patching
     install -m 0644 ${G_VENDOR_PATH}/issue ${ROOTFS_BASE}/etc/
@@ -650,7 +651,7 @@ make_x11_image ()
     # Delete the partitions
     # for (( i=0; i < 10; i++ )); do
     #     if [ -e ${LPARAM_BLOCK_DEVICE}${part}${i} ]; then
-    #         dd if=/dev/zero of=${LPARAM_BLOCK_DEVICE}${part}$i bs=512 count=1024 2> /dev/null || true
+    #         dd if=/dev/zero of=${LPARAM_BLOCK_DEVICE}${part}$i bs=512 count=1024 2>/dev/null || true
     #     fi
     # done
     # sync
@@ -693,7 +694,7 @@ make_x11_image ()
     sleep 2
     sync
 
-    flock "$LPARAM_BLOCK_DEVICE" sfdisk "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1 <<EOF
+    flock "$LPARAM_BLOCK_DEVICE" sfdisk "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1 << EOF
 $part1_start,$part1_size,c
 $part2_start,-,L
 EOF
