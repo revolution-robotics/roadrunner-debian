@@ -418,7 +418,7 @@ EOF
         pr_info "rootfs: G_USER_PACKAGES \"${G_USER_PACKAGES}\" "
 
         cat > user-stage << EOF
-"#!/bin/bash
+#!/bin/bash
 # update packages
 apt-get update
 
@@ -476,10 +476,11 @@ EOF
     cp ${G_VENDOR_PATH}/${MACHINE}/fw_env.config ${ROOTFS_BASE}/etc
 
     ## clenup command
-    echo "#!/bin/bash
+    cat > cleanup << EOF
+#!/bin/bash
 apt-get clean
 rm -f cleanup
-" > cleanup
+EOF
 
     # clean all packages
     pr_info "rootfs: clean"
