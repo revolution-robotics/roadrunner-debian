@@ -62,41 +62,56 @@ make_debian_x11_rootfs ()
     #    ${ROOTFS_BASE}/srv/local-apt-repository
 
     # add mirror to source list
-    echo "deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
+    cat >etc/apt/sources.list <<EOF
+deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
 deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
-" > etc/apt/sources.list
+EOF
 
     # raise backports priority
-    echo "Package: *
+    cat >etc/apt/preferences.d/backports <<EOF
+Package: *
 Pin: release n=${DEB_RELEASE}-backports
 Pin-Priority: 500
-" > etc/apt/preferences.d/backports
+EOF
 
     # maximize local repo priority
-    echo 'Package: *
+    cat >etc/apt/preferences.d/local <<EOF
+Package: *
 Pin: origin ""
 Pin-Priority: 1000
-' > etc/apt/preferences.d/local
+EOF
 
-    echo "
+    cat >etc/fstab <<EOF
+
 # /dev/mmcblk0p1  /boot           vfat    defaults        0       0
-" > etc/fstab
+EOF
 
-    echo "${MACHINE}" > etc/hostname
+    echo "$MACHINE" > etc/hostname
+    cat >etc/hosts <<EOF
+127.0.0.1	localhost
+127.0.1.1	$MACHINE
+
+# The following lines are desirable for IPv6 capable hosts
+::1		ip6-localhost ip6-loopback
+fe00::0		ip6-localnet
+ff00::0		ip6-mcastprefix
+ff02::1		ip6-allnodes
+ff02::2		ip6-allrouters
+EOF
 
 #     echo "auto lo
 # iface lo inet loopback
 # " > etc/network/interfaces
 
-    echo "
+    cat >debconf.set <<EOF
 locales locales/locales_to_be_generated multiselect en_US.UTF-8 UTF-8
 locales locales/default_environment_locale select en_US.UTF-8
 console-common	console-data/keymap/policy	select	Select keymap from full list
 keyboard-configuration keyboard-configuration/variant select 'English (US)'
 openssh-server openssh-server/permit-root-login select true
-" > debconf.set
+EOF
 
     pr_info "rootfs: prepare install packages in rootfs"
     # apt-get install without starting
@@ -501,10 +516,13 @@ EOF
 
     rm ${ROOTFS_BASE}/usr/bin/qemu-arm-static
 
+
+    # BEGIN -- REVO i.MX7D cleanup
     # Prepare /var/log to be mounted as tmpfs.
     # NB: *~ is excluded from rootfs tarball.
     mv ${ROOTFS_BASE}/var/log{,~}
     install -d -m 755 ${ROOTFS_BASE}/var/log
+    # END -- REVO i.MX7D cleanup
 }
 
 # Must be called after make_debian_x11_rootfs in main script
@@ -654,17 +672,6 @@ make_x11_image ()
         fi
     fi
 
-
-    # Delete the partitions
-    # for (( i=0; i < 10; i++ )); do
-    #     if [ -e ${LPARAM_BLOCK_DEVICE}${part}${i} ]; then
-    #         dd if=/dev/zero of=${LPARAM_BLOCK_DEVICE}${part}$i bs=512 count=1024 2>/dev/null || true
-    #     fi
-    # done
-    # sync
-
-    # ( (echo d; echo 1; echo d; echo 2; echo d; echo 3; echo d; echo w) | fdisk ${LPARAM_BLOCK_DEVICE} >/dev/null 2>&1) || true
-    # sync
 
     # Get total card size in blocks
     local total_size=$(blockdev --getsz "$LPARAM_BLOCK_DEVICE")

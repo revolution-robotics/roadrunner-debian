@@ -942,7 +942,7 @@ cmd_make_diskimage ()
 
     pr_info "Initialize file-backed loop device"
     mkdir -p $(dirname "$IMAGE_FILE")
-    dd if=/dev/zero of="$IMAGE_FILE" bs="$IMAGE_SIZE" seek=1 count=0
+    dd if=/dev/zero of="$IMAGE_FILE" bs="$IMAGE_SIZE" seek=1 count=0 >/dev/null 2>&1
     LOOP_DEVICE=$(losetup --nooverlap --find --show "$IMAGE_FILE")
 
     trap 'cleanup_make_diskimage "$LOOP_DEVICE"; exit' 0 1 2 15
