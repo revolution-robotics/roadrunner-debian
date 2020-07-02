@@ -266,6 +266,8 @@ rm -f /etc/network/interfaces
 # on compatibility interface, iptables-nft, provided by iptables.
 # See https://www.redhat.com/en/blog/using-iptables-nft-hybrid-linux-firewall.
 # apt-get -y purge iptables
+DEBIAN_FRONTEND=noninteractive apt-get -y install iptables-persistent
+rm -f /etc/iptables/rules.v[46]
 
 # Defaults, starting with Debian buster:
 # update-alternatives --set iptables /usr/sbin/iptables-nft
