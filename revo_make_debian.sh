@@ -40,23 +40,23 @@ declare -r DEF_SRC_DIR=${DEF_BUILDENV}/src
 declare -r G_ROOTFS_DIR=${DEF_BUILDENV}/rootfs
 declare -r G_TMP_DIR=${DEF_BUILDENV}/tmp
 declare -r G_TOOLS_PATH=${DEF_BUILDENV}/toolchain
-if [[ ."$MACHINE" =~ \.(revo-roadrunner-mx7) ]]; then
+if test ."$MACHINE" = .'revo-roadrunner-mx7'; then
     declare -r G_VENDOR_PATH=${DEF_BUILDENV}/revo
 else
     declare -r G_VENDOR_PATH=${DEF_BUILDENV}/variscite
 fi
 
 #64 bit CROSS_COMPILER config and paths
-declare -r G_CROSS_COMPILER_64BIT_NAME=gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu
-declare -r G_CROSS_COMPILER_ARCHIVE_64BIT=${G_CROSS_COMPILER_64BIT_NAME}.tar.xz
-declare -r G_EXT_CROSS_64BIT_COMPILER_LINK=http://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/aarch64-linux-gnu/${G_CROSS_COMPILER_ARCHIVE_64BIT}
-declare -r G_CROSS_COMPILER_64BIT_PREFIX=aarch64-linux-gnu-
+declare -r G_CROSS_COMPILER_64BIT_NAME=aarch64--glibc--stable-2020.02-2
+declare -r G_CROSS_COMPILER_ARCHIVE_64BIT=${G_CROSS_COMPILER_64BIT_NAME}.tar.bz2
+declare -r G_EXT_CROSS_64BIT_COMPILER_LINK=https://toolchains.bootlin.com/downloads/releases/toolchains/aarch64/tarballs/${G_CROSS_COMPILER_ARCHIVE_64BIT}
+declare -r G_CROSS_COMPILER_64BIT_PREFIX=aarch64-buildroot-linux-gnu-
 
 #32 bit CROSS_COMPILER config and paths
-declare -r G_CROSS_COMPILER_32BIT_NAME=gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf
-declare -r G_CROSS_COMPILER_ARCHIVE_32BIT=${G_CROSS_COMPILER_32BIT_NAME}.tar.xz
-declare -r G_EXT_CROSS_32BIT_COMPILER_LINK=http://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/arm-linux-gnueabihf/${G_CROSS_COMPILER_ARCHIVE_32BIT}
-declare -r G_CROSS_COMPILER_32BIT_PREFIX=arm-linux-gnueabihf-
+declare -r G_CROSS_COMPILER_32BIT_NAME=armv7-eabihf--glibc--stable-2020.02-2
+declare -r G_CROSS_COMPILER_ARCHIVE_32BIT=${G_CROSS_COMPILER_32BIT_NAME}.tar.bz2
+declare -r G_EXT_CROSS_32BIT_COMPILER_LINK=https://toolchains.bootlin.com/downloads/releases/toolchains/armv7-eabihf/tarballs/${G_CROSS_COMPILER_ARCHIVE_32BIT}
+declare -r G_CROSS_COMPILER_32BIT_PREFIX=arm-buildroot-linux-gnueabihf-
 
 declare -r G_CROSS_COMPILER_JOPTION="-j 6"
 
@@ -70,8 +70,8 @@ declare PARAM_DEB_LOCAL_MIRROR=$DEF_DEBIAN_MIRROR
 declare PARAM_OUTPUT_DIR=${DEF_BUILDENV}/output
 declare PARAM_DEBUG=0
 declare PARAM_CMD=''
-declare PARAM_BLOCK_DEVICE='na'
-declare PARAM_DISK_IMAGE='na'
+declare PARAM_BLOCK_DEVICE=na
+declare PARAM_DISK_IMAGE=na
 
 ### usage ###
 usage ()
@@ -785,11 +785,11 @@ make_bcm_fw ()
 
 cmd_make_deploy ()
 {
-    # get linaro toolchain
+    # get toolchain
     if (( $(ls "$G_CROSS_COMPILER_PATH" 2>/dev/null | wc -l) == 0 )); then
         pr_info "Get and unpack cross compiler"
         get_remote_file "$G_EXT_CROSS_COMPILER_LINK" "$DEF_SRC_DIR"
-        tar -xJf "${DEF_SRC_DIR}/${G_CROSS_COMPILER_ARCHIVE}" \
+        tar -jxf "${DEF_SRC_DIR}/${G_CROSS_COMPILER_ARCHIVE}" \
             -C "$G_TOOLS_PATH"/
     fi
 

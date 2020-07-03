@@ -4,6 +4,12 @@
 
 export PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
+if tput colors >/dev/null 2>&1; then
+    export TERM=xterm-256color
+else
+    export TERM=vt220
+fi
+
 if [ "${PS1-}" ]; then
     if [ "${BASH-}" ] && [ "$BASH" != "/bin/sh" ]; then
         # The file bash.bashrc already sets the default PS1.
