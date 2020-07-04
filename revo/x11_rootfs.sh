@@ -447,7 +447,9 @@ apt-get update
 
 # install all user packages from backports
 apt-get -y -t ${DEB_RELEASE}-backports install ${G_USER_PACKAGES}
-
+pip3 install minimalmodbus
+pip3 install pystemd
+pip3 install pytz
 rm -f user-stage
 EOF
 

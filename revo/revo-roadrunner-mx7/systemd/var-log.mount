@@ -22,7 +22,7 @@ After=swap.target
 What=tmpfs
 Where=/var/log
 Type=tmpfs
-Options=mode=755
+Options=mode=755,size=50M
 
 [Install]
 WantedBy=local-fs.target

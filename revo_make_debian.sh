@@ -61,7 +61,7 @@ declare -r G_CROSS_COMPILER_32BIT_PREFIX=arm-buildroot-linux-gnueabihf-
 declare -r G_CROSS_COMPILER_JOPTION="-j 6"
 
 #### user rootfs packages ####
-declare -r G_USER_PACKAGES="bash-completion binutils cockpit cockpit-networkmanager curl dnsutils ed git openvpn network-manager-openvpn pciutils python3-cryptography python3-dateutil python3-lxml python3-pip python3-psutil python3-websockets python3-zmq sudo traceroute"
+declare -r G_USER_PACKAGES="bash-completion binutils cockpit cockpit-networkmanager curl dnsutils ed git libsystemd-dev openvpn network-manager-openvpn pciutils python3-asteval python3-cryptography python3-dateutil python3-lxml python3-pip python3-psutil python3-serial python3-websocket python3-websockets python3-zmq sudo traceroute"
 
 export LC_ALL=C
 
