@@ -333,8 +333,6 @@ EOF
             "${ROOTFS_BASE}/lib/systemd/system"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/var-"{log,tmp}.mount \
             "${ROOTFS_BASE}/lib/systemd/system"
-    ln -s '/lib/systemd/system/'{tmp,var-{log,tmp}}.mount \
-       "${ROOTFS_BASE}/etc/systemd/system"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/var-log.conf" \
             "${ROOTFS_BASE}/usr/lib/tmpfiles.d"
 

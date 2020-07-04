@@ -988,7 +988,7 @@ cmd_flash_diskimage ()
 
     if ! is_removable_device "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1; then
         LPARAM_BLOCK_DEVICE=$(select_removable_device | awk '{ print $1 }')
-        if test ."$LPARAM_BLOCK_DEVICE" = .''; then
+        if test ! -b "$LPARAM_BLOCK_DEVICE"; then
             pr_error "Device not available"
             exit 1
         fi
