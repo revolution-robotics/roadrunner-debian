@@ -1,65 +1,69 @@
 #!/usr/bin/env bash
 #
 # Must be called after make_prepare in main script
-# function generate rootfs in input dir
-# $1 - rootfs base dir
-make_debian_x11_rootfs ()
+# function generate recoveryfs in input dir
+# $1 - recoveryfs base dir
+make_debian_recoveryfs ()
 {
-    local ROOTFS_BASE=$1
+    local RECOVERYFS_BASE=$1
 
-    pr_info "Make debian(${DEB_RELEASE}) rootfs start..."
+    pr_info "Make debian(${DEB_RELEASE}) recoveryfs start..."
 
     # umount previus mounts (if fail)
-    umount ${ROOTFS_BASE}/{sys,proc,dev/pts,dev} 2>/dev/null || true
+    umount "${RECOVERYFS_BASE}/"{sys,proc,dev/pts,dev} 2>/dev/null || true
 
-    # clear rootfs dir
-    rm -rf ${ROOTFS_BASE}/*
+    # clear recoveryfs dir
+    rm -rf "${RECOVERYFS_BASE}/"*
 
-    pr_info "rootfs: debootstrap"
-    # debootstrap --verbose --no-check-gpg --foreign --arch armhf ${DEB_RELEASE} \
-    #             ${ROOTFS_BASE}/ ${PARAM_DEB_LOCAL_MIRROR}
-    debootstrap --verbose  --foreign --arch armhf \
-                --keyring=/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg \
-                ${DEB_RELEASE} ${ROOTFS_BASE}/ ${PARAM_DEB_LOCAL_MIRROR}
+    pr_info "recoveryfs: debootstrap"
+    # debootstrap --verbose --no-check-gpg --foreign --arch armhf "${DEB_RELEASE}" \
+    #             "${RECOVERYFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
+    debootstrap --variant=minbase --verbose  --foreign --arch armhf \
+                --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
+                "${DEB_RELEASE}" "${RECOVERYFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
 
     # prepare qemu
-    pr_info "rootfs: debootstrap in rootfs (second-stage)"
-    cp ${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static ${ROOTFS_BASE}/usr/bin/qemu-arm-static
+    pr_info "recoveryfs: debootstrap in recoveryfs (second-stage)"
+    cp "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" "${RECOVERYFS_BASE}/usr/bin/qemu-arm-static"
 
-    umount_rootfs ()
+    umount_recoveryfs ()
     {
-        umount -f ${ROOTFS_BASE}/{sys,proc,dev/pts,dev} 2>/dev/null || true
-        umount -f ${ROOTFS_BASE}/dev 2>/dev/null || true
+        umount -f "${RECOVERYFS_BASE}/"{sys,proc,dev/pts,dev} 2>/dev/null || true
+        umount -f "${RECOVERYFS_BASE}/dev" 2>/dev/null || true
     }
 
-    trap 'umount_rootfs' RETURN
-    trap 'umount_rootfs; exit' 0 1 2 15
+    trap 'umount_recoveryfs' RETURN
+    trap 'umount_recoveryfs; exit' 0 1 2 15
 
-    mount -t proc /proc ${ROOTFS_BASE}/proc
-    mount -o bind /sys ${ROOTFS_BASE}/sys
-    mount -o bind /dev ${ROOTFS_BASE}/dev
-    mount -o bind /dev/pts ${ROOTFS_BASE}/dev/pts
+    mount -t proc /proc ${RECOVERYFS_BASE}/proc
+    mount -o bind /sys ${RECOVERYFS_BASE}/sys
+    mount -o bind /dev ${RECOVERYFS_BASE}/dev
+    mount -o bind /dev/pts ${RECOVERYFS_BASE}/dev/pts
 
-    chroot $ROOTFS_BASE /debootstrap/debootstrap --second-stage
+    chroot $RECOVERYFS_BASE /debootstrap/debootstrap --second-stage
 
     # delete unused folder
-    chroot $ROOTFS_BASE rm -rf  ${ROOTFS_BASE}/debootstrap
+    chroot $RECOVERYFS_BASE rm -rf  ${RECOVERYFS_BASE}/debootstrap
 
-    pr_info "rootfs: generate default configs"
-    mkdir -p ${ROOTFS_BASE}/etc/sudoers.d/
-    echo "user ALL=(root) /usr/bin/apt-get, /usr/bin/dpkg, /usr/bin/vi, /sbin/reboot" > ${ROOTFS_BASE}/etc/sudoers.d/user
-    chmod 0440 ${ROOTFS_BASE}/etc/sudoers.d/user
-    mkdir -p ${ROOTFS_BASE}/srv/local-apt-repository
+    # pr_info "recoveryfs: generate default configs"
+    # mkdir -p ${RECOVERYFS_BASE}/etc/sudoers.d/
+    # echo "user ALL=(root) /usr/bin/apt-get, /usr/bin/dpkg, /usr/bin/vi, /sbin/reboot" > ${RECOVERYFS_BASE}/etc/sudoers.d/user
+    # chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/user
+
+    # install local Debian packages
+    mkdir -p ${RECOVERYFS_BASE}/srv/local-apt-repository
 
     # udisk2
     cp -r ${G_VENDOR_PATH}/deb/udisks2/* \
-       ${ROOTFS_BASE}/srv/local-apt-repository
+       ${RECOVERYFS_BASE}/srv/local-apt-repository
+
     # gstreamer-imx
-    cp -r ${G_VENDOR_PATH}/deb/gstreamer-imx/* \
-       ${ROOTFS_BASE}/srv/local-apt-repository
+    # cp -r ${G_VENDOR_PATH}/deb/gstreamer-imx/* \
+    #    ${RECOVERYFS_BASE}/srv/local-apt-repository
+
     # shared-mime-info
     # cp -r ${G_VENDOR_PATH}/deb/shared-mime-info/* \
-    #    ${ROOTFS_BASE}/srv/local-apt-repository
+    #    ${RECOVERYFS_BASE}/srv/local-apt-repository
 
     # add mirror to source list
     cat >etc/apt/sources.list <<EOF
@@ -113,14 +117,14 @@ keyboard-configuration keyboard-configuration/variant select 'English (US)'
 openssh-server openssh-server/permit-root-login select true
 EOF
 
-    pr_info "rootfs: prepare install packages in rootfs"
+    pr_info "recoveryfs: prepare install packages in recoveryfs"
     # apt-get install without starting
-    cat > ${ROOTFS_BASE}/usr/sbin/policy-rc.d << EOF
+    cat > ${RECOVERYFS_BASE}/usr/sbin/policy-rc.d << EOF
 #!/bin/sh
 exit 101
 EOF
 
-    chmod +x ${ROOTFS_BASE}/usr/sbin/policy-rc.d
+    chmod +x ${RECOVERYFS_BASE}/usr/sbin/policy-rc.d
 
     # third packages stage
     cat > third-stage << EOF
@@ -157,21 +161,24 @@ protected_install ()
     return \${RET_CODE}
 }
 
+# silence some apt warnings
+protected_install dialog
+
 # update packages and install base
 apt-get update || apt-get upgrade
 
 # local-apt-repository support
 protected_install local-apt-repository
 protected_install reprepro
-
 reprepro rereference
+
 # update packages and install base
 apt-get update || apt-get upgrade
 
 protected_install locales
 protected_install ntp
 protected_install openssh-server
-protected_install nfs-common
+# protected_install nfs-common
 
 # packages required when flashing emmc
 protected_install dosfstools
@@ -186,41 +193,41 @@ protected_install rng-tools
 protected_install udisks2
 
 # gvfs
-protected_install gvfs
+# protected_install gvfs
 
 # gvfs-daemons
-protected_install gvfs-daemons
+# protected_install gvfs-daemons
 
 # net-tools (ifconfig, etc.)
-protected_install net-tools
+# protected_install net-tools
 
 # enable graphical desktop
-protected_install xorg
-protected_install xfce4
-protected_install xfce4-goodies
+# protected_install xorg
+# protected_install xfce4
+# protected_install xfce4-goodies
 
 # network manager
-protected_install network-manager-gnome
+# protected_install network-manager-gnome
 
 # net-tools (ifconfig, etc.)
-protected_install net-tools
+# protected_install net-tools
 
 ## fix lightdm config (added autologin x_user) ##
-sed -i -e 's/\#autologin-user=/autologin-user=x_user/g' /etc/lightdm/lightdm.conf
-sed -i -e 's/\#autologin-user-timeout=0/autologin-user-timeout=0/g' /etc/lightdm/lightdm.conf
+# sed -i -e 's/\#autologin-user=/autologin-user=x_user/g' /etc/lightdm/lightdm.conf
+# sed -i -e 's/\#autologin-user-timeout=0/autologin-user-timeout=0/g' /etc/lightdm/lightdm.conf
 
 # added alsa & alsa utilites
-protected_install alsa-utils
-protected_install gstreamer1.0-alsa
+# protected_install alsa-utils
+# protected_install gstreamer1.0-alsa
 
-protected_install gstreamer1.0-plugins-bad
-protected_install gstreamer1.0-plugins-base
-protected_install gstreamer1.0-plugins-ugly
-protected_install gstreamer1.0-plugins-good
-protected_install gstreamer1.0-tools
+# protected_install gstreamer1.0-plugins-bad
+# protected_install gstreamer1.0-plugins-base
+# protected_install gstreamer1.0-plugins-ugly
+# protected_install gstreamer1.0-plugins-good
+# protected_install gstreamer1.0-tools
 
 # added gstreamer-imx
-protected_install gstreamer-imx
+# protected_install gstreamer-imx
 
 # added i2c tools
 protected_install i2c-tools
@@ -229,35 +236,38 @@ protected_install i2c-tools
 protected_install usbutils
 
 # added net tools
-protected_install iperf
+# protected_install iperf
 
 # mtd
 protected_install mtd-utils
 
 # bluetooth
 protected_install bluetooth
-protected_install bluez-obexd
-protected_install bluez-tools
-protected_install blueman
-protected_install gconf2
+# protected_install bluez-obexd
+# protected_install bluez-tools
+# protected_install blueman
+# protected_install gconf2
 
 # shared-mime-info
-protected_install shared-mime-info
+# protected_install shared-mime-info
 
 # wifi support packages
-# protected_install hostapd
+protected_install hostapd
 # protected_install udhcpd
 
 # disable the hostapd service by default
-# systemctl disable hostapd.service
+systemctl disable hostapd.service
 
 # can support
-protected_install can-utils
+# protected_install can-utils
 
 # pm-utils
-protected_install pm-utils
+# protected_install pm-utils
 
 # BEGIN -- REVO i.MX7D networking
+apt-get -y install ethtool
+apt-get -y install manpages-dev
+
 # ifupdown is superceded by NetworkManager
 apt-get -y purge ifupdown
 rm -f /etc/network/interfaces
@@ -266,6 +276,7 @@ rm -f /etc/network/interfaces
 # on compatibility interface, iptables-nft, provided by iptables.
 # See https://www.redhat.com/en/blog/using-iptables-nft-hybrid-linux-firewall.
 # apt-get -y purge iptables
+printf "\n\n" | DEBIAN_FRONTEND=noninteractive apt-get -y install network-manager
 DEBIAN_FRONTEND=noninteractive apt-get -y install iptables-persistent
 rm -f /etc/iptables/rules.v[46]
 
@@ -276,18 +287,18 @@ rm -f /etc/iptables/rules.v[46]
 # update-alternatives --set ebtables /usr/sbin/ebtables-nft
 # END -- REVO i.MX7D networking
 
-apt-get -y autoremove
+# apt-get -y autoremove
 
-apt-get install -y --reinstall libgdk-pixbuf2.0-0
+# apt-get install -y --reinstall libgdk-pixbuf2.0-0
 
 # create users and set password
-useradd -m -G audio -s /bin/bash user
-useradd -m -G audio -s /bin/bash x_user
-usermod -a -G video user
-usermod -a -G video x_user
-echo "user:user" | chpasswd
+# useradd -m -G audio -s /bin/bash user
+# useradd -m -G audio -s /bin/bash x_user
+# usermod -a -G video user
+# usermod -a -G video x_user
+# echo "user:user" | chpasswd
 echo "root:root" | chpasswd
-passwd -d x_user
+# passwd -d x_user
 
 # BEGIN -- REVO i.MX7D users
 # groupadd revo
@@ -307,46 +318,50 @@ passwd -d x_user
 rm -f third-stage
 EOF
 
-    pr_info "rootfs: install selected debian packages (third-stage)"
+    pr_info "recoveryfs: install selected debian packages (third-stage)"
     chmod +x third-stage
-    LANG=C chroot ${ROOTFS_BASE} /third-stage
+    LANG=C chroot ${RECOVERYFS_BASE} /third-stage
     # fourth-stage
 
     # BEGIN -- REVO i.MX7D updates
+    # Support resizing a serial console - taken from Debian xterm package.
+    install -m 0755 ${G_VENDOR_PATH}/recovery_resources/resize \
+            ${RECOVERYFS_BASE}/usr/bin
+
     # Regenerate SSH keys on first boot
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/regenerate-ssh-host-keys.service" \
-            "${ROOTFS_BASE}/lib/systemd/system"
+            "${RECOVERYFS_BASE}/lib/systemd/system"
     ln -s '/lib/systemd/system/regenerate-ssh-host-keys.service' \
-       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
+       "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Set PATH and resize serial console window.
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/bash.bashrc" \
-            "${ROOTFS_BASE}/etc"
+            "${RECOVERYFS_BASE}/etc"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/profile" \
-            "${ROOTFS_BASE}/etc"
+            "${RECOVERYFS_BASE}/etc"
 
     # Set Exim hostname to $MACHINE
-    echo "$MACHINE" > "${ROOTFS_BASE}/etc/mailname"
+    echo "$MACHINE" > "${RECOVERYFS_BASE}/etc/mailname"
 
     # Mount /tmp, /var/tmp and /var/log on tmpfs.
-    install -m 0644 "${ROOTFS_BASE}/usr/share/systemd/tmp.mount" \
-            "${ROOTFS_BASE}/lib/systemd/system"
+    install -m 0644 "${RECOVERYFS_BASE}/usr/share/systemd/tmp.mount" \
+            "${RECOVERYFS_BASE}/lib/systemd/system"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/var-"{log,tmp}.mount \
-            "${ROOTFS_BASE}/lib/systemd/system"
+            "${RECOVERYFS_BASE}/lib/systemd/system"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/var-log.conf" \
-            "${ROOTFS_BASE}/usr/lib/tmpfiles.d"
+            "${RECOVERYFS_BASE}/usr/lib/tmpfiles.d"
 
     # Mount systemd journal on tmpfs
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
-            "${ROOTFS_BASE}/etc/systemd"
+            "${RECOVERYFS_BASE}/etc/systemd"
 
     # Install redirect-web-ports service.
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/redirect-web-ports" \
-            "${ROOTFS_BASE}/sbin"
+            "${RECOVERYFS_BASE}/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/redirect-web-ports.service" \
-            "${ROOTFS_BASE}/lib/systemd/system"
+            "${RECOVERYFS_BASE}/lib/systemd/system"
     ln -s '/lib/systemd/system/redirect-web-ports.service' \
-       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
+       "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Install NetworkManager auto-share dispatcher.
     # Fix permissions set by Git
@@ -355,88 +370,89 @@ EOF
     chmod 750 "${G_VENDOR_PATH}/NetworkManager/etc/NetworkManager/dispatcher.d/51-default-wifi-ap"
 
     tar -C "${G_VENDOR_PATH}/NetworkManager" -cf - . |
-        tar -C "${ROOTFS_BASE}" -oxf -
+        tar -C "${RECOVERYFS_BASE}" -oxf -
 
     ln -sf '/lib/systemd/system/NetworkManager-dispatcher.service' \
-       "${ROOTFS_BASE}/etc/systemd/system/dbus-org.freedesktop.nm-dispatcher.service"
+       "${RECOVERYFS_BASE}/etc/systemd/system/dbus-org.freedesktop.nm-dispatcher.service"
     ln -s '../NetworkManager-autoshare-clean.service' \
-       "${ROOTFS_BASE}/lib/systemd/system/sysinit.target.wants"
+       "${RECOVERYFS_BASE}/lib/systemd/system/sysinit.target.wants"
 
-    rm -f "${ROOTFS_BASE}/etc/NetworkManager/dispatcher.d/"*ifupdown
+    rm -f "${RECOVERYFS_BASE}/etc/NetworkManager/dispatcher.d/"*ifupdown
     # END -- REVO i.MX7D update
 
     # install variscite-bt service
-    install -m 0755 ${G_VENDOR_PATH}/x11_resources/brcm_patchram_plus \
-            ${ROOTFS_BASE}/usr/bin
-    install -d ${ROOTFS_BASE}/etc/bluetooth
+    install -m 0755 ${G_VENDOR_PATH}/recovery_resources/brcm_patchram_plus \
+            ${RECOVERYFS_BASE}/usr/bin
+    install -d ${RECOVERYFS_BASE}/etc/bluetooth
     install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/variscite-bt.conf \
-            ${ROOTFS_BASE}/etc/bluetooth
-    install -m 0755 ${G_VENDOR_PATH}/x11_resources/variscite-bt \
-            ${ROOTFS_BASE}/etc/bluetooth
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/variscite-bt.service \
-            ${ROOTFS_BASE}/lib/systemd/system
+            ${RECOVERYFS_BASE}/etc/bluetooth
+    install -m 0755 ${G_VENDOR_PATH}/recovery_resources/variscite-bt \
+            ${RECOVERYFS_BASE}/etc/bluetooth
+    install -m 0644 ${G_VENDOR_PATH}/recovery_resources/variscite-bt.service \
+            ${RECOVERYFS_BASE}/lib/systemd/system
     ln -s /lib/systemd/system/variscite-bt.service \
-       ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-bt.service
+       ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-bt.service
 
     # install BT audio and main config
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/bluez5/files/audio.conf \
-            ${ROOTFS_BASE}/etc/bluetooth/
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/bluez5/files/main.conf \
-            ${ROOTFS_BASE}/etc/bluetooth/
+    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/bluez5/files/audio.conf \
+    #         ${RECOVERYFS_BASE}/etc/bluetooth/
+    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/bluez5/files/main.conf \
+    #         ${RECOVERYFS_BASE}/etc/bluetooth/
 
     # install obexd configuration
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/bluez5/files/obexd.conf \
-            ${ROOTFS_BASE}/etc/dbus-1/system.d
+    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/bluez5/files/obexd.conf \
+    #         ${RECOVERYFS_BASE}/etc/dbus-1/system.d
 
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/bluez5/files/obex.service \
-            ${ROOTFS_BASE}/lib/systemd/system
-    ln -s /lib/systemd/system/obex.service \
-       ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service
+    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/bluez5/files/obex.service \
+    #         ${RECOVERYFS_BASE}/lib/systemd/system
+    # ln -s /lib/systemd/system/obex.service \
+    #    ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service
 
     # install pulse audio configuration
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/pulseaudio/pulseaudio.service \
-            ${ROOTFS_BASE}/lib/systemd/system
-    ln -s /lib/systemd/system/pulseaudio.service \
-       ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/pulseaudio/pulseaudio-bluetooth.conf \
-            ${ROOTFS_BASE}/etc/dbus-1/system.d
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/pulseaudio/system.pa \
-            ${ROOTFS_BASE}/etc/pulse/
+    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/pulseaudio/pulseaudio.service \
+    #         ${RECOVERYFS_BASE}/lib/systemd/system
+    # ln -s /lib/systemd/system/pulseaudio.service \
+    #    ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service
+    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/pulseaudio/pulseaudio-bluetooth.conf \
+    #         ${RECOVERYFS_BASE}/etc/dbus-1/system.d
+    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/pulseaudio/system.pa \
+    #         ${RECOVERYFS_BASE}/etc/pulse/
 
     # Add alsa default configs
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/asound.state \
-            ${ROOTFS_BASE}/var/lib/alsa/
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/asound.conf ${ROOTFS_BASE}/etc/
+    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/asound.state \
+    #         ${RECOVERYFS_BASE}/var/lib/alsa/
+    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/asound.conf ${RECOVERYFS_BASE}/etc/
 
     # install variscite-wifi service
-    install -d ${ROOTFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/blacklist.conf \
-            ${ROOTFS_BASE}/etc/wifi
+    install -d ${RECOVERYFS_BASE}/etc/wifi
+    install -m 0644 ${G_VENDOR_PATH}/recovery_resources/blacklist.conf \
+            ${RECOVERYFS_BASE}/etc/wifi
     install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/variscite-wifi.conf \
-            ${ROOTFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/variscite-wifi-common.sh \
-            ${ROOTFS_BASE}/etc/wifi
-    install -m 0755 ${G_VENDOR_PATH}/x11_resources/variscite-wifi \
-            ${ROOTFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/variscite-wifi.service \
-            ${ROOTFS_BASE}/lib/systemd/system
+            ${RECOVERYFS_BASE}/etc/wifi
+    install -m 0644 ${G_VENDOR_PATH}/recovery_resources/variscite-wifi-common.sh \
+            ${RECOVERYFS_BASE}/etc/wifi
+    install -m 0755 ${G_VENDOR_PATH}/recovery_resources/variscite-wifi \
+            ${RECOVERYFS_BASE}/etc/wifi
+    install -m 0644 ${G_VENDOR_PATH}/recovery_resources/variscite-wifi.service \
+            ${RECOVERYFS_BASE}/lib/systemd/system
     ln -s /lib/systemd/system/variscite-wifi.service \
-       ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-wifi.service
+       ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-wifi.service
 
     # remove pm-utils default scripts and install wifi / bt pm-utils script
-    rm -rf ${ROOTFS_BASE}/usr/lib/pm-utils/sleep.d/
-    rm -rf ${ROOTFS_BASE}/usr/lib/pm-utils/module.d/
-    rm -rf ${ROOTFS_BASE}/usr/lib/pm-utils/power.d/
+    rm -rf ${RECOVERYFS_BASE}/usr/lib/pm-utils/sleep.d/
+    rm -rf ${RECOVERYFS_BASE}/usr/lib/pm-utils/module.d/
+    rm -rf ${RECOVERYFS_BASE}/usr/lib/pm-utils/power.d/
+    install -d -m 0755 ${RECOVERYFS_BASE}/etc/pm/sleep.d
     install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/wifi.sh \
-            ${ROOTFS_BASE}/etc/pm/sleep.d/
+            ${RECOVERYFS_BASE}/etc/pm/sleep.d/
 
     # tar -xzf ${G_VENDOR_PATH}/deb/shared-mime-info/mime_image_prebuilt.tar.gz -C \
-    #     ${ROOTFS_BASE}/
+    #     ${RECOVERYFS_BASE}/
     ## end packages stage ##
     if test ."${G_USER_PACKAGES}" != .''; then
 
-        pr_info "rootfs: install user defined packages (user-stage)"
-        pr_info "rootfs: G_USER_PACKAGES \"${G_USER_PACKAGES}\" "
+        pr_info "recoveryfs: install user defined packages (user-stage)"
+        pr_info "recoveryfs: G_USER_PACKAGES \"${G_USER_PACKAGES}\" "
 
         cat > user-stage << EOF
 #!/bin/bash
@@ -444,59 +460,67 @@ EOF
 apt-get update
 
 # install all user packages from backports
-apt-get -y -t ${DEB_RELEASE}-backports install ${G_USER_PACKAGES}
+DEBIAN_FRONTEND=noninteractive apt-get -yq -t ${DEB_RELEASE}-backports install ${G_USER_PACKAGES}
 pip3 install minimalmodbus
 pip3 install pystemd
 pip3 install pytz
+
+# BEGIN -- REVO i.MX7D purge
+apt-get -y purge build-essential
+apt-get -y purge gcc-8
+apt-get --purge -y autoremove
+# END -- REVO i.MX7D purge
+
 rm -f user-stage
 EOF
 
         chmod +x user-stage
-        LANG=C chroot ${ROOTFS_BASE} /user-stage
+        LANG=C chroot ${RECOVERYFS_BASE} /user-stage
 
     fi
 
-    # binaries rootfs patching
-    install -m 0644 ${G_VENDOR_PATH}/issue ${ROOTFS_BASE}/etc/
-    install -m 0644 ${G_VENDOR_PATH}/issue.net ${ROOTFS_BASE}/etc/
-    install -m 0755 ${G_VENDOR_PATH}/x11_resources/rc.local ${ROOTFS_BASE}/etc/
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/hostapd.conf ${ROOTFS_BASE}/etc/
-    install -d ${ROOTFS_BASE}/boot/
-    install -m 0644 ${G_VENDOR_PATH}/splash.bmp ${ROOTFS_BASE}/boot/
+    # binaries recoveryfs patching
+    install -m 0644 ${G_VENDOR_PATH}/issue ${RECOVERYFS_BASE}/etc/
+    install -m 0644 ${G_VENDOR_PATH}/issue.net ${RECOVERYFS_BASE}/etc/
+    install -m 0755 ${G_VENDOR_PATH}/recovery_resources/rc.local ${RECOVERYFS_BASE}/etc/
+    install -m 0644 ${G_VENDOR_PATH}/recovery_resources/hostapd.conf ${RECOVERYFS_BASE}/etc/
+    install -d -m 0755 ${RECOVERYFS_BASE}/boot
+    install -m 0644 ${G_VENDOR_PATH}/splash.bmp ${RECOVERYFS_BASE}/boot/
+    install -d -m 0755 ${RECOVERYFS_BASE}/usr/share/images/desktop-base
     install -m 0644 ${G_VENDOR_PATH}/wallpaper.png \
-            ${ROOTFS_BASE}/usr/share/images/desktop-base/default
+            ${RECOVERYFS_BASE}/usr/share/images/desktop-base/default
 
     # disable light-locker
-    install -m 0755 ${G_VENDOR_PATH}/x11_resources/disable-lightlocker \
-            ${ROOTFS_BASE}/usr/local/bin/
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/disable-lightlocker.desktop \
-            ${ROOTFS_BASE}/etc/xdg/autostart/
+    # install -m 0755 ${G_VENDOR_PATH}/recovery_resources/disable-lightlocker \
+    #         ${RECOVERYFS_BASE}/usr/local/bin/
+    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/disable-lightlocker.desktop \
+    #         ${RECOVERYFS_BASE}/etc/xdg/autostart/
 
     # Revert regular booting
-    rm -f ${ROOTFS_BASE}/usr/sbin/policy-rc.d
+    rm -f ${RECOVERYFS_BASE}/usr/sbin/policy-rc.d
 
-    # install kernel modules in rootfs
+    # install kernel modules in recoveryfs
     install_kernel_modules \
         ${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
         ${G_LINUX_KERNEL_DEF_CONFIG} ${G_LINUX_KERNEL_SRC_DIR} \
-        ${ROOTFS_BASE}
+        ${RECOVERYFS_BASE}
 
     # copy all kernel headers for development
-    mkdir -p ${ROOTFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
+    install -d -m 0755 ${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
     cp ${G_LINUX_KERNEL_SRC_DIR}/drivers/staging/android/uapi/* \
-       ${ROOTFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
+       ${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
     cp -r ${G_LINUX_KERNEL_SRC_DIR}/include \
-       ${ROOTFS_BASE}/usr/local/src/linux-imx/
+       ${RECOVERYFS_BASE}/usr/local/src/linux-imx/
 
     # copy custom files
-    cp ${G_VENDOR_PATH}/${MACHINE}/kobs-ng ${ROOTFS_BASE}/usr/bin
-    cp ${PARAM_OUTPUT_DIR}/fw_printenv-mmc ${ROOTFS_BASE}/usr/bin
-    # cp ${PARAM_OUTPUT_DIR}/fw_printenv-nand ${ROOTFS_BASE}/usr/bin
-    # ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_printenv-nand
-    # ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_setenv
-    ln -sf fw_printenv-mmc ${ROOTFS_BASE}/usr/bin/fw_printenv
-    ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_setenv
-    cp ${G_VENDOR_PATH}/${MACHINE}/fw_env.config ${ROOTFS_BASE}/etc
+    cp ${G_VENDOR_PATH}/${MACHINE}/kobs-ng ${RECOVERYFS_BASE}/usr/bin
+    cp ${PARAM_OUTPUT_DIR}/fw_printenv-mmc ${RECOVERYFS_BASE}/usr/bin
+    # cp ${PARAM_OUTPUT_DIR}/fw_printenv-nand ${RECOVERYFS_BASE}/usr/bin
+    # ln -sf fw_printenv ${RECOVERYFS_BASE}/usr/bin/fw_printenv-nand
+    # ln -sf fw_printenv ${RECOVERYFS_BASE}/usr/bin/fw_setenv
+    ln -sf fw_printenv-mmc ${RECOVERYFS_BASE}/usr/bin/fw_printenv
+    ln -sf fw_printenv ${RECOVERYFS_BASE}/usr/bin/fw_setenv
+    cp ${G_VENDOR_PATH}/${MACHINE}/fw_env.config ${RECOVERYFS_BASE}/etc
 
     ## clenup command
     cat > cleanup << EOF
@@ -506,9 +530,9 @@ rm -f cleanup
 EOF
 
     # clean all packages
-    pr_info "rootfs: clean"
+    pr_info "recoveryfs: clean"
     chmod +x cleanup
-    chroot ${ROOTFS_BASE} /cleanup
+    chroot ${RECOVERYFS_BASE} /cleanup
 
     # kill latest dbus-daemon instance due to qemu-arm-static
     QEMU_PROC_ID=$(ps axf | grep dbus-daemon | grep qemu-arm-static | awk '{print $1}')
@@ -516,51 +540,51 @@ EOF
         kill -9 $QEMU_PROC_ID
     fi
 
-    rm ${ROOTFS_BASE}/usr/bin/qemu-arm-static
+    rm ${RECOVERYFS_BASE}/usr/bin/qemu-arm-static
 
 
     # BEGIN -- REVO i.MX7D cleanup
     # Prepare /var/log to be mounted as tmpfs.
-    # NB: *~ is excluded from rootfs tarball.
-    mv ${ROOTFS_BASE}/var/log{,~}
-    install -d -m 755 ${ROOTFS_BASE}/var/log
+    # NB: *~ is excluded from recoveryfs tarball.
+    mv ${RECOVERYFS_BASE}/var/log{,~}
+    install -d -m 755 ${RECOVERYFS_BASE}/var/log
     # END -- REVO i.MX7D cleanup
 }
 
-# Must be called after make_debian_x11_rootfs in main script
-# function generate ubi rootfs in input dir
-# $1 - rootfs ubifs base dir
-prepare_x11_ubifs_rootfs ()
+# Must be called after make_debian_recoveryfs in main script
+# function generate ubi recoveryfs in input dir
+# $1 - recoveryfs ubifs base dir
+prepare_recovery_ubifs_recoveryfs ()
 {
-    local UBIFS_ROOTFS_BASE=$1
-    pr_info "Make debian(${DEB_RELEASE}) rootfs for UBIFS start..."
+    local UBIFS_RECOVERYFS_BASE=$1
+    pr_info "Make debian(${DEB_RELEASE}) recoveryfs for UBIFS start..."
 
     # Below removals are to free space to fit in a NAND flash
     # Remove foreign man pages and locales
-    rm -rf ${UBIFS_ROOTFS_BASE}/usr/share/man/??
-    rm -rf ${UBIFS_ROOTFS_BASE}/usr/share/man/??_*
-    rm -rf ${UBIFS_ROOTFS_BASE}/var/cache/man/??
-    rm -rf ${UBIFS_ROOTFS_BASE}/var/cache/man/??_*
-    (cd ${UBIFS_ROOTFS_BASE}/usr/share/locale; ls | grep -v en_[GU] | xargs rm -rf)
+    rm -rf ${UBIFS_RECOVERYFS_BASE}/usr/share/man/??
+    rm -rf ${UBIFS_RECOVERYFS_BASE}/usr/share/man/??_*
+    rm -rf ${UBIFS_RECOVERYFS_BASE}/var/cache/man/??
+    rm -rf ${UBIFS_RECOVERYFS_BASE}/var/cache/man/??_*
+    (cd ${UBIFS_RECOVERYFS_BASE}/usr/share/locale; ls | grep -v en_[GU] | xargs rm -rf)
 
     # Remove document files
-    rm -rf ${UBIFS_ROOTFS_BASE}/usr/share/doc
+    rm -rf ${UBIFS_RECOVERYFS_BASE}/usr/share/doc
 
     # Remove deb package lists
-    rm -rf ${UBIFS_ROOTFS_BASE}/var/lib/apt/lists/deb.*
+    rm -rf ${UBIFS_RECOVERYFS_BASE}/var/lib/apt/lists/deb.*
 }
 
 # make bootable image for device
 # $1 -- block device
 # $2 -- output images dir
-make_x11_image ()
+make_recovery_image ()
 {
     local LPARAM_BLOCK_DEVICE=$1
     local LPARAM_OUTPUT_DIR=$2
 
     local P1_MOUNT_DIR="${G_TMP_DIR}/p1"
     local P2_MOUNT_DIR="${G_TMP_DIR}/p2"
-    local DEBIAN_IMAGES_TO_ROOTFS_POINT="opt/images/Debian"
+    local DEBIAN_IMAGES_TO_RECOVERYFS_POINT="opt/images/Debian"
 
     local BOOTLOAD_RESERVE_SIZE=4
     local SPARE_SIZE=8
@@ -570,7 +594,7 @@ make_x11_image ()
     {
         pr_info "Formating device partitions"
         if ! mkfs.vfat "${LPARAM_BLOCK_DEVICE}${part}1" -n BOOT ||
-                ! mkfs.ext4 "${LPARAM_BLOCK_DEVICE}${part}2" -L rootfs; then
+                ! mkfs.ext4 "${LPARAM_BLOCK_DEVICE}${part}2" -L recoveryfs; then
             pr_error "Format did not complete successfully."
             echo "*** Please check media and try again! ***"
             return 1
@@ -599,8 +623,8 @@ make_x11_image ()
            "${P1_MOUNT_DIR}/${BUILD_IMAGE_TYPE}"
         sync
 
-        pr_info "Flashing \"rootfs\" partition"
-        if ! tar -C "$P2_MOUNT_DIR" -xpf "${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}"; then
+        pr_info "Flashing \"recoveryfs\" partition"
+        if ! tar -C "$P2_MOUNT_DIR" -xpf "${LPARAM_OUTPUT_DIR}/${DEF_RECOVERYFS_TARBALL_NAME}"; then
             pr_error "Flash did not complete successfully."
             echo "*** Please check media and try again! ***"
             return 1
@@ -609,43 +633,41 @@ make_x11_image ()
 
     copy_debian_images ()
     {
-        mkdir -p "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        mkdir -p "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
 
-        pr_info "Copying Debian images to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        pr_info "Copying Debian images to /${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         cp "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         # if test ."$MACHINE" = .'imx6ul-var-dart' ||
         #        test ."$MACHINE" = .'var-som-mx7' ||
         #        test ."$MACHINE" = .'revo-roadrunner-mx7'; then
-        #     cp ${LPARAM_OUTPUT_DIR}/rootfs.ubi.img \
-        #        ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
+        #     cp ${LPARAM_OUTPUT_DIR}/recoveryfs.ubi.img \
+        #        ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}/
         # fi
-        cp "${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}" \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
         cp "${LPARAM_OUTPUT_DIR}/${DEF_RECOVERYFS_TARBALL_NAME}" \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
 
         cp "${LPARAM_OUTPUT_DIR}/"*.dtb \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
 
-        # pr_info "Copying NAND U-Boot to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        # pr_info "Copying NAND U-Boot to /${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         # cp "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_NAND}" \
-        #    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        #    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         # cp "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_NAND}" \
-        #    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        #    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
 
-        pr_info "Copying MMC U-Boot to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        pr_info "Copying MMC U-Boot to /${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         cp "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC}" \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         cp "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC}" \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
 
         return 0
     }
 
     copy_scripts ()
     {
-        pr_info "Copying scripts to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        pr_info "Copying scripts to /${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         if test ."$MACHINE" = .'imx6ul-var-dart'  ||
                test ."$MACHINE" = .'var-som-mx7' ||
                test ."$MACHINE" = .'revo-roadrunner-mx7'; then
@@ -684,19 +706,19 @@ make_x11_image ()
 
     # Convert to MB
     total_size=$(( total_size / 2048 ))
-    local rootfs_offset=$(( BOOTLOAD_RESERVE_SIZE + SPARE_SIZE ))
-    local rootfs_size=$(( total_size - rootfs_offset ))
+    local recoveryfs_offset=$(( BOOTLOAD_RESERVE_SIZE + SPARE_SIZE ))
+    local recoveryfs_size=$(( total_size - recoveryfs_offset ))
 
     pr_info "Device: ${LPARAM_BLOCK_DEVICE}, ${total_size_gib}GiB"
     echo "============================================="
     read -p "Press Enter to continue"
 
     pr_info "Creating new partitions"
-    pr_info "ROOT SIZE=$rootfs_size MiB, TOTAl SIZE=$total_size MiB"
+    pr_info "ROOT SIZE=$recoveryfs_size MiB, TOTAl SIZE=$total_size MiB"
 
     local part1_start="${BOOTLOAD_RESERVE_SIZE}MiB"
     local part1_size="${SPARE_SIZE}MiB"
-    local part2_start="${rootfs_offset}MiB"
+    local part2_start="${recoveryfs_offset}MiB"
 
     for (( i=0; i < 10; i++ )); do
         if test -n "$(findmnt "${LPARAM_BLOCK_DEVICE}${part}${i}")"; then
@@ -708,7 +730,7 @@ make_x11_image ()
     done
     wipefs -a "$LPARAM_BLOCK_DEVICE"
 
-    dd if=/dev/zero of="$LPARAM_BLOCK_DEVICE" bs=1M count="$rootfs_offset"
+    dd if=/dev/zero of="$LPARAM_BLOCK_DEVICE" bs=1M count="$recoveryfs_offset"
     sleep 2
     sync
 

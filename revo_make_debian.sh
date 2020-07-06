@@ -33,11 +33,13 @@ declare -r ZCAT=zcat
 declare -r DEF_DEBIAN_MIRROR=https://deb.debian.org/debian/
 declare -r DEB_RELEASE=buster
 declare -r DEF_ROOTFS_TARBALL_NAME=rootfs.tar.gz
+declare -r DEF_RECOVERYFS_TARBALL_NAME=recoveryfs.tar.gz
 
 # base paths
 declare -r DEF_BUILDENV=$ABSOLUTE_DIRECTORY
 declare -r DEF_SRC_DIR=${DEF_BUILDENV}/src
 declare -r G_ROOTFS_DIR=${DEF_BUILDENV}/rootfs
+declare -r G_RECOVERYFS_DIR=${DEF_BUILDENV}/recoveryfs
 declare -r G_TMP_DIR=${DEF_BUILDENV}/tmp
 declare -r G_TOOLS_PATH=${DEF_BUILDENV}/toolchain
 if test ."$MACHINE" = .'revo-roadrunner-mx7'; then
@@ -86,14 +88,19 @@ Options:
   -c|--cmd <command>
      Supported commands:
        deploy      -- prepare environment for all commands
-       all         -- build or rebuild kernel/bootloader/rootfs
+       all         -- build or rebuild kernel/bootloader/rootfs/recoveryfs
        bootloader  -- build or rebuild U-Boot
        kernel      -- build or rebuild the Linux kernel
        modules     -- build or rebuild the Linux kernel modules & headers and install them in the rootfs dir
        rootfs      -- build or rebuild the Debian root filesystem and create rootfs.tar.gz
                        (including: make & install Debian packages, firmware and kernel modules & headers)
+       recoveryfs  -- build or rebuild the Debian recovery filesystem and create recoveryfs.tar.gz
+                       (including: make & install Debian packages, firmware and kernel modules & headers)
+       bcmfw       -- install WiFi and Bluetooth firmware
+       firmware    -- install DMA firmware
        rubi        -- generate or regenerate rootfs.ubi.img image from rootfs folder
        rtar        -- generate or regenerate rootfs.tar.gz image from the rootfs folder
+       rytar       -- generate or regenerate recoveryfs.tar.gz image from the rootfs folder
        clean       -- clean all build artifacts (without deleting sources code or resulted images)
        sdcard      -- create a bootable SD card
        diskimage   -- create a bootable image file
@@ -108,6 +115,7 @@ Examples:
   deploy and build:                 ./${SCRIPT_NAME} --cmd deploy && sudo ./${SCRIPT_NAME} --cmd all
   make the Linux kernel only:       sudo ./${SCRIPT_NAME} --cmd kernel
   make rootfs only:                 sudo ./${SCRIPT_NAME} --cmd rootfs
+  make recoveryfs only:             sudo ./${SCRIPT_NAME} --cmd recoveryfs
   create bootable SD card:          sudo ./${SCRIPT_NAME} --cmd sdcard [--dev /dev/sdX]
   create boot image:                sudo ./${SCRIPT_NAME} --cmd diskimage
   flash image to SD card:           sudo ./${SCRIPT_NAME} --cmd flashimage
@@ -143,6 +151,7 @@ elif test ."$ARCH_CPU" = .'32BIT'; then
     declare ARCH_ARGS=arm
     # Include x11 backend rootfs helper
     source "${G_VENDOR_PATH}/x11_rootfs.sh"
+    source "${G_VENDOR_PATH}/recoveryfs.sh"
 else
     echo " Error unknown CPU type"
     exit 1
@@ -227,6 +236,7 @@ fi
 
 ## declarate dynamic variables ##
 declare -r G_ROOTFS_TARBALL_PATH="${PARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}"
+declare -r G_RECOVERYFS_TARBALL_PATH="${PARAM_OUTPUT_DIR}/${DEF_RECOVERYFS_TARBALL_NAME}"
 
 ###### local functions ######
 
@@ -297,6 +307,9 @@ make_prepare ()
 
     # create rootfs dir
     mkdir -p "$G_ROOTFS_DIR"
+
+    # create recoveryfs dir
+    mkdir -p "$G_RECOVERYFS_DIR"
 
     # create out dir
     mkdir -p "$PARAM_OUTPUT_DIR"
@@ -750,35 +763,41 @@ select_removable_device ()
 
 # make imx sdma firmware
 # $1 -- SDMA firmware directory
-# $2 -- rootfs output dir
+# $2 -- rootfs/recoveryfs output dir
 make_imx_sdma_fw ()
 {
+    local sdma_srcdir=$1
+    local targetdir=$2
+
     pr_info "Install imx sdma firmware"
-    install -d ${2}/lib/firmware/imx/sdma
+    install -d "${targetdir}/lib/firmware/imx/sdma"
     if test ."$MACHINE" = .'imx6ul-var-dart'; then
-        install -m 0644 ${1}/sdma-imx6q.bin \
-                ${2}/lib/firmware/imx/sdma
+        install -m 0644 "${sdma_srcdir}/sdma-imx6q.bin" \
+                "${targetdir}/lib/firmware/imx/sdma"
     elif  test ."$MACHINE" = .'var-som-mx7' ||
               test ."$MACHINE" = .'revo-roadrunner-mx7'; then
-        install -m 0644 ${1}/sdma-imx7d.bin \
-            ${2}/lib/firmware/imx/sdma
+        install -m 0644 "${sdma_srcdir}/sdma-imx7d.bin" \
+            "${targetdir}/lib/firmware/imx/sdma"
     fi
-    install -m 0644 ${1}/LICENSE.sdma_firmware ${2}/lib/firmware/
+    install -m 0644 "${sdma_srcdir}/LICENSE.sdma_firmware" "${targetdir}/lib/firmware"
 }
 
 # make firmware for wl bcm module
 # $1 -- bcm git directory
-# $2 -- rootfs output dir
+# $2 -- rootfs/recoveryfs output dir
 make_bcm_fw ()
 {
+    local bcm_srcdir=$1
+    local targetdir=$2
+
     pr_info "Make and install bcm configs and firmware"
 
-    install -d ${2}/lib/firmware/bcm
-    install -d ${2}/lib/firmware/brcm
-    install -m 0644 ${1}/brcm/* ${2}/lib/firmware/brcm/
-    install -m 0644 ${1}/*.hcd ${2}/lib/firmware/bcm/
-    install -m 0644 ${1}/LICENSE ${2}/lib/firmware/bcm/
-    install -m 0644 ${1}/LICENSE ${2}/lib/firmware/brcm/
+    install -d "${targetdir}/lib/firmware/bcm"
+    install -d "${targetdir}/lib/firmware/brcm"
+    install -m 0644 "${bcm_srcdir}/brcm/"* "${targetdir}/lib/firmware/brcm"
+    install -m 0644 "${bcm_srcdir}/"*.hcd "${targetdir}/lib/firmware/bcm"
+    install -m 0644 "${bcm_srcdir}/LICENSE" "${targetdir}/lib/firmware/bcm"
+    install -m 0644 "${bcm_srcdir}/LICENSE" "${targetdir}/lib/firmware/brcm"
 }
 
 ################ commands ################
@@ -868,6 +887,48 @@ cmd_make_rootfs ()
     # fi
 }
 
+cmd_make_recoveryfs ()
+{
+    make_prepare
+
+    if test ."$MACHINE" = .'imx6ul-var-dart' ||
+           test ."$MACHINE" = .'var-som-mx7' ||
+           test ."$MACHINE" = .'revo-roadrunner-mx7'; then
+
+        (
+            cd "$G_RECOVERYFS_DIR"
+            # make debian backend recoveryfs
+            make_debian_recoveryfs "$G_RECOVERYFS_DIR"
+
+            trap - 0 1 2 15 RETURN
+
+            # make imx sdma firmware
+            make_imx_sdma_fw "$G_IMX_SDMA_FW_SRC_DIR" "$G_RECOVERYFS_DIR"
+        )
+    else
+        (
+            cd "$G_RECOVERYFS_DIR"
+            make_debian_weston_recoveryfs "$G_RECOVERYFS_DIR"
+        )
+    fi
+
+    # make bcm firmwares
+    if test ! -z "$G_BCM_FW_GIT"; then
+        make_bcm_fw "$G_BCM_FW_SRC_DIR" "$G_RECOVERYFS_DIR"
+    fi
+
+    # pack rootfs
+    make_tarball "$G_RECOVERYFS_DIR" "$G_RECOVERYFS_TARBALL_PATH"
+
+    # if test ."$MACHINE" = .'imx6ul-var-dart' ||
+    #        test ."$MACHINE" = .'var-som-mx7' ||
+    #        test ."$MACHINE" = .'revo-roadrunner-mx7'; then
+    #     pack to ubi
+    #     make_ubi "$G_ROOTFS_DIR" "$G_TMP_DIR" "$PARAM_OUTPUT_DIR" \
+    #              "$G_UBI_FILE_NAME"
+    # fi
+}
+
 cmd_make_uboot ()
 {
     make_uboot "$G_UBOOT_SRC_DIR" "$PARAM_OUTPUT_DIR"
@@ -882,15 +943,17 @@ cmd_make_kernel ()
 
 cmd_make_kmodules ()
 {
-    rm -rf "${G_ROOTFS_DIR}/lib/modules/"*
+    local targetdir=$1
+
+    rm -rf "${targetdir}/lib/modules/"*
 
     make_kernel_modules "${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
                         "$G_LINUX_KERNEL_DEF_CONFIG" "$G_LINUX_KERNEL_SRC_DIR" \
-                        "$G_ROOTFS_DIR"
+                        "$targetdir"
 
     install_kernel_modules "${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
                            "$G_LINUX_KERNEL_DEF_CONFIG" \
-                           "$G_LINUX_KERNEL_SRC_DIR" "$G_ROOTFS_DIR"
+                           "$G_LINUX_KERNEL_SRC_DIR" "$targetdir"
 }
 
 cmd_make_rfs_ubi ()
@@ -903,6 +966,12 @@ cmd_make_rfs_tar ()
 {
     # pack rootfs
     make_tarball "$G_ROOTFS_DIR" "$G_ROOTFS_TARBALL_PATH"
+}
+
+cmd_make_ryfs_tar ()
+{
+    # pack recoveryfs
+    make_tarball "$G_RECOVERYFS_DIR" "$G_RECOVERYFS_TARBALL_PATH"
 }
 
 cmd_make_sdcard ()
@@ -1020,12 +1089,16 @@ cmd_flash_diskimage ()
 
 cmd_make_bcmfw ()
 {
-    make_bcm_fw "$G_BCM_FW_SRC_DIR" "$G_ROOTFS_DIR"
+    local targetdir=$1
+
+    make_bcm_fw "$G_BCM_FW_SRC_DIR" "$targetdir"
 }
 
 cmd_make_firmware ()
 {
-    make_imx_sdma_fw "$G_IMX_SDMA_FW_SRC_DIR" "$G_ROOTFS_DIR"
+    local targetdir=$1
+
+    make_imx_sdma_fw "$G_IMX_SDMA_FW_SRC_DIR" "$targetdir"
 }
 
 cmd_make_clean ()
@@ -1063,6 +1136,9 @@ case $PARAM_CMD in
     rootfs)
         cmd_make_rootfs
         ;;
+    recoveryfs)
+        cmd_make_recoveryfs
+        ;;
     bootloader)
         cmd_make_uboot
         ;;
@@ -1070,13 +1146,16 @@ case $PARAM_CMD in
         cmd_make_kernel
         ;;
     modules)
-        cmd_make_kmodules
+        cmd_make_kmodules $G_ROOTFS_DIR
+        cmd_make_kmodules $G_RECOVERYFS_DIR
         ;;
     bcmfw)
-        cmd_make_bcmfw
+        cmd_make_bcmfw $G_ROOTFS_DIR
+        cmd_make_bcmfw $G_RECOVERYFS_DIR
         ;;
     firmware)
-        cmd_make_firmware
+        cmd_make_firmware $G_ROOTFS_DIR
+        cmd_make_firmware $G_RECOVERYFS_DIR
         ;;
     sdcard)
         cmd_make_sdcard
@@ -1093,11 +1172,16 @@ case $PARAM_CMD in
     rtar)
         cmd_make_rfs_tar
         ;;
+    rytar)
+        cmd_make_ryfs_tar
+        ;;
     all)
         cmd_make_uboot  &&
             cmd_make_kernel &&
-            cmd_make_kmodules &&
-            cmd_make_rootfs
+            cmd_make_kmodules $G_ROOTFS_DIR &&
+            cmd_make_kmodules $G_RECOVERYFS_DIR &&
+            cmd_make_rootfs &&
+            cmd_make_recoveryfs
         ;;
     clean)
         cmd_make_clean
