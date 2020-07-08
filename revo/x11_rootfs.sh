@@ -24,7 +24,7 @@ make_debian_x11_rootfs ()
 
     # prepare qemu
     pr_info "rootfs: debootstrap in rootfs (second-stage)"
-    cp ${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static ${ROOTFS_BASE}/usr/bin/qemu-arm-static
+    install -m 0755 ${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static ${ROOTFS_BASE}/usr/bin/qemu-arm-static
 
     umount_rootfs ()
     {
@@ -489,14 +489,14 @@ EOF
        ${ROOTFS_BASE}/usr/local/src/linux-imx/
 
     # copy custom files
-    cp ${G_VENDOR_PATH}/${MACHINE}/kobs-ng ${ROOTFS_BASE}/usr/bin
-    cp ${PARAM_OUTPUT_DIR}/fw_printenv-mmc ${ROOTFS_BASE}/usr/bin
+    install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/kobs-ng ${ROOTFS_BASE}/usr/bin
+    install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-mmc ${ROOTFS_BASE}/usr/bin
     # cp ${PARAM_OUTPUT_DIR}/fw_printenv-nand ${ROOTFS_BASE}/usr/bin
     # ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_printenv-nand
     # ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_setenv
     ln -sf fw_printenv-mmc ${ROOTFS_BASE}/usr/bin/fw_printenv
     ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_setenv
-    cp ${G_VENDOR_PATH}/${MACHINE}/fw_env.config ${ROOTFS_BASE}/etc
+    install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/fw_env.config ${ROOTFS_BASE}/etc
 
     ## clenup command
     cat > cleanup << EOF
@@ -569,38 +569,24 @@ make_x11_image ()
     format_device ()
     {
         pr_info "Formating device partitions"
-        if ! mkfs.vfat "${LPARAM_BLOCK_DEVICE}${part}1" -n BOOT ||
-                ! mkfs.ext4 "${LPARAM_BLOCK_DEVICE}${part}2" -L rootfs; then
+        if ! mkfs.vfat -n BOOT "${LPARAM_BLOCK_DEVICE}${part}1" >/dev/null 2>&1; then
             pr_error "Format did not complete successfully."
             echo "*** Please check media and try again! ***"
             return 1
-        fi
-    }
-
-    flash_u-boot ()
-    {
-        pr_info "Flashing U-Boot"
-        dd if="${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC}" \
-           of="$LPARAM_BLOCK_DEVICE" bs=1K seek=1
-        sync
-        if ! dd if="${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC}" \
-             of="$LPARAM_BLOCK_DEVICE" bs=1K seek=69; then
-            pr_error "Flash did not complete successfully."
-            echo "*** Please check media and try again! ***"
-            return 1
+        elif ! mkfs.ext4 -L rootfs "${LPARAM_BLOCK_DEVICE}${part}2" >/dev/null 2>&1; then
         fi
     }
 
     flash_device ()
     {
         pr_info "Flashing \"BOOT\" partition"
-        cp "${LPARAM_OUTPUT_DIR}/"*.dtb	"$P1_MOUNT_DIR"
-        cp "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/"*.dtb	"$P1_MOUNT_DIR"
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
            "${P1_MOUNT_DIR}/${BUILD_IMAGE_TYPE}"
         sync
 
         pr_info "Flashing \"rootfs\" partition"
-        if ! tar -C "$P2_MOUNT_DIR" -xpf "${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}"; then
+        if ! tar -C "$P2_MOUNT_DIR" -zxpf "${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}"; then
             pr_error "Flash did not complete successfully."
             echo "*** Please check media and try again! ***"
             return 1
@@ -612,32 +598,32 @@ make_x11_image ()
         mkdir -p "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
 
         pr_info "Copying Debian images to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
-        cp "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
            "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
         # if test ."$MACHINE" = .'imx6ul-var-dart' ||
         #        test ."$MACHINE" = .'var-som-mx7' ||
         #        test ."$MACHINE" = .'revo-roadrunner-mx7'; then
-        #     cp ${LPARAM_OUTPUT_DIR}/rootfs.ubi.img \
+        #     install -m 0644 ${LPARAM_OUTPUT_DIR}/rootfs.ubi.img \
         #        ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
         # fi
-        cp "${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}" \
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}" \
            "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
-        cp "${LPARAM_OUTPUT_DIR}/${DEF_RECOVERYFS_TARBALL_NAME}" \
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/${DEF_RECOVERYFS_TARBALL_NAME}" \
            "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
 
-        cp "${LPARAM_OUTPUT_DIR}/"*.dtb \
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/"*.dtb \
            "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
 
         # pr_info "Copying NAND U-Boot to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
-        # cp "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_NAND}" \
+        # install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_NAND}" \
         #    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
-        # cp "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_NAND}" \
+        # install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_NAND}" \
         #    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
 
         pr_info "Copying MMC U-Boot to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
-        cp "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC}" \
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC}" \
            "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
-        cp "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC}" \
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC}" \
            "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
 
         return 0
@@ -649,8 +635,31 @@ make_x11_image ()
         if test ."$MACHINE" = .'imx6ul-var-dart'  ||
                test ."$MACHINE" = .'var-som-mx7' ||
                test ."$MACHINE" = .'revo-roadrunner-mx7'; then
-            cp "${G_VENDOR_PATH}/mx6ul_mx7_install_debian.sh" \
+            install -m 0755 "${G_VENDOR_PATH}/mx6ul_mx7_install_debian.sh" \
                "${P2_MOUNT_DIR}/usr/sbin/install_debian.sh"
+        fi
+
+        if test ."$MACHINE" = .'revo-roadrunner-mx7'; then
+            install -m 0755 "${G_VENDOR_PATH}/flash_emmc.sh" \
+               "${P2_MOUNT_DIR}/usr/sbin/flash_emmc"
+        fi
+    }
+
+    flash_u-boot ()
+    {
+        pr_info "Flashing U-Boot"
+        if ! dd if="${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC}" \
+             of="$LPARAM_BLOCK_DEVICE" bs=1K seek=1 >/dev/null 2>&1; then
+            pr_error "Flash did not complete successfully."
+            echo "*** Please check media and try again! ***"
+            return 1
+        fi
+        sync
+        if ! dd if="${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC}" \
+             of="$LPARAM_BLOCK_DEVICE" bs=1K seek=69 >/dev/null 2>&1; then
+            pr_error "Flash did not complete successfully."
+            echo "*** Please check media and try again! ***"
+            return 1
         fi
     }
 
@@ -680,7 +689,7 @@ make_x11_image ()
     # Get total card size in blocks
     local total_size=$(blockdev --getsz "$LPARAM_BLOCK_DEVICE")
     local total_size_bytes=$(( total_size * 512 ))
-    local total_size_gib=$(bc <<< "scale=1; ${total_size_bytes}/(1024*1024*1024)")
+    local total_size_gib=$(perl -e "printf '%.1f', $total_size_bytes / 1024 ** 3")
 
     # Convert to MB
     total_size=$(( total_size / 2048 ))
@@ -703,16 +712,17 @@ make_x11_image ()
             umount "${LPARAM_BLOCK_DEVICE}${part}${i}"
         fi
         if test -e "${LPARAM_BLOCK_DEVICE}${part}${i}"; then
-            wipefs -a "${LPARAM_BLOCK_DEVICE}${part}${i}"
+            tune2fs -L '' "${LPARAM_BLOCK_DEVICE}${part}${i}" >/dev/null 2>&1
+            wipefs -a "${LPARAM_BLOCK_DEVICE}${part}${i}" >/dev/null 2>&1
         fi
     done
     wipefs -a "$LPARAM_BLOCK_DEVICE"
 
-    dd if=/dev/zero of="$LPARAM_BLOCK_DEVICE" bs=1M count="$rootfs_offset"
+    dd if=/dev/zero of="$LPARAM_BLOCK_DEVICE" bs=1M count="$rootfs_offset" >/dev/null 2>&1
     sleep 2
     sync
 
-    flock "$LPARAM_BLOCK_DEVICE" sfdisk "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1 << EOF
+    flock "$LPARAM_BLOCK_DEVICE" sfdisk "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1 <<EOF
 $part1_start,$part1_size,c
 $part2_start,-,L
 EOF
@@ -726,17 +736,18 @@ EOF
     sleep 2
     sync
 
-    flash_u-boot || return 1
-    sleep 2
-    sync
-
     # Mount the partitions
     mkdir -p "$P1_MOUNT_DIR"
     mkdir -p "$P2_MOUNT_DIR"
     sync
 
-    mount "${LPARAM_BLOCK_DEVICE}${part}1"  "$P1_MOUNT_DIR"
-    mount "${LPARAM_BLOCK_DEVICE}${part}2"  "$P2_MOUNT_DIR"
+    if ! mount -t vfat "${LPARAM_BLOCK_DEVICE}${part}1"  "$P1_MOUNT_DIR" >/dev/null 2>&1; then
+        pr_error "${LPARAM_BLOCK_DEVICE}${part}1: mount failed"
+        return 1
+    elif ! mount -t ext4 "${LPARAM_BLOCK_DEVICE}${part}2"  "$P2_MOUNT_DIR" >/dev/null 2>&1; then
+        pr_error "${LPARAM_BLOCK_DEVICE}${part}2: mount failed"
+        return 1
+    fi
     sleep 2
     sync
 
@@ -744,7 +755,10 @@ EOF
     copy_debian_images
     copy_scripts
 
+    flash_u-boot || return 1
+
     pr_info "Sync device..."
+    sleep 2
     sync
     umount "$P1_MOUNT_DIR"
     umount "$P2_MOUNT_DIR"
@@ -752,5 +766,5 @@ EOF
     rm -rf "$P1_MOUNT_DIR"
     rm -rf "$P2_MOUNT_DIR"
 
-    pr_info "Done make bootable image!"
+    pr_info "Make bootable image completed successfully"
 }

@@ -6,12 +6,12 @@
 #
 declare -r SCRIPT_NAME=${0##*/}
 
-declare -r COMPRESSION_SUFFIX='gz'
-declare -r ZCAT='zcat'
+declare -r COMPRESSION_SUFFIX=gz
+declare -r ZCAT=zcat
 
 declare PARAM_OUTPUT_DIR=output
-declare PARAM_BLOCK_DEVICE='na'
-declare PARAM_DISK_IMAGE='na'
+declare PARAM_BLOCK_DEVICE=na
+declare PARAM_DISK_IMAGE=na
 
 usage ()
 {
@@ -231,7 +231,7 @@ flash_diskimage ()
 
     total_size=$(sudo blockdev --getsz "$LPARAM_BLOCK_DEVICE")
     total_size_bytes=$(( total_size * 512 ))
-    total_size_gib=$(bc <<< "scale=1; ${total_size_bytes}/(1024*1024*1024)")
+    total_size_gib=$(perl -e "printf '%.1f', $total_size_bytes / 1024 ** 3")
 
     echo '============================================='
     pr_info "Image: ${LPARAM_DISK_IMAGE##*/}"

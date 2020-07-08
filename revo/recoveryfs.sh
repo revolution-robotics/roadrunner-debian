@@ -239,7 +239,7 @@ protected_install usbutils
 # protected_install iperf
 
 # mtd
-protected_install mtd-utils
+# protected_install mtd-utils
 
 # bluetooth
 protected_install bluetooth
@@ -466,9 +466,9 @@ pip3 install pystemd
 pip3 install pytz
 
 # BEGIN -- REVO i.MX7D purge
-apt-get -y purge build-essential
-apt-get -y purge gcc-8
+apt-get -y purge build-essential gcc-8 libpython2.7 libx11-6 manpages{,-dev}
 apt-get --purge -y autoremove
+apt-get clean
 # END -- REVO i.MX7D purge
 
 rm -f user-stage
