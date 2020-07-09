@@ -4,7 +4,7 @@
 - [Prerequisites](#prerequisites)
 - [Fetch build suite, cross-compiler and sources](#fetch-build-suite-cross-compiler-and-sources)
 - [Build U-Boot, Linux kernel and modules](#build-u-boot-linux-kernel-and-modules)
-- [Populate root filesystem with Debian](#populate-root-filesystem-with-debian)
+- [Populate root and recovery filesystems with Debian](#populate-root-and-recovery-filesystems-with-debian)
 - [Create bootable SD card](#create-bootable-sd-card)
 - [Create bootable image file](#create-bootable-image-file)
 - [Flash bootable image to SD card](#flash-bootable-image-to-sd-card)
@@ -67,7 +67,7 @@ Build kernel modules (and install them under _rootfs_) with:
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c modules
 ```
 
-## Populate root filesystem with Debian
+## Populate root and recovery filesystems with Debian
 Import a Debian GPG-signing key so that the integrity of installed packages
 can be verified:
 
@@ -80,6 +80,12 @@ Bootstrap Debian to _rootfs_ and install kernel modules and firmware with:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rootfs
+```
+
+Bootstrap Debian to _recoveryfs_ and install kernel modules and firmware with:
+
+```shell
+sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c recoveryfs
 ```
 
 ## Create bootable SD card
@@ -120,6 +126,7 @@ without re-running Debian bootstrap as follows:
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c kernel
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c modules
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rtar
+sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rytar
 ```
 
 Likewise, after editing U-Boot sources, rebuild U-Boot with:
