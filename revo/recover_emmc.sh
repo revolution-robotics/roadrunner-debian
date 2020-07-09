@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# @(#) flash_emmc
+# @(#) recover_emmc
 #
 # Copyright © 2020 Revolution Robotics, Inc.
 #
-# This script creates a bootable eMMC storage device with Debian root
-# and recovery filesystems.
+# This script restores a Debian root filesystem on an eMMC storage
+# device from a recovery partition.
 #
 declare -r SCRIPT_NAME=${0##*/}
 
@@ -20,7 +20,7 @@ declare -r SPL_IMAGE=SPL.mmc
 declare -r KERNEL_IMAGE=zImage
 declare -r KERNEL_DTBS=imx7d-roadrunner-emmc.dtb
 declare -r ROOTFS_IMAGE=rootfs.tar.${COMPRESSION_SUFFIX}
-declare -r RECOVERYFS_IMAGE=recoveryfs.tar.${COMPRESSION_SUFFIX}
+# declare -r RECOVERYFS_IMAGE=recoveryfs.tar.${COMPRESSION_SUFFIX}
 
 usage ()
 {
@@ -55,7 +55,7 @@ check_images ()
         "$SPL_IMAGE"
         "$KERNEL_IMAGE"
         "$ROOTFS_IMAGE"
-        "$RECOVERYFS_IMAGE"
+        # "$RECOVERYFS_IMAGE"
         )
 
     for dtb in $KERNEL_DTBS; do
@@ -180,19 +180,19 @@ format_emmc ()
     local part=$2
     local bootpart=$3
     local rootfspart=$4
-    local recoveryfspart=$5
+    # local recoveryfspart=$5
 
     pr_info "Formating eMMC partitions"
 
     if ! mkfs.vfat -n BOOT "${device}${part}${bootpart}" >/dev/null 2>&1; then
         pr_error "${device}${part}${bootpart}: format failed"
         return 1
-    elif ! mkfs.ext4 -L rootfs "${device}${part}${rootfspart}" >/dev/null 2>&1; then
+    elif ! mkfs.ext4 -F -L rootfs "${device}${part}${rootfspart}" >/dev/null 2>&1; then
         pr_error "${device}${part}${rootfspart}: format failed"
         return 1
-    elif ! mkfs.ext4 -L recoveryfs "${device}${part}${recoveryfspart}" >/dev/null 2>&1; then
-        pr_error "${device}${part}${recoveryfspart}: format failed"
-        return 1
+    # elif ! mkfs.ext4 -L recoveryfs "${device}${part}${recoveryfspart}" >/dev/null 2>&1; then
+    #     pr_error "${device}${part}${recoveryfspart}: format failed"
+    #     return 1
     fi
 }
 
@@ -203,18 +203,18 @@ mount_partitions ()
     local part=$3
     local bootpart=$4
     local rootfspart=$5
-    local recoveryfspart=$6
+    # local recoveryfspart=$6
 
     local bootdir="${mountdir_prefix}${bootpart}"
     local rootfsdir="${mountdir_prefix}${rootfspart}"
-    local recoveryfsdir="${mountdir_prefix}${recoveryfspart}"
+    # local recoveryfsdir="${mountdir_prefix}${recoveryfspart}"
 
     pr_info "Mounting eMMC partitions"
 
     # Mount the partitions
     mkdir -p "$bootdir"
     mkdir -p "$rootfsdir"
-    mkdir -p "$recoveryfsdir"
+    # mkdir -p "$recoveryfsdir"
 
     if ! mount -t vfat "${device}${part}${bootpart}" "$bootdir" >/dev/null 2>&1; then
         pr_error "${device}${part}${bootpart}: mount failed"
@@ -222,9 +222,9 @@ mount_partitions ()
     elif ! mount -t ext4 "${device}${part}${rootfspart}" "$rootfsdir" >/dev/null 2>&1; then
         pr_error "${device}${part}${rootfspart}: mount failed"
         return 1
-    elif ! mount -t ext4 "${device}${part}${recoveryfspart}" "$recoveryfsdir" >/dev/null 2>&1; then
-        pr_error "${device}${part}${recoveryfspart}: mount failed"
-        return 1
+    # elif ! mount -t ext4 "${device}${part}${recoveryfspart}" "$recoveryfsdir" >/dev/null 2>&1; then
+    #     pr_error "${device}${part}${recoveryfspart}: mount failed"
+    #     return 1
     fi
     sleep 2
     sync
@@ -235,11 +235,11 @@ flash_emmc ()
     local mountdir_prefix=$1
     local bootpart=$2
     local rootfspart=$3
-    local recoveryfspart=$4
+    # local recoveryfspart=$4
 
     local bootdir="${mountdir_prefix}${bootpart}"
     local rootfsdir="${mountdir_prefix}${rootfspart}"
-    local recoveryfsdir="${mountdir_prefix}${recoveryfspart}"
+    # local recoveryfsdir="${mountdir_prefix}${recoveryfspart}"
 
     pr_info "Flashing eMMC \"BOOT\" partition"
 
@@ -262,17 +262,17 @@ flash_emmc ()
     sync
 
 
-    pr_info "Flashing eMMC \"recoveryfs\" partition"
+    # pr_info "Flashing eMMC \"recoveryfs\" partition"
 
-    if ! tar -C "$recoveryfsdir" -zxpf "${IMGS_PATH}/${RECOVERYFS_IMAGE}" \
-         --checkpoint=4096 --checkpoint-action=.; then
-        pr_error "$recoveryfsdir: eMMC flash did not complete successfully."
-        return 1
-    fi
-    echo
+    # if ! tar -C "$recoveryfsdir" -zxpf "${IMGS_PATH}/${RECOVERYFS_IMAGE}" \
+    #      --checkpoint=4096 --checkpoint-action=.; then
+    #     pr_error "$recoveryfsdir: eMMC flash did not complete successfully."
+    #     return 1
+    # fi
+    # echo
 
-    set_fw_utils_to_emmc_on_emmc "$recoveryfsdir"
-    sync
+    # set_fw_utils_to_emmc_on_emmc "$recoveryfsdir"
+    # sync
 }
 
 flash_u-boot ()
@@ -301,13 +301,14 @@ finish ()
     local mountdir_prefix=$1
     local bootpart=$2
     local rootfspart=$3
-    local recoveryfspart=$4
+    # local recoveryfspart=$4
 
     local bootdir="${mountdir_prefix}${bootpart}"
     local rootfsdir="${mountdir_prefix}${rootfspart}"
-    local recoveryfsdir="${mountdir_prefix}${recoveryfspart}"
+    # local recoveryfsdir="${mountdir_prefix}${recoveryfspart}"
 
-    umount "$bootdir" "$rootfsdir" "$recoveryfsdir" || return 1
+    # umount "$bootdir" "$rootfsdir" "$recoveryfsdir" || return 1
+    umount "$bootdir" "$rootfsdir" || return 1
 
     if [[ ."${mountdir_prefix%/*}" =~ \./tmp/media ]]; then
         rm -rf "${mountdir_prefix%/*}"
@@ -332,7 +333,7 @@ declare part=p
 declare mountdir_prefix=/tmp/media/${EMMC_DEVICE}${part}
 declare bootpart=1
 declare rootfspart=2
-declare recoveryfspart=3
+# declare recoveryfspart=3
 
 if test ."$soc" != .'i.MX7D'; then
     pr_error "This script is for imaging an i.MX7D board's eMMC device"
@@ -346,11 +347,15 @@ pr_info "Board: $soc"
 pr_info "Internal storage: eMMC"
 
 check_images || exit $?
-partition_emmc "$device" "$part" || exit $?
-format_emmc "$device" "$part" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?
+# partition_emmc "$device" "$part" || exit $?
+# format_emmc "$device" "$part" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?
+format_emmc "$device" "$part" "$bootpart" "$rootfspart" || exit $?
 sleep 2
 sync
-mount_partitions "$mountdir_prefix" "$device" "$part" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?
-flash_emmc "$mountdir_prefix" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?
+# mount_partitions "$mountdir_prefix" "$device" "$part" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?
+mount_partitions "$mountdir_prefix" "$device" "$part" "$bootpart" "$rootfspart"  || exit $?
+# flash_emmc "$mountdir_prefix" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?
+flash_emmc "$mountdir_prefix" "$bootpart" "$rootfspart" || exit $?
 flash_u-boot "$device" || exit $?
-finish "$mountdir_prefix" "$bootpart" "$rootfspart" "$recoveryfspart"
+# finish "$mountdir_prefix" "$bootpart" "$rootfspart" "$recoveryfspart"
+finish "$mountdir_prefix" "$bootpart" "$rootfspart"

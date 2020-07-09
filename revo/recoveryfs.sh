@@ -668,7 +668,7 @@ make_recovery_image ()
         if test ."$MACHINE" = .'imx6ul-var-dart'  ||
                test ."$MACHINE" = .'var-som-mx7' ||
                test ."$MACHINE" = .'revo-roadrunner-mx7'; then
-            install -m 0755 "${G_VENDOR_PATH}/flash_emmc.sh" \
+            install -m 0755 "${G_VENDOR_PATH}/recover_emmc.sh" \
                "${P2_MOUNT_DIR}/usr/sbin/flash_emmc"
         fi
     }
