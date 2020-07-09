@@ -574,6 +574,9 @@ make_x11_image ()
             echo "*** Please check media and try again! ***"
             return 1
         elif ! mkfs.ext4 -L rootfs "${LPARAM_BLOCK_DEVICE}${part}2" >/dev/null 2>&1; then
+            pr_error "Format did not complete successfully."
+            echo "*** Please check media and try again! ***"
+            return 1
         fi
     }
 
