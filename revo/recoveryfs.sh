@@ -24,7 +24,7 @@ make_debian_recoveryfs ()
 
     # prepare qemu
     pr_info "recoveryfs: debootstrap in recoveryfs (second-stage)"
-    cp "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" "${RECOVERYFS_BASE}/usr/bin/qemu-arm-static"
+    install -m 0755 "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" "${RECOVERYFS_BASE}/usr/bin"
 
     umount_recoveryfs ()
     {
@@ -68,9 +68,7 @@ make_debian_recoveryfs ()
     # add mirror to source list
     cat >etc/apt/sources.list <<EOF
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
-deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
-deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
     # raise backports priority
@@ -513,14 +511,14 @@ EOF
        ${RECOVERYFS_BASE}/usr/local/src/linux-imx/
 
     # copy custom files
-    cp ${G_VENDOR_PATH}/${MACHINE}/kobs-ng ${RECOVERYFS_BASE}/usr/bin
-    cp ${PARAM_OUTPUT_DIR}/fw_printenv-mmc ${RECOVERYFS_BASE}/usr/bin
-    # cp ${PARAM_OUTPUT_DIR}/fw_printenv-nand ${RECOVERYFS_BASE}/usr/bin
+    install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/kobs-ng ${RECOVERYFS_BASE}/usr/bin
+    install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-mmc ${RECOVERYFS_BASE}/usr/bin
+    # install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-nand ${RECOVERYFS_BASE}/usr/bin
     # ln -sf fw_printenv ${RECOVERYFS_BASE}/usr/bin/fw_printenv-nand
     # ln -sf fw_printenv ${RECOVERYFS_BASE}/usr/bin/fw_setenv
     ln -sf fw_printenv-mmc ${RECOVERYFS_BASE}/usr/bin/fw_printenv
     ln -sf fw_printenv ${RECOVERYFS_BASE}/usr/bin/fw_setenv
-    cp ${G_VENDOR_PATH}/${MACHINE}/fw_env.config ${RECOVERYFS_BASE}/etc
+    install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/fw_env.config ${RECOVERYFS_BASE}/etc
 
     ## clenup command
     cat > cleanup << EOF
@@ -618,9 +616,8 @@ make_recovery_image ()
     flash_device ()
     {
         pr_info "Flashing \"BOOT\" partition"
-        cp "${LPARAM_OUTPUT_DIR}/"*.dtb	"$P1_MOUNT_DIR"
-        cp "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
-           "${P1_MOUNT_DIR}/${BUILD_IMAGE_TYPE}"
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/"*.dtb	"$P1_MOUNT_DIR"
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" "$P1_MOUNT_DIR"
         sync
 
         pr_info "Flashing \"recoveryfs\" partition"
@@ -636,7 +633,7 @@ make_recovery_image ()
         mkdir -p "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
 
         pr_info "Copying Debian images to /${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
-        cp "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
            "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         # if test ."$MACHINE" = .'imx6ul-var-dart' ||
         #        test ."$MACHINE" = .'var-som-mx7' ||
@@ -644,10 +641,10 @@ make_recovery_image ()
         #     cp ${LPARAM_OUTPUT_DIR}/recoveryfs.ubi.img \
         #        ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}/
         # fi
-        cp "${LPARAM_OUTPUT_DIR}/${DEF_RECOVERYFS_TARBALL_NAME}" \
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}" \
            "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
 
-        cp "${LPARAM_OUTPUT_DIR}/"*.dtb \
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/"*.dtb \
            "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
 
         # pr_info "Copying NAND U-Boot to /${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
@@ -657,9 +654,9 @@ make_recovery_image ()
         #    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
 
         pr_info "Copying MMC U-Boot to /${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
-        cp "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC}" \
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC}" \
            "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
-        cp "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC}" \
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC}" \
            "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
 
         return 0
@@ -671,8 +668,8 @@ make_recovery_image ()
         if test ."$MACHINE" = .'imx6ul-var-dart'  ||
                test ."$MACHINE" = .'var-som-mx7' ||
                test ."$MACHINE" = .'revo-roadrunner-mx7'; then
-            cp "${G_VENDOR_PATH}/mx6ul_mx7_install_debian.sh" \
-               "${P2_MOUNT_DIR}/usr/sbin/install_debian.sh"
+            install -m 0755 "${G_VENDOR_PATH}/flash_emmc.sh" \
+               "${P2_MOUNT_DIR}/usr/sbin/flash_emmc"
         fi
     }
 
