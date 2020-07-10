@@ -699,7 +699,7 @@ make_x11_image ()
     local rootfs_offset=$(( BOOTLOAD_RESERVE_SIZE + SPARE_SIZE ))
     local rootfs_size=$(( total_size - rootfs_offset ))
 
-    pr_info "Device: ${LPARAM_BLOCK_DEVICE}, ${total_size_gib}GiB"
+    pr_info "Device: ${LPARAM_BLOCK_DEVICE}, ${total_size_gib} GiB"
     echo "============================================="
     read -p "Press Enter to continue"
 

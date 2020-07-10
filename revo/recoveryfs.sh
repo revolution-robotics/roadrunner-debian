@@ -669,7 +669,7 @@ make_recovery_image ()
                test ."$MACHINE" = .'var-som-mx7' ||
                test ."$MACHINE" = .'revo-roadrunner-mx7'; then
             install -m 0755 "${G_VENDOR_PATH}/recover_emmc.sh" \
-               "${P2_MOUNT_DIR}/usr/sbin/flash_emmc"
+               "${P2_MOUNT_DIR}/usr/sbin/recover_emmc"
         fi
     }
 
@@ -706,7 +706,7 @@ make_recovery_image ()
     local recoveryfs_offset=$(( BOOTLOAD_RESERVE_SIZE + SPARE_SIZE ))
     local recoveryfs_size=$(( total_size - recoveryfs_offset ))
 
-    pr_info "Device: ${LPARAM_BLOCK_DEVICE}, ${total_size_gib}GiB"
+    pr_info "Device: ${LPARAM_BLOCK_DEVICE}, ${total_size_gib} GiB"
     echo "============================================="
     read -p "Press Enter to continue"
 

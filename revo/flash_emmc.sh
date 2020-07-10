@@ -49,7 +49,8 @@ fi
 
 check_images ()
 {
-    local file
+    local dtb
+    local image
     local -a distribution_images=(
         "$UBOOT_IMAGE"
         "$SPL_IMAGE"
@@ -117,7 +118,8 @@ partition_emmc ()
     local part=$2
 
     # Sizes in MiB
-    local RECOVERYFS_SIZE=1536
+    # RECOVERYFS_SIZE must match that in recover_emmc.
+    local RECOVERYFS_SIZE=1792
     local BOOTLOAD_RESERVE_SIZE=4
     local SPARE_SIZE=8
 
@@ -275,6 +277,32 @@ flash_emmc ()
     sync
 }
 
+copy_images ()
+{
+    local recoveryfsdir=$1
+
+    local dtb
+    local image
+    local recovery_imgs_path=${recoveryfsdir}/opt/images/Debian
+    local -a recovery_images=(
+        "$UBOOT_IMAGE"
+        "$SPL_IMAGE"
+        "$KERNEL_IMAGE"
+        "$ROOTFS_IMAGE"
+        )
+
+    pr_info "Installing recovery images"
+
+    mkdir -p "$recovery_imgs_path"
+    for dtb in $KERNEL_DTBS; do
+        install -m 0644 "${IMGS_PATH}/${dtb}" "$recovery_imgs_path"
+    done
+
+    for image in "${recovery_images[@]}"; do
+        install -m 0644 "${IMGS_PATH}/${image}" "$recovery_imgs_path"
+    done
+}
+
 flash_u-boot ()
 {
     local device=$1
@@ -352,5 +380,7 @@ sleep 2
 sync
 mount_partitions "$mountdir_prefix" "$device" "$part" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?
 flash_emmc "$mountdir_prefix" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?
+copy_images "${mountdir_prefix}${recoveryfspart}"
+
 flash_u-boot "$device" || exit $?
 finish "$mountdir_prefix" "$bootpart" "$rootfspart" "$recoveryfspart"
