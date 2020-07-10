@@ -368,12 +368,6 @@ fi
 pr_info "Board: $soc"
 pr_info "Internal storage: eMMC"
 
-# Sanity check that partition not mounted.
-if test ."$(findmnt -n "$rootdevice" | awk '{ print $1 }')" = .'/'; then
-    pr_error "$rootdevice: Cannot recover device mounted on root"
-    exit 1
-fi
-
 sanity_check "$device" "$part" "$rootfspart" || exit $?
 check_images || exit $?
 # partition_emmc "$device" "$part" || exit $?
