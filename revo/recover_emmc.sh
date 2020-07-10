@@ -42,10 +42,31 @@ pr_info ()
 }
 
 
-if [[ $EUID != 0 ]] ; then
+if (( EUID != 0 )); then
     echo "This script must be run with super-user privileges"
     exit 1
 fi
+
+# Check that none of the partitions to be flashed is mounted as root.
+sanity_check ()
+{
+    local device=$1
+    local part=$2
+    local rootfspart=$3
+    # local recoveryfspart=$4
+
+    local rootdevice=${device}${part}${rootfspart}
+    # local recoverydevice=${device}${part}${recoveryfspart}
+
+    if test ."$(findmnt -n "$rootdevice" | awk '{ print $1 }')" = .'/'; then
+        pr_error "$rootdevice: Cannot flash device mounted on root"
+        return 1
+
+    # elif test ."$(findmnt -n "$recoverydevice" | awk '{ print $1 }')" = .'/'; then
+    #     pr_error "$recoverydevice: Cannot flash device mounted on root"
+    #     return 1
+    fi
+}
 
 check_images ()
 {
@@ -150,7 +171,7 @@ partition_emmc ()
 
     # Erase file system signatures and labels
     for (( i=0; i < 10; i++ )); do
-        if test -n "$(findmnt "${device}${part}${i}")"; then
+        if test -n "$(findmnt -n "${device}${part}${i}")"; then
             umount "${device}${part}${i}"
         fi
         if test -e "${device}${part}${i}"; then
@@ -347,6 +368,13 @@ fi
 pr_info "Board: $soc"
 pr_info "Internal storage: eMMC"
 
+# Sanity check that partition not mounted.
+if test ."$(findmnt -n "$rootdevice" | awk '{ print $1 }')" = .'/'; then
+    pr_error "$rootdevice: Cannot recover device mounted on root"
+    exit 1
+fi
+
+sanity_check "$device" "$part" "$rootfspart" || exit $?
 check_images || exit $?
 # partition_emmc "$device" "$part" || exit $?
 # format_emmc "$device" "$part" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?

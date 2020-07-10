@@ -467,6 +467,7 @@ pip3 install pytz
 apt-get -y purge build-essential gcc-8 libpython2.7 libx11-6 manpages{,-dev}
 apt-get --purge -y autoremove
 apt-get clean
+rm -r /var/lib/apt/lists/*
 # END -- REVO i.MX7D purge
 
 rm -f user-stage
@@ -520,7 +521,7 @@ EOF
     ln -sf fw_printenv ${RECOVERYFS_BASE}/usr/bin/fw_setenv
     install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/fw_env.config ${RECOVERYFS_BASE}/etc
 
-    ## clenup command
+    ## cleanup command
     cat > cleanup << EOF
 #!/bin/bash
 apt-get clean
@@ -542,6 +543,8 @@ EOF
 
 
     # BEGIN -- REVO i.MX7D cleanup
+    install -m 0755 ${G_VENDOR_PATH}/recover_emmc.sh ${RECOVERYFS_BASE}/usr/sbin/recover_emmc
+
     # Prepare /var/log to be mounted as tmpfs.
     # NB: *~ is excluded from recoveryfs tarball.
     mv ${RECOVERYFS_BASE}/var/log{,~}
@@ -662,17 +665,6 @@ make_recovery_image ()
         return 0
     }
 
-    copy_scripts ()
-    {
-        pr_info "Copying scripts to /${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
-        if test ."$MACHINE" = .'imx6ul-var-dart'  ||
-               test ."$MACHINE" = .'var-som-mx7' ||
-               test ."$MACHINE" = .'revo-roadrunner-mx7'; then
-            install -m 0755 "${G_VENDOR_PATH}/recover_emmc.sh" \
-               "${P2_MOUNT_DIR}/usr/sbin/recover_emmc"
-        fi
-    }
-
     if test ."$LPARAM_BLOCK_DEVICE" = .'na'; then
         LPARAM_BLOCK_DEVICE=$(sed -e 's/ .*//' <<<$(select_removable_device))
         if test ."$LPARAM_BLOCK_DEVICE" = .''; then
@@ -718,7 +710,7 @@ make_recovery_image ()
     local part2_start="${recoveryfs_offset}MiB"
 
     for (( i=0; i < 10; i++ )); do
-        if test -n "$(findmnt "${LPARAM_BLOCK_DEVICE}${part}${i}")"; then
+        if test -n "$(findmnt -n "${LPARAM_BLOCK_DEVICE}${part}${i}")"; then
             umount "${LPARAM_BLOCK_DEVICE}${part}${i}"
         fi
         if test -e "${LPARAM_BLOCK_DEVICE}${part}${i}"; then
@@ -761,7 +753,6 @@ EOF
 
     flash_device || return 1
     copy_debian_images
-    copy_scripts
 
     pr_info "Sync device..."
     sync

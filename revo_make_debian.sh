@@ -999,10 +999,14 @@ cmd_make_diskimage ()
         pr_info "Cleaning up file-backed loop device"
         if test -e "${loop_device}"; then
             if test -e "${loop_device}p1"; then
-                umount -f "${loop_device}p1"
+                if test -n "$(findmnt -n "${loop_device}p1")"; then
+                    umount -f "${loop_device}p1"
+                fi
             fi
             if test -e "${loop_device}p2"; then
-                umount -f "${loop_device}p2"
+                if test -n "$(findmnt -n "${loop_device}p2")"; then
+                    umount -f "${loop_device}p2"
+                fi
             fi
             losetup -d "$loop_device"
         fi
@@ -1076,7 +1080,7 @@ cmd_flash_diskimage ()
     pr_info "Flashing image to device..."
 
     for (( i=0; i < 10; i++ )); do
-        if test -n "$(findmnt "${LPARAM_BLOCK_DEVICE}${i}")"; then
+        if test -n "$(findmnt -n "${LPARAM_BLOCK_DEVICE}${i}")"; then
             umount -f "${LPARAM_BLOCK_DEVICE}${i}"
         fi
     done

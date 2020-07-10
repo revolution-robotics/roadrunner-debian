@@ -242,7 +242,7 @@ flash_diskimage ()
     pr_info "Flashing image to device..."
 
     for (( i=0; i < 10; i++ )); do
-        if test -n "$(findmnt "${LPARAM_BLOCK_DEVICE}${i}")"; then
+        if test -n "$(findmnt -n "${LPARAM_BLOCK_DEVICE}${i}")"; then
             sudo umount -f "${LPARAM_BLOCK_DEVICE}${i}"
         fi
     done

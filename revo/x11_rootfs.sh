@@ -498,7 +498,7 @@ EOF
     ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_setenv
     install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/fw_env.config ${ROOTFS_BASE}/etc
 
-    ## clenup command
+    ## cleanup command
     cat > cleanup << EOF
 #!/bin/bash
 apt-get clean
@@ -520,6 +520,8 @@ EOF
 
 
     # BEGIN -- REVO i.MX7D cleanup
+    install -m 0755 ${G_VENDOR_PATH}/flash_emmc.sh ${ROOTFS_BASE}/usr/sbin/flash_emmc
+
     # Prepare /var/log to be mounted as tmpfs.
     # NB: *~ is excluded from rootfs tarball.
     mv ${ROOTFS_BASE}/var/log{,~}
@@ -632,22 +634,6 @@ make_x11_image ()
         return 0
     }
 
-    copy_scripts ()
-    {
-        pr_info "Copying scripts to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
-        if test ."$MACHINE" = .'imx6ul-var-dart'  ||
-               test ."$MACHINE" = .'var-som-mx7' ||
-               test ."$MACHINE" = .'revo-roadrunner-mx7'; then
-            install -m 0755 "${G_VENDOR_PATH}/mx6ul_mx7_install_debian.sh" \
-               "${P2_MOUNT_DIR}/usr/sbin/install_debian.sh"
-        fi
-
-        if test ."$MACHINE" = .'revo-roadrunner-mx7'; then
-            install -m 0755 "${G_VENDOR_PATH}/flash_emmc.sh" \
-               "${P2_MOUNT_DIR}/usr/sbin/flash_emmc"
-        fi
-    }
-
     flash_u-boot ()
     {
         pr_info "Flashing U-Boot"
@@ -711,7 +697,7 @@ make_x11_image ()
     local part2_start="${rootfs_offset}MiB"
 
     for (( i=0; i < 10; i++ )); do
-        if test -n "$(findmnt "${LPARAM_BLOCK_DEVICE}${part}${i}")"; then
+        if test -n "$(findmnt -n "${LPARAM_BLOCK_DEVICE}${part}${i}")"; then
             umount "${LPARAM_BLOCK_DEVICE}${part}${i}"
         fi
         if test -e "${LPARAM_BLOCK_DEVICE}${part}${i}"; then
@@ -756,7 +742,6 @@ EOF
 
     flash_device || return 1
     copy_debian_images
-    copy_scripts
 
     flash_u-boot || return 1
 
