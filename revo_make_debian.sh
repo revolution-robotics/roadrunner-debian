@@ -966,10 +966,7 @@ cmd_make_rfs_tar ()
 {
     # pack rootfs
     make_tarball "$G_ROOTFS_DIR" "$G_ROOTFS_TARBALL_PATH"
-}
 
-cmd_make_ryfs_tar ()
-{
     # pack recoveryfs
     make_tarball "$G_RECOVERYFS_DIR" "$G_RECOVERYFS_TARBALL_PATH"
 }
@@ -1175,9 +1172,6 @@ case $PARAM_CMD in
         ;;
     rtar)
         cmd_make_rfs_tar
-        ;;
-    rytar)
-        cmd_make_ryfs_tar
         ;;
     all)
         cmd_make_uboot  &&

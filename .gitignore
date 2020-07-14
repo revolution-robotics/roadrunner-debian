@@ -64,6 +64,7 @@ GSYMS
 GTAGS
 
 # ignored dirs
+/recoveryfs
 /rootfs
 /output
 /src

@@ -126,7 +126,6 @@ without re-running Debian bootstrap as follows:
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c kernel
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c modules
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rtar
-sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rytar
 ```
 
 Likewise, after editing U-Boot sources, rebuild U-Boot with:
