@@ -700,8 +700,8 @@ make_x11_image ()
         if test -n "$(findmnt -n "${LPARAM_BLOCK_DEVICE}${part}${i}")"; then
             umount "${LPARAM_BLOCK_DEVICE}${part}${i}"
         fi
-        if test -e "${LPARAM_BLOCK_DEVICE}${part}${i}"; then
-            tune2fs -L '' "${LPARAM_BLOCK_DEVICE}${part}${i}" >/dev/null 2>&1
+        if test -b "${LPARAM_BLOCK_DEVICE}${part}${i}"; then
+            tune2fs -L '' "${LPARAM_BLOCK_DEVICE}${part}${i}" >/dev/null 2>&1 || true
             wipefs -a "${LPARAM_BLOCK_DEVICE}${part}${i}" >/dev/null 2>&1
         fi
     done
@@ -730,13 +730,8 @@ EOF
     mkdir -p "$P2_MOUNT_DIR"
     sync
 
-    if ! mount -t vfat "${LPARAM_BLOCK_DEVICE}${part}1"  "$P1_MOUNT_DIR" >/dev/null 2>&1; then
-        pr_error "${LPARAM_BLOCK_DEVICE}${part}1: mount failed"
-        return 1
-    elif ! mount -t ext4 "${LPARAM_BLOCK_DEVICE}${part}2"  "$P2_MOUNT_DIR" >/dev/null 2>&1; then
-        pr_error "${LPARAM_BLOCK_DEVICE}${part}2: mount failed"
-        return 1
-    fi
+    mount -t vfat "${LPARAM_BLOCK_DEVICE}${part}1"  "$P1_MOUNT_DIR" >/dev/null 2>&1 || return 1
+    mount -t ext4 "${LPARAM_BLOCK_DEVICE}${part}2"  "$P2_MOUNT_DIR" >/dev/null 2>&1 || return 1
     sleep 2
     sync
 

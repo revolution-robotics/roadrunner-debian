@@ -713,7 +713,8 @@ make_recovery_image ()
         if test -n "$(findmnt -n "${LPARAM_BLOCK_DEVICE}${part}${i}")"; then
             umount "${LPARAM_BLOCK_DEVICE}${part}${i}"
         fi
-        if test -e "${LPARAM_BLOCK_DEVICE}${part}${i}"; then
+        if test -b "${LPARAM_BLOCK_DEVICE}${part}${i}"; then
+            tune2fs -L '' "${LPARAM_BLOCK_DEVICE}${part}${i}" >/dev/null 2>&1 || true
             wipefs -a "${LPARAM_BLOCK_DEVICE}${part}${i}"
         fi
     done
