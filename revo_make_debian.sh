@@ -1116,6 +1116,9 @@ cmd_make_clean ()
 
     pr_info "Delete rootfs dir ${G_ROOTFS_DIR}"
     rm -rf "$G_ROOTFS_DIR"
+
+    pr_info "Delete recoveryfs dir ${G_RECOVERYFS_DIR}"
+    rm -rf "$G_RECOVERYFS_DIR"
 }
 
 ################ main function ################
