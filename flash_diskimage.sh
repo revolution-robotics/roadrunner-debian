@@ -43,7 +43,7 @@ get_range ()
 {
     size=$1
 
-    if (( size > 10 )); then
+    if (( size > 9 )); then
         echo "1-$size"
     else
         echo $(seq $size) | tr ' ' '|'

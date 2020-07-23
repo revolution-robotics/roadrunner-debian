@@ -1,13 +1,7 @@
 #!/usr/bin/env bash
-# It is designed to build Debian Linux for Variscite iMX modules
-# prepare host OS system:
-#  sudo apt-get install binfmt-support qemu qemu-user-static debootstrap kpartx
-#  sudo apt-get install lvm2 dosfstools gpart binutils git lib32ncurses5-dev python-m2crypto
-#  sudo apt-get install gawk wget git-core diffstat unzip texinfo gcc-multilib build-essential chrpath socat libsdl1.2-dev
-#  sudo apt-get install autoconf libtool libglib2.0-dev libarchive-dev
-#  sudo apt-get install python-git xterm sed cvs subversion coreutils texi2html
-#  sudo apt-get install docbook-utils python-pysqlite2 help2man make gcc g++ desktop-file-utils libgl1-mesa-dev
-#  sudo apt-get install libglu1-mesa-dev mercurial automake groff curl lzop asciidoc u-boot-tools mtd-utils
+#
+# This script creates a bootable disk image with U-Boot, Linux and
+# Debian root file system.
 #
 umask 022
 
@@ -41,7 +35,8 @@ declare -r DEF_SRC_DIR=${DEF_BUILDENV}/src
 declare -r G_ROOTFS_DIR=${DEF_BUILDENV}/rootfs
 declare -r G_RECOVERYFS_DIR=${DEF_BUILDENV}/recoveryfs
 declare -r G_TMP_DIR=${DEF_BUILDENV}/tmp
-declare -r G_TOOLS_PATH=${DEF_BUILDENV}/toolchain
+# declare -r G_TOOLS_PATH=${DEF_BUILDENV}/toolchain
+declare G_TOOLS_PATH=/usr/bin
 if test ."$MACHINE" = .'revo-roadrunner-mx7'; then
     declare -r G_VENDOR_PATH=${DEF_BUILDENV}/revo
 else
@@ -55,14 +50,15 @@ declare -r G_EXT_CROSS_64BIT_COMPILER_LINK=https://toolchains.bootlin.com/downlo
 declare -r G_CROSS_COMPILER_64BIT_PREFIX=aarch64-buildroot-linux-gnu-
 
 #32 bit CROSS_COMPILER config and paths
-declare -r G_CROSS_COMPILER_32BIT_NAME=armv7-eabihf--glibc--stable-2020.02-2
-declare -r G_CROSS_COMPILER_ARCHIVE_32BIT=${G_CROSS_COMPILER_32BIT_NAME}.tar.bz2
-declare -r G_EXT_CROSS_32BIT_COMPILER_LINK=https://toolchains.bootlin.com/downloads/releases/toolchains/armv7-eabihf/tarballs/${G_CROSS_COMPILER_ARCHIVE_32BIT}
-declare -r G_CROSS_COMPILER_32BIT_PREFIX=arm-buildroot-linux-gnueabihf-
+# declare -r G_CROSS_COMPILER_32BIT_NAME=armv7-eabihf--glibc--stable-2020.02-2
+# declare -r G_CROSS_COMPILER_ARCHIVE_32BIT=${G_CROSS_COMPILER_32BIT_NAME}.tar.bz2
+# declare -r G_EXT_CROSS_32BIT_COMPILER_LINK=https://toolchains.bootlin.com/downloads/releases/toolchains/armv7-eabihf/tarballs/${G_CROSS_COMPILER_ARCHIVE_32BIT}
+# declare -r G_CROSS_COMPILER_32BIT_PREFIX=arm-buildroot-linux-gnueabihf-
+declare -r G_CROSS_COMPILER_32BIT_PREFIX=arm-linux-gnueabihf-
 
-declare -r G_CROSS_COMPILER_JOPTION="-j 6"
+declare G_CROSS_COMPILER_JOPTION="-j 6"
 
-#### user rootfs packages ####
+#### user rootfs/recoveryfs packages ####
 declare -r G_USER_PACKAGES="bash-completion binutils cockpit cockpit-networkmanager curl dnsutils ed git libsystemd-dev openvpn network-manager-openvpn pciutils python3-asteval python3-cryptography python3-dateutil python3-lxml python3-pip python3-psutil python3-serial python3-websocket python3-websockets python3-zmq sudo traceroute"
 
 export LC_ALL=C
@@ -91,7 +87,7 @@ Options:
        all         -- build or rebuild kernel/bootloader/rootfs/recoveryfs
        bootloader  -- build or rebuild U-Boot
        kernel      -- build or rebuild the Linux kernel
-       modules     -- build or rebuild the Linux kernel modules & headers and install them in the rootfs dir
+       modules     -- build or rebuild the Linux kernel modules & headers and install them in the rootfs and recoveryfs dirs
        rootfs      -- build or rebuild the Debian root filesystem and create rootfs.tar.gz
                        (including: make & install Debian packages, firmware and kernel modules & headers)
        recoveryfs  -- build or rebuild the Debian recovery filesystem and create recoveryfs.tar.gz
@@ -99,17 +95,17 @@ Options:
        bcmfw       -- install WiFi and Bluetooth firmware
        firmware    -- install DMA firmware
        rubi        -- generate or regenerate rootfs.ubi.img image from rootfs folder
-       rtar        -- generate or regenerate rootfs.tar.gz image from the rootfs folder
-       rytar       -- generate or regenerate recoveryfs.tar.gz image from the rootfs folder
+       rtar        -- generate tarballs from rootfs and recoveryfs dirs
        clean       -- clean all build artifacts (without deleting sources code or resulted images)
        sdcard      -- create a bootable SD card
        diskimage   -- create a bootable image file
        flashimage  -- flash a disk image to SD card
-  -o|--output dir  -- destination directory for build images (default: "$PARAM_OUTPUT_DIR")
-  -d|--dev         -- removable block device to write to (e.g., -d /dev/sde)
+  --debug          -- enable debug mode for this script
+  -d|--dev         -- removable block device to write to (e.g., -d /dev/sdg)
   -i|--image diskimage
                    -- disk image to flash (image directory -- cf. option -o)
-  --debug          -- enable debug mode for this script
+  -j|--jobs n      -- Specifies the number of jobs to run simultaneously (default: ${G_CROSS_COMPILER_JOPTION#-j })
+  -o|--output dir  -- destination directory for build images (default: "$PARAM_OUTPUT_DIR")
 
 Examples:
   deploy and build:                 ./${SCRIPT_NAME} --cmd deploy && sudo ./${SCRIPT_NAME} --cmd all
@@ -149,7 +145,7 @@ elif test ."$ARCH_CPU" = .'32BIT'; then
     declare G_CROSS_COMPILER_ARCHIVE=$G_CROSS_COMPILER_ARCHIVE_32BIT
     declare G_CROSS_COMPILER_PREFIX=$G_CROSS_COMPILER_32BIT_PREFIX
     declare ARCH_ARGS=arm
-    # Include x11 backend rootfs helper
+    # Include backend rootfs and recoveryfs helpers
     source "${G_VENDOR_PATH}/x11_rootfs.sh"
     source "${G_VENDOR_PATH}/recoveryfs.sh"
 else
@@ -157,11 +153,12 @@ else
     exit 1
 fi
 
-declare G_CROSS_COMPILER_PATH=${G_TOOLS_PATH}/${G_CROSS_COMPILER_NAME}/bin
+# declare G_CROSS_COMPILER_PATH=${G_TOOLS_PATH}/${G_CROSS_COMPILER_NAME}/bin
+declare G_CROSS_COMPILER_PATH=${G_TOOLS_PATH}
 
 ## parse input arguments ##
-declare -r SHORTOPTS='c:d:i:o:h'
-declare -r LONGOPTS='cmd:,dev:,image:,output:,help,debug'
+declare -r SHORTOPTS='c:d:i:j:o:h'
+declare -r LONGOPTS='cmd:,debug,dev:,help,image:,jobs:,output:'
 
 declare ARGS=$(
     getopt -s bash --options ${SHORTOPTS}  \
@@ -182,11 +179,18 @@ while true; do
             shift
             PARAM_CMD=$1
             ;;
+        --debug) # enable debug
+            PARAM_DEBUG=1
+            ;;
         -d|--dev) # SD card block device
             shift
             if test -e "$1"; then
                 PARAM_BLOCK_DEVICE=$1
             fi
+            ;;
+        -h|--help) # get help
+            usage
+            exit 0
             ;;
         -i|--image) # Disk image
             shift
@@ -194,16 +198,15 @@ while true; do
                 PARAM_DISK_IMAGE=$1
             fi
             ;;
+        -j|--jobs)
+            shift
+            if (( 1 <= $1 && $1 <= $(nproc) )); then
+                G_CROSS_COMPILER_JOPTION="-j $1"
+            fi
+            ;;
         -o|--output) # select output dir
             shift
             PARAM_OUTPUT_DIR=$1
-            ;;
-        --debug) # enable debug
-            PARAM_DEBUG=1
-            ;;
-        -h|--help) # get help
-            usage
-            exit 0
             ;;
         --)
             shift
@@ -664,7 +667,7 @@ get_range ()
 {
     size=$1
 
-    if (( size > 10 )); then
+    if (( size > 9 )); then
         echo "1-$size"
     else
         echo $(seq $size) | tr ' ' '|'
