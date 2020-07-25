@@ -19,15 +19,19 @@ the command line):
 
 ```shell
 sudo apt update
-sudo apt install autoconf automake autopoint binfmt-support binutils   \
-    binutils-arm-linux-gnueabihf bison build-essential chrpath cmake   \
-    coreutils cpp-arm-linux-gnueabihf debootstrap device-tree-compiler \
-    diffstat docbook-utils flex g++ g++-arm-linux-gnueabihf gcc        \
-    gcc-arm-linux-gnueabihf gcc-multilib git-core golang gpart groff   \
-    help2man lib32ncurses5-dev libarchive-dev libgl1-mesa-dev          \
-    libglib2.0-dev libglu1-mesa-dev libsdl1.2-dev libssl-dev libtool   \
-    lzop m4 make mtd-utils python3-git python3-m2crypto qemu           \
-    qemu-user-static socat texi2html texinfo u-boot-tools unzip
+sudo apt install -y autoconf automake autopoint binfmt-support \
+    binutils bison build-essential chrpath cmake coreutils debootstrap \
+    device-tree-compiler diffstat docbook-utils flex g++ gcc \
+    gcc-multilib git-core golang gpart groff help2man \
+    lib32ncurses5-dev libarchive-dev libgl1-mesa-dev libglib2.0-dev \
+    libglu1-mesa-dev libsdl1.2-dev libssl-dev libtool lzop m4 make \
+    mtd-utils python3-git python3-m2crypto qemu qemu-user-static socat \
+    texi2html texinfo u-boot-tools unzip
+sudo apt install -y binutils-arm-linux-gnueabihf
+sudo apt install -y cpp-arm-linux-gnueabihf
+sudo apt install -y gcc-arm-linux-gnueabihf
+sudo apt install -y g++-arm-linux-gnueabihf
+
 ```
 
 Import a Debian GPG-signing key to verify repository integrity:
