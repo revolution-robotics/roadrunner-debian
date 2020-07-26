@@ -1,14 +1,13 @@
 #cloud-config
 #
+# @(#) mp-cloud-init.yaml
+#
 # This cloud-init file builds a  bootable disk image.  It's intended
 # to be used with Ubuntu's multipass VM manager, e.g.:
 #
-# $ multipass launch --cpus 2 --disk 15G --mem 2G --name roadrunner \
+# multipass launch --cpus 2 --disk 15G --mem 2G --name roadrunner \
 #     --cloud-init - focal <cloud-init.yaml
 #
-users:
-  - name: ubuntu
-    sudo: ['ALL=(ALL:ALL) NOPASSWD:ALL']
 runcmd:
   - apt update
   - apt install -y autoconf automake autopoint binfmt-support binutils

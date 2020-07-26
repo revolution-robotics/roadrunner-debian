@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 #
-# @(#) flash_diskimage
+# @(#) flash-diskimage
 #
 # Copyright © 2020 Revolution Robotics, Inc.
 #
 declare -r SCRIPT_NAME=${0##*/}
 
+declare -r LOOP_MAJOR=7
 declare -r COMPRESSION_SUFFIX=gz
 declare -r ZCAT=zcat
 
-declare PARAM_OUTPUT_DIR=output
+declare PARAM_OUTPUT_DIR=${HOME}/output
 declare PARAM_BLOCK_DEVICE=na
 declare PARAM_DISK_IMAGE=na
 
@@ -139,14 +140,6 @@ select_removable_device ()
     select_from_list removable_devices 'Please choose a device to flash to:'
 }
 
-is_loop_device ()
-{
-    local device=$1
-
-    (( $(stat -c '%t' "$device") == LOOP_MAJOR ))
-}
-
-
 is_removable_device ()
 {
     local device=${1#/dev/}
@@ -167,32 +160,25 @@ is_removable_device ()
         return 1
     fi
 
-    # Loop device is removable for our purposes
-    if is_loop_device "/dev/$device"; then
-        return 0
-    fi
-
     # Get device parameters
     removable=$(cat "/sys/block/${device}/removable")
 
     # Non removable SD card readers require additional check
     if test ."$removable" != .'1'; then
-        local drive=$(
-            udisksctl info -b "/dev/$device" |
-                grep "Drive:"|
-                cut -d"'" -f 2
-              )
+        drive=$(udisksctl info -b "/dev/$device" |
+                    awk -F\' '/Drive:/ { print $2 }')
         gdbus_is_removable=$(
             gdbus call --system --dest org.freedesktop.UDisks2 \
-                  --object-path ${drive} \
-                  --method org.freedesktop.DBus.Properties.Get org.freedesktop.UDisks2.Drive MediaRemovable 2>/dev/null
-              )
+                  --object-path "$drive" \
+                  --method org.freedesktop.DBus.Properties.Get \
+                  org.freedesktop.UDisks2.Drive MediaRemovable 2>/dev/null
+                          )
         if [[ ."$gdbus_is_removable" =~ ^\..*true ]]; then
             removable=1
         fi
     fi
 
-    # Check that device is either removable or loop
+    # Device not removable
     if test ."$removable" != .'1'; then
         pr_error "/dev/$device: Not a removable device"
         return 1

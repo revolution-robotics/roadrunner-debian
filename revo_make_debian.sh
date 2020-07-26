@@ -16,8 +16,6 @@ declare -r SCRIPT_NAME=${0##*/}
 #### global variables ####
 declare -r ABSOLUTE_FILENAME=$(readlink -e "$0")
 declare -r ABSOLUTE_DIRECTORY=$(dirname "$ABSOLUTE_FILENAME")
-declare -r SCRIPT_POINT=$ABSOLUTE_DIRECTORY
-declare -r SCRIPT_START_DATE=$(date +%Y%m%d)
 declare -r LOOP_MAJOR=7
 declare -r COMPRESSION_SUFFIX=gz
 declare -r GZIP=gzip
@@ -634,22 +632,20 @@ is_removable_device ()
 
     # Non removable SD card readers require additional check
     if test ."$removable" != .'1'; then
-        local drive=$(
-            udisksctl info -b "/dev/$device" |
-                grep "Drive:"|
-                cut -d"'" -f 2
-              )
+        drive=$(udisksctl info -b "/dev/$device" |
+                    awk -F\' '/Drive:/ { print $2 }')
         gdbus_is_removable=$(
             gdbus call --system --dest org.freedesktop.UDisks2 \
-                  --object-path ${drive} \
-                  --method org.freedesktop.DBus.Properties.Get org.freedesktop.UDisks2.Drive MediaRemovable 2>/dev/null
+                  --object-path "$drive" \
+                  --method org.freedesktop.DBus.Properties.Get \
+                  org.freedesktop.UDisks2.Drive MediaRemovable 2>/dev/null
                           )
         if [[ ."$gdbus_is_removable" =~ ^\..*true ]]; then
             removable=1
         fi
     fi
 
-    # Check that device is either removable or loop
+    # Device not removable
     if test ."$removable" != .'1'; then
         pr_error "/dev/$device: Not a removable device"
         return 1
@@ -987,7 +983,7 @@ cmd_make_sdcard ()
 
 cmd_make_diskimage ()
 {
-    local ISO8601=$(date  +'%Y%m%dT%H%M%SZ')
+    local ISO8601=$(date -u +'%Y%m%dT%H%M%SZ')
     local IMAGE_FILE=${G_TMP_DIR}/${MACHINE}-${ISO8601}.img
     local IMAGE_SIZE=$(( 7774208 * 512 )) # 3.7 GiB
     local LOOP_DEVICE
