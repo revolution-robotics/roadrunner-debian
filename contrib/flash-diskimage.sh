@@ -118,8 +118,8 @@ get_removable_devices ()
     )
 
     for device in "${devices[@]}"; do
-        vendor=$(sed -e 's/^  *//' -e 's/  *$//' "/sys/block/${device}/device/vendor")
-        model=$(sed -e 's/^  *//' -e 's/  *$//' "/sys/block/${device}/device/model")
+        vendor=$(echo $(< "/sys/block/${device}/device/vendor"))
+        model=$(echo $(< "/sys/block/${device}/device/model"))
         echo "/dev/$device ($vendor $model)"
     done
 }
@@ -241,23 +241,27 @@ flash_diskimage ()
 
 
 ## parse input arguments ##
-declare -r SHORTOPTS='d:i:o:h'
-declare -r LONGOPTS='dev:,image:,output:,help'
+declare -r SHORTOPTS=d:i:o:h
+declare -r LONGOPTS=dev:,image:,output:,help
 
 declare ARGS=$(
-    getopt -s bash --options ${SHORTOPTS}  \
-           --longoptions ${LONGOPTS} --name ${SCRIPT_NAME} -- "$@"
+    getopt -s bash --options "$SHORTOPTS"  \
+           --longoptions "$LONGOPTS" --name "$SCRIPT_NAME" -- "$@"
         )
 
 eval set -- "$ARGS"
 
 while true; do
-    case $1 in
+    case "$1" in
         -d|--dev) # SD card block device
             shift
             if test -e "$1"; then
                 PARAM_BLOCK_DEVICE=$1
             fi
+            ;;
+        -h|--help) # get help
+            usage
+            exit 0
             ;;
         -i|--image) # Disk image
             shift
@@ -268,10 +272,6 @@ while true; do
         -o|--output) # select output dir
             shift
             PARAM_OUTPUT_DIR=$1
-            ;;
-        -h|--help) # get help
-            usage
-            exit 0
             ;;
         --)
             shift

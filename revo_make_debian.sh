@@ -155,12 +155,12 @@ fi
 declare G_CROSS_COMPILER_PATH=${G_TOOLS_PATH}
 
 ## parse input arguments ##
-declare -r SHORTOPTS='c:d:i:j:o:h'
-declare -r LONGOPTS='cmd:,debug,dev:,help,image:,jobs:,output:'
+declare -r SHORTOPTS=c:d:i:j:o:h
+declare -r LONGOPTS=cmd:,debug,dev:,help,image:,jobs:,output:
 
 declare ARGS=$(
-    getopt -s bash --options ${SHORTOPTS}  \
-           --longoptions ${LONGOPTS} --name ${SCRIPT_NAME} -- "$@"
+    getopt -s bash --options "$SHORTOPTS"  \
+           --longoptions "$LONGOPTS" --name "$SCRIPT_NAME" -- "$@"
         )
 
 eval set -- "$ARGS"
@@ -172,7 +172,7 @@ if (( $# == 0 )); then
 fi
 
 while true; do
-    case $1 in
+    case "$1" in
         -c|--cmd) # script command
             shift
             PARAM_CMD=$1
@@ -738,8 +738,8 @@ get_removable_devices ()
     )
 
     for device in "${devices[@]}"; do
-        vendor=$(sed -e 's/^  *//' -e 's/  *$//' "/sys/block/${device}/device/vendor")
-        model=$(sed -e 's/^  *//' -e 's/  *$//' "/sys/block/${device}/device/model")
+        vendor=$(echo $(< "/sys/block/${device}/device/vendor"))
+        model=$(echo $(< "/sys/block/${device}/device/model"))
         echo "/dev/$device ($vendor $model)"
     done
 }
