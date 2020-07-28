@@ -17,9 +17,9 @@ declare -r SCRIPT_NAME=${0##*/}
 declare -r ABSOLUTE_FILENAME=$(readlink -e "$0")
 declare -r ABSOLUTE_DIRECTORY=$(dirname "$ABSOLUTE_FILENAME")
 declare -r LOOP_MAJOR=7
-declare -r COMPRESSION_SUFFIX=gz
-declare -r GZIP=gzip
-declare -r ZCAT=zcat
+declare COMPRESSION_SUFFIX=gz
+declare ZIP=gzip
+declare ZCAT='gzip -dc'
 
 # default mirror
 declare -r DEF_DEBIAN_MIRROR=https://deb.debian.org/debian/
@@ -712,8 +712,7 @@ get_disk_images ()
 
     mapfile -t archives < <(ls "${PARAM_OUTPUT_DIR}/"*.$COMPRESSION_SUFFIX 2>/dev/null)
     for archive in "${archives[@]}"; do
-        kind=$($ZCAT "$archive" | file - | awk '{ print $2 }')
-        case "$kind" in
+        case $($ZCAT "$archive" | file -) in
             DOS/MBR)
                 echo "$archive"
                 ;;
@@ -1029,7 +1028,7 @@ cmd_make_diskimage ()
     trap - 0 1 2 15
 
     pr_info "Compressing image file \"$(basename $IMAGE_FILE)\"..."
-    $GZIP "$IMAGE_FILE"
+    $ZIP "$IMAGE_FILE"
     mv "${IMAGE_FILE}.${COMPRESSION_SUFFIX}" "$PARAM_OUTPUT_DIR"
 }
 
@@ -1080,6 +1079,30 @@ cmd_flash_diskimage ()
             umount -f "${LPARAM_BLOCK_DEVICE}${i}"
         fi
     done
+
+    case $(file "$LPARAM_DISK_IMAGE") in
+        *bzip2*)
+            ZCAT='bzip2 -dc'
+            ;;
+        *lzip*)
+            ZCAT='lzip -dc'
+            ;;
+        *LZMA*)
+            ZCAT='lzma -dc'
+            ;;
+        *lzop*)
+            ZCAT='lzop -dc'
+            ;;
+        *gzip*)
+            ZCAT='gzip -dc'
+            ;;
+        *XZ*)
+            ZCAT='xz -dc'
+            ;;
+        *'ISO 9660'*)
+            ZCAT=cat
+            ;;
+    esac
 
     if ! $ZCAT "$LPARAM_DISK_IMAGE" | dd of="$LPARAM_BLOCK_DEVICE" bs=1M; then
         pr_error "Flash did not complete successfully."

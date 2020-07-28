@@ -7,8 +7,8 @@
 declare -r SCRIPT_NAME=${0##*/}
 
 declare -r LOOP_MAJOR=7
-declare -r COMPRESSION_SUFFIX=gz
-declare -r ZCAT=zcat
+declare COMPRESSION_SUFFIX=gz
+declare ZCAT='gzip -dc'
 
 declare PARAM_OUTPUT_DIR=${HOME}/output
 declare PARAM_BLOCK_DEVICE=na
@@ -92,8 +92,7 @@ get_disk_images ()
 
     mapfile -t archives < <(ls "${PARAM_OUTPUT_DIR}/"*.$COMPRESSION_SUFFIX 2>/dev/null)
     for archive in "${archives[@]}"; do
-        kind=$($ZCAT "$archive" | file - | awk '{ print $2 }')
-        case "$kind" in
+        case $($ZCAT "$archive" | file -) in
             DOS/MBR)
                 echo "$archive"
                 ;;
@@ -232,6 +231,30 @@ flash_diskimage ()
             sudo umount -f "${LPARAM_BLOCK_DEVICE}${i}"
         fi
     done
+
+    case $(file "$LPARAM_DISK_IMAGE") in
+        *bzip2*)
+            ZCAT='bzip2 -dc'
+            ;;
+        *lzip*)
+            ZCAT='lzip -dc'
+            ;;
+        *LZMA*)
+            ZCAT='lzma -dc'
+            ;;
+        *lzop*)
+            ZCAT='lzop -dc'
+            ;;
+        *gzip*)
+            ZCAT='gzip -dc'
+            ;;
+        *XZ*)
+            ZCAT='xz -dc'
+            ;;
+        *'ISO 9660'*)
+            ZCAT=cat
+            ;;
+    esac
 
     if ! $ZCAT "$LPARAM_DISK_IMAGE" | sudo dd of="$LPARAM_BLOCK_DEVICE" bs=1M; then
         pr_error "Flash did not complete successfully."
