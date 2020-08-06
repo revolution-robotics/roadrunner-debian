@@ -1,11 +1,25 @@
 #!/usr/bin/env bash
 #
-# @(#) build_diskimage
+# @(#) mp-build-diskimage
 #
 # Copyright © 2020 Revolution Robotics, Inc.
 #
 # This script builds a REVO i.MX7D SD disk image in a multipass VM.
 # The resulting image is written to $DEST_DIR on the local host.
+#
+# NB: Inside the VM, be careful not to overwrite user ubuntu's
+#     authorized_keys (i.e., ~ubuntu/.ssh/authorized_keys). Multipass
+#     is unable to accesses the VM without it.
+#
+#     In the event authorized_keys is lost, if SSH access is available
+#     (see `multipass list` for IP address), authorized_keys can be
+#     restored from the host machine via the command:
+#
+#         sudo ssh-keygen -y -f \
+#              /var/snap/multipass/common/data/multipassd/ssh-keys/id_rsa |
+#             ssh ubuntu@${vm_ipv4} 'cat >>.ssh/authorized_keys'
+#
+#     See below for definition of vm_ipv4.
 #
 script_name=${0##*/}
 
@@ -15,13 +29,14 @@ script_name=${0##*/}
 : ${OUTPUT_DIR:="${BUILD_DIR}/output"}
 : ${DEST_DIR:="${HOME}/output"}
 : ${NCPUS:='2'}
+: ${SSH_PUBKEY:="${HOME}/.ssh/id_rsa.pub"}
 
 #  Avoid multiple instances of this script.
 if test ."$0" != ."$LOCKED"; then
     exec env LOCKED=$0 $FLOCK -en "$0" "$0" "$@" || :
 fi
 
-# If an $VMNAME instance exists...
+# If a $VMNAME instance exists...
 if multipass list  | awk 'NR > 1 { print $1 }' | grep -q "$VMNAME"; then
 
     # Prompt whether to overwrite.
@@ -35,14 +50,24 @@ if multipass list  | awk 'NR > 1 { print $1 }' | grep -q "$VMNAME"; then
     multipass delete --purge "$VMNAME"
 fi
 
-# Launch VM and mount local $DEST_DIR on VM's $OUTPUT_DIR.
+# Launch VM and mount local $DEST_DIR on VM's $OUTPUT_DIR via SSHFS.
 multipass launch --cpus "$NCPUS" --disk 15G --mem 2G --name "$VMNAME" focal
 mkdir -p "$DEST_DIR"
 multipass exec "$VMNAME" -- mkdir -p "$OUTPUT_DIR"
 multipass mount "$DEST_DIR" "${VMNAME}:${OUTPUT_DIR}"
 
+# Enable SSH access, e.g.:
+#
+#   vm_ipv4=$(multipass list | awk 'NR > 1 && $1 == "'$VMNAME'" { print $3 }')
+#   ssh ubuntu@${vm_ipv4}
+#
+if test -f "$SSH_PUBKEY"; then
+    cat "$SSH_PUBKEY" |
+        multipass exec "$VMNAME" -- bash -c "cat >>.ssh/authorized_keys"
+fi
+
 # Install build script.
-cat <<EOF | multipass transfer - "${VMNAME}:build_script"
+cat <<EOF | multipass exec "${VMNAME}" -- bash -c "cat >build_script"
 #!/usr/bin/env bash
 #
 set -e

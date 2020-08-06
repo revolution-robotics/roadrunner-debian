@@ -78,7 +78,7 @@ Make Debian $DEB_RELEASE image and create a bootabled SD card
 Usage:
  MACHINE=<imx8m-var-dart|imx8mm-var-dart|imx8qxp-var-som|imx8qm-var-som|imx6ul-var-dart|var-som-mx7|revo-roadrunner-mx7> ./$SCRIPT_NAME OPTIONS
 Options:
-  -h|--help        -- print this help
+  -h|--help        -- print this help, then exit
   -c|--cmd <command>
      Supported commands:
        deploy      -- prepare environment for all commands
@@ -713,7 +713,7 @@ get_disk_images ()
     mapfile -t archives < <(ls "${PARAM_OUTPUT_DIR}/"*.$COMPRESSION_SUFFIX 2>/dev/null)
     for archive in "${archives[@]}"; do
         case $($ZCAT "$archive" | file -) in
-            DOS/MBR)
+            *DOS/MBR*)
                 echo "$archive"
                 ;;
         esac

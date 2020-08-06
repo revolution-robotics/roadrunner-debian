@@ -10,6 +10,7 @@ declare -r LOOP_MAJOR=7
 declare COMPRESSION_SUFFIX=gz
 declare ZCAT='gzip -dc'
 
+declare PARAM_DEBUG=0
 declare PARAM_OUTPUT_DIR=${HOME}/output
 declare PARAM_BLOCK_DEVICE=na
 declare PARAM_DISK_IMAGE=na
@@ -19,11 +20,11 @@ usage ()
     cat <<EOF
 Usage: $SCRIPT_NAME OPTIONS
 Options:
-  -h|--help   -- print this help
-  -o|--output -- directory of disk image(s) (default: "$PARAM_OUTPUT_DIR")
+  -h|--help   -- print this help, then exit
   -d|--dev    -- removable block device to flash to (e.g., -d /dev/sde)
   -i|--image diskimage
               -- disk image to flash from (see also option -o)
+  -o|--output -- directory of disk image(s) (default: "$PARAM_OUTPUT_DIR")
 
 Example:
   flash image to SD card:           ./${SCRIPT_NAME}
@@ -93,7 +94,7 @@ get_disk_images ()
     mapfile -t archives < <(ls "${PARAM_OUTPUT_DIR}/"*.$COMPRESSION_SUFFIX 2>/dev/null)
     for archive in "${archives[@]}"; do
         case $($ZCAT "$archive" | file -) in
-            DOS/MBR)
+            *DOS/MBR*)
                 echo "$archive"
                 ;;
         esac
@@ -265,7 +266,7 @@ flash_diskimage ()
 
 ## parse input arguments ##
 declare -r SHORTOPTS=d:i:o:h
-declare -r LONGOPTS=dev:,image:,output:,help
+declare -r LONGOPTS=debug,dev:,image:,output:,help
 
 declare ARGS=$(
     getopt -s bash --options "$SHORTOPTS"  \
@@ -276,6 +277,9 @@ eval set -- "$ARGS"
 
 while true; do
     case "$1" in
+        --debug)
+            PARAM_DEBUG=1
+            ;;
         -d|--dev) # SD card block device
             shift
             if test -e "$1"; then
@@ -307,5 +311,11 @@ while true; do
     esac
     shift
 done
+
+# enable trace option in debug mode
+if test ."$PARAM_DEBUG" = .'1'; then
+    echo "Debug mode enabled!"
+    set -x
+fi
 
 flash_diskimage

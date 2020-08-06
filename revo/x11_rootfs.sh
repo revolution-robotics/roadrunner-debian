@@ -512,7 +512,7 @@ EOF
 
     # kill latest dbus-daemon instance due to qemu-arm-static
     QEMU_PROC_ID=$(ps axf | grep dbus-daemon | grep qemu-arm-static | awk '{print $1}')
-    if [ -n "$QEMU_PROC_ID" ]; then
+    if test -n "$QEMU_PROC_ID"; then
         kill -9 $QEMU_PROC_ID
     fi
 
@@ -585,9 +585,12 @@ make_x11_image ()
     flash_device ()
     {
         pr_info "Flashing \"BOOT\" partition"
+        if test -f "${LPARAM_OUTPUT_DIR}/boot.scr"; then
+            install -m 0644 "${LPARAM_OUTPUT_DIR}/boot.scr" "$P1_MOUNT_DIR"
+        fi
         install -m 0644 "${LPARAM_OUTPUT_DIR}/"*.dtb	"$P1_MOUNT_DIR"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
-           "${P1_MOUNT_DIR}/${BUILD_IMAGE_TYPE}"
+           "$P1_MOUNT_DIR"
         sync
 
         pr_info "Flashing \"rootfs\" partition"
