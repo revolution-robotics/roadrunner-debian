@@ -90,6 +90,7 @@ Options:
                        (including: make & install Debian packages, firmware and kernel modules & headers)
        recoveryfs  -- build or rebuild the Debian recovery filesystem and create recoveryfs.tar.gz
                        (including: make & install Debian packages, firmware and kernel modules & headers)
+       scripts     -- build U-Boot boot scripts
        bcmfw       -- install WiFi and Bluetooth firmware
        firmware    -- install DMA firmware
        rubi        -- generate or regenerate rootfs.ubi.img image from rootfs folder
@@ -138,6 +139,7 @@ if test ."$ARCH_CPU" = .'64BIT'; then
     # Include weston backend rootfs helper
     source "${G_VENDOR_PATH}/weston_rootfs.sh"
 elif test ."$ARCH_CPU" = .'32BIT'; then
+    declare G_SCRIPT_SRC_DIR="${G_VENDOR_PATH}/${MACHINE}/u-boot"
     declare G_CROSS_COMPILER_NAME=$G_CROSS_COMPILER_32BIT_NAME
     declare G_EXT_CROSS_COMPILER_LINK=$G_EXT_CROSS_32BIT_COMPILER_LINK
     declare G_CROSS_COMPILER_ARCHIVE=$G_CROSS_COMPILER_ARCHIVE_32BIT
@@ -927,6 +929,11 @@ cmd_make_recoveryfs ()
     # fi
 }
 
+cmd_make_scripts ()
+{
+    make -C "$G_SCRIPT_SRC_DIR" all install DESTDIR="$PARAM_OUTPUT_DIR"
+}
+
 cmd_make_uboot ()
 {
     make_uboot "$G_UBOOT_SRC_DIR" "$PARAM_OUTPUT_DIR"
@@ -1174,6 +1181,10 @@ case $PARAM_CMD in
     modules)
         cmd_make_kmodules $G_ROOTFS_DIR
         cmd_make_kmodules $G_RECOVERYFS_DIR
+        cmd_make_scripts
+        ;;
+    scripts)
+        cmd_make_scripts
         ;;
     bcmfw)
         cmd_make_bcmfw $G_ROOTFS_DIR
@@ -1203,6 +1214,7 @@ case $PARAM_CMD in
             cmd_make_kernel &&
             cmd_make_kmodules $G_ROOTFS_DIR &&
             cmd_make_kmodules $G_RECOVERYFS_DIR &&
+            cmd_make_scripts
             cmd_make_rootfs &&
             cmd_make_recoveryfs
         ;;

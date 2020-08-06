@@ -585,12 +585,12 @@ make_x11_image ()
     flash_device ()
     {
         pr_info "Flashing \"BOOT\" partition"
-        if test -f "${LPARAM_OUTPUT_DIR}/boot.scr"; then
-            install -m 0644 "${LPARAM_OUTPUT_DIR}/boot.scr" "$P1_MOUNT_DIR"
+        if test -f "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}"; then
+            install -m 0644 "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}" "$P1_MOUNT_DIR"
         fi
         install -m 0644 "${LPARAM_OUTPUT_DIR}/"*.dtb	"$P1_MOUNT_DIR"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
-           "$P1_MOUNT_DIR"
+                "$P1_MOUNT_DIR"
         sync
 
         pr_info "Flashing \"rootfs\" partition"
@@ -606,6 +606,10 @@ make_x11_image ()
         mkdir -p "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
 
         pr_info "Copying Debian images to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        if test -f "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}"; then
+            install -m 0644 "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}" \
+                    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        fi
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
            "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
         # if test ."$MACHINE" = .'imx6ul-var-dart' ||

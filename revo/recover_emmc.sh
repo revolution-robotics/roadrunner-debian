@@ -16,6 +16,7 @@ declare -r IMGS_PATH=/opt/images/Debian
 declare -r EMMC_DEVICE=mmcblk2
 
 declare -r UBOOT_IMAGE=u-boot.img.mmc
+declare -r UBOOT_SCRIPT=boot.scr
 declare -r SPL_IMAGE=SPL.mmc
 declare -r KERNEL_IMAGE=zImage
 declare -r KERNEL_DTBS=imx7d-roadrunner-emmc.dtb
@@ -73,6 +74,7 @@ check_images ()
     local file
     local -a distribution_images=(
         "$UBOOT_IMAGE"
+        "$UBOOT_SCRIPT"
         "$SPL_IMAGE"
         "$KERNEL_IMAGE"
         "$ROOTFS_IMAGE"
@@ -265,6 +267,9 @@ flash_emmc ()
 
     pr_info "Flashing eMMC \"BOOT\" partition"
 
+    if test -f "${IMGS_PATH}/${UBOOT_SCRIPT}"; then
+        install -m 0644 "${IMGS_PATH}/${UBOOT_SCRIPT}" "$bootdir"
+    fi
     cp "${IMGS_PATH}/${KERNEL_IMAGE}" "$bootdir"
     for dtb in $KERNEL_DTBS; do
         cp "${IMGS_PATH}/${dtb}" "$bootdir"
