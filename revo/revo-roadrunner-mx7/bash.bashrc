@@ -19,10 +19,10 @@ if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
     debian_chroot=$(cat /etc/debian_chroot)
 fi
 
-# set a fancy prompt (non-color, overwrite the one in /etc/profile)
-# but only if not SUDOing and have SUDO_PS1 set; then assume smart user.
+# set a fancy prompt, but only if not SUDOing and have SUDO_PS1 set;
+# then assume smart user.
 if ! [ -n "${SUDO_USER}" -a -n "${SUDO_PS1}" ]; then
-    PS1='${debian_chroot:+($debian_chroot)}\u@\h\$ '
+    PS1='\[\033[1;34m\]${debian_chroot:+($debian_chroot)}\u@\h:\w#\[\033[0m\] '
 fi
 
 # Commented out, don't overwrite xterm -T "title" -n "icontitle" by default.

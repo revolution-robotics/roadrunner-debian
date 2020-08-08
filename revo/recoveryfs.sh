@@ -545,6 +545,10 @@ EOF
     # BEGIN -- REVO i.MX7D cleanup
     install -m 0755 ${G_VENDOR_PATH}/recover_emmc.sh ${RECOVERYFS_BASE}/usr/sbin/recover_emmc
 
+    # Enable colorized `ls' for `root'.
+    sed -i -e '/export LS/s/^# *//' -e '/eval.*dircolors/s/^# *//' \
+        -e '/alias ls/s/^# *//' ${ROOTFS_BASE}/root/.bashrc
+
     # Prepare /var/log to be mounted as tmpfs.
     # NB: *~ is excluded from recoveryfs tarball.
     mv ${RECOVERYFS_BASE}/var/log{,~}

@@ -522,6 +522,10 @@ EOF
     # BEGIN -- REVO i.MX7D cleanup
     install -m 0755 ${G_VENDOR_PATH}/flash_emmc.sh ${ROOTFS_BASE}/usr/sbin/flash_emmc
 
+    # Enable colorized `ls' for `root'.
+    sed -i -e '/export LS/s/^# *//' -e '/eval.*dircolors/s/^# *//' \
+        -e '/alias ls/s/^# *//' ${ROOTFS_BASE}/root/.bashrc
+
     # Prepare /var/log to be mounted as tmpfs.
     # NB: *~ is excluded from rootfs tarball.
     mv ${ROOTFS_BASE}/var/log{,~}
