@@ -1,0 +1,10 @@
+[Unit]
+Description=Recover eMMC monitor service
+
+[Service]
+ExecStart=/usr/sbin/recover-emmc-monitor
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

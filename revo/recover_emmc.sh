@@ -21,7 +21,12 @@ declare -r SPL_IMAGE=SPL.mmc
 declare -r KERNEL_IMAGE=zImage
 declare -r KERNEL_DTBS=imx7d-roadrunner-emmc.dtb
 declare -r ROOTFS_IMAGE=rootfs.tar.${COMPRESSION_SUFFIX}
-# declare -r RECOVERYFS_IMAGE=recoveryfs.tar.${COMPRESSION_SUFFIX}
+declare -r SYSTEM_UPDATE_LOG=/root/system-update.log
+
+if (( EUID != 0 )); then
+    echo "This script must be run with super-user privileges"  >>$SYSTEM_UPDATE_LOG
+    exit 1
+fi
 
 usage ()
 {
@@ -34,38 +39,84 @@ EOF
 
 pr_error ()
 {
-    echo "E: $@"
+    echo "E: $@" >>$SYSTEM_UPDATE_LOG
 }
 
 pr_info ()
 {
-    echo "I: $@"
+    echo "I: $@" >>$SYSTEM_UPDATE_LOG
 }
 
+pwr_led_on ()
+{
+    echo 1 >/sys/class/leds/pwr-green-led/brightness
+}
 
-if (( EUID != 0 )); then
-    echo "This script must be run with super-user privileges"
-    exit 1
-fi
+pwr_led_off ()
+{
+    echo 0 >/sys/class/leds/pwr-green-led/brightness
+}
 
-# Check that none of the partitions to be flashed is mounted as root.
+stat_led_on ()
+{
+    echo 1 >/sys/class/leds/stat-blue-led/brightness
+}
+
+stat_led_off ()
+{
+    echo 0 >/sys/class/leds/stat-blue-led/brightness
+}
+
+link_led_on ()
+{
+    echo 1 >/sys/class/leds/link-blue-led/brightness
+}
+
+link_led_off ()
+{
+    echo 0 >/sys/class/leds/link-blue-led/brightness
+}
+
+cycle_leds ()
+{
+    while true; do
+        pwr_led_on
+        sleep 1
+        pwr_led_off
+        stat_led_on
+        sleep 1
+        stat_led_off
+        link_led_on
+        sleep 1
+        link_led_off
+    done
+}
+
+# Verify that recover request is active.
 sanity_check ()
 {
     local device=$1
     local part=$2
     local rootfspart=$3
-    # local recoveryfspart=$4
 
+    local system_update=$(readlink /system-update)
     local rootdevice=${device}${part}${rootfspart}
-    # local recoverydevice=${device}${part}${recoveryfspart}
+    local rootmount=$(findmnt -n "$rootdevice" | awk '{ print $1 }')
 
-    if test ."$(findmnt -n "$rootdevice" | awk '{ print $1 }')" = .'/'; then
+    if test ."$system_update" != .'opt/images/Debian'; then
+        pr_error "/system-update: Not symlinked to opt/images/Debian"
+        return 1
+    else
+        : rm -f /system-update
+    fi
+    if ! grep -q 'recovery_request' /proc/cmdline; then
+        pr_error "recovery_request: Missing kernel command-line parameter"
+        return 1
+    fi
+    if test ."$rootmount" = .'/'; then
         pr_error "$rootdevice: Cannot flash device mounted on root"
         return 1
 
-    # elif test ."$(findmnt -n "$recoverydevice" | awk '{ print $1 }')" = .'/'; then
-    #     pr_error "$recoverydevice: Cannot flash device mounted on root"
-    #     return 1
     fi
 }
 
@@ -78,7 +129,6 @@ check_images ()
         "$SPL_IMAGE"
         "$KERNEL_IMAGE"
         "$ROOTFS_IMAGE"
-        # "$RECOVERYFS_IMAGE"
         )
 
     for dtb in $KERNEL_DTBS; do
@@ -103,20 +153,6 @@ set_fw_env_config_to_emmc ()
 
     sed -i -e '/mtd/ s/^#*/#/' "$fw_env_config"
     sed -i -e "s;#*/dev/mmcblk.;/dev/${EMMC_DEVICE};" "$fw_env_config"
-}
-
-set_fw_utils_to_emmc_on_sd_card ()
-{
-    local fw_printenv=$(readlink /usr/bin/fw_printenv)
-
-    # Adjust u-boot-fw-utils for eMMC on the SD card
-    if test ."$fw_printenv"  != ."fw_printenv-mmc"; then
-        ln -sf fw_printenv-mmc /usr/bin/fw_printenv
-    fi
-
-    if test -f /etc/fw_env.config; then
-        set_fw_env_config_to_emmc /etc/fw_env.config
-    fi
 }
 
 set_fw_utils_to_emmc_on_emmc ()
@@ -157,8 +193,7 @@ partition_emmc ()
     local recoveryfs_offset=$(( rootfs_offset + rootfs_size ))
 
     pr_info "Device: $device, $total_size_gib GiB"
-    echo "============================================="
-    read -p "Press Enter to continue"
+    pr_info "============================================="
 
     pr_info "Creating new partitions:"
     pr_info "Root file system size: $rootfs_size MiB"
@@ -204,7 +239,6 @@ format_emmc ()
     local part=$2
     local bootpart=$3
     local rootfspart=$4
-    # local recoveryfspart=$5
 
     pr_info "Formating eMMC partitions"
 
@@ -214,10 +248,9 @@ format_emmc ()
     elif ! mkfs.ext4 -F -L rootfs "${device}${part}${rootfspart}" >/dev/null 2>&1; then
         pr_error "${device}${part}${rootfspart}: format failed"
         return 1
-    # elif ! mkfs.ext4 -L recoveryfs "${device}${part}${recoveryfspart}" >/dev/null 2>&1; then
-    #     pr_error "${device}${part}${recoveryfspart}: format failed"
-    #     return 1
     fi
+    sleep 2
+    sync
 }
 
 mount_partitions ()
@@ -227,18 +260,15 @@ mount_partitions ()
     local part=$3
     local bootpart=$4
     local rootfspart=$5
-    # local recoveryfspart=$6
 
     local bootdir="${mountdir_prefix}${bootpart}"
     local rootfsdir="${mountdir_prefix}${rootfspart}"
-    # local recoveryfsdir="${mountdir_prefix}${recoveryfspart}"
 
     pr_info "Mounting eMMC partitions"
 
     # Mount the partitions
     mkdir -p "$bootdir"
     mkdir -p "$rootfsdir"
-    # mkdir -p "$recoveryfsdir"
 
     if ! mount -t vfat "${device}${part}${bootpart}" "$bootdir" >/dev/null 2>&1; then
         pr_error "${device}${part}${bootpart}: mount failed"
@@ -246,9 +276,6 @@ mount_partitions ()
     elif ! mount -t ext4 "${device}${part}${rootfspart}" "$rootfsdir" >/dev/null 2>&1; then
         pr_error "${device}${part}${rootfspart}: mount failed"
         return 1
-    # elif ! mount -t ext4 "${device}${part}${recoveryfspart}" "$recoveryfsdir" >/dev/null 2>&1; then
-    #     pr_error "${device}${part}${recoveryfspart}: mount failed"
-    #     return 1
     fi
     sleep 2
     sync
@@ -259,11 +286,9 @@ flash_emmc ()
     local mountdir_prefix=$1
     local bootpart=$2
     local rootfspart=$3
-    # local recoveryfspart=$4
 
     local bootdir="${mountdir_prefix}${bootpart}"
     local rootfsdir="${mountdir_prefix}${rootfspart}"
-    # local recoveryfsdir="${mountdir_prefix}${recoveryfspart}"
 
     pr_info "Flashing eMMC \"BOOT\" partition"
 
@@ -283,23 +308,10 @@ flash_emmc ()
         pr_error "$rootfsdir: eMMC flash did not complete successfully."
         return 1
     fi
-    echo
+    pr_info ""
 
     set_fw_utils_to_emmc_on_emmc "$rootfsdir"
     sync
-
-
-    # pr_info "Flashing eMMC \"recoveryfs\" partition"
-
-    # if ! tar -C "$recoveryfsdir" -zxpf "${IMGS_PATH}/${RECOVERYFS_IMAGE}" \
-    #      --checkpoint=4096 --checkpoint-action=.; then
-    #     pr_error "$recoveryfsdir: eMMC flash did not complete successfully."
-    #     return 1
-    # fi
-    # echo
-
-    # set_fw_utils_to_emmc_on_emmc "$recoveryfsdir"
-    # sync
 }
 
 flash_u-boot ()
@@ -322,19 +334,16 @@ flash_u-boot ()
     fi
 }
 
-finish ()
+clean_up ()
 {
 
     local mountdir_prefix=$1
     local bootpart=$2
     local rootfspart=$3
-    # local recoveryfspart=$4
 
     local bootdir="${mountdir_prefix}${bootpart}"
     local rootfsdir="${mountdir_prefix}${rootfspart}"
-    # local recoveryfsdir="${mountdir_prefix}${recoveryfspart}"
 
-    # umount "$bootdir" "$rootfsdir" "$recoveryfsdir" || return 1
     umount "$bootdir" "$rootfsdir" || return 1
 
     if [[ ."${mountdir_prefix%/*}" =~ \./tmp/media ]]; then
@@ -360,7 +369,8 @@ declare part=p
 declare mountdir_prefix=/tmp/media/${EMMC_DEVICE}${part}
 declare bootpart=1
 declare rootfspart=2
-# declare recoveryfspart=3
+
+cat /dev/null >$SYSTEM_UPDATE_LOG
 
 if test ."$soc" != .'i.MX7D'; then
     pr_error "This script is for imaging an i.MX7D board's eMMC device"
@@ -375,15 +385,14 @@ pr_info "Internal storage: eMMC"
 
 sanity_check "$device" "$part" "$rootfspart" || exit $?
 check_images || exit $?
-# partition_emmc "$device" "$part" || exit $?
-# format_emmc "$device" "$part" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?
+
+trap 'turn_pwr_on; turn_stat_off; turn_link_off; kill $cycle_leds_pid; exit' 0 1 2 15
+
+cycle_leds &
+cycle_leds_pid=$!
+
 format_emmc "$device" "$part" "$bootpart" "$rootfspart" || exit $?
-sleep 2
-sync
-# mount_partitions "$mountdir_prefix" "$device" "$part" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?
 mount_partitions "$mountdir_prefix" "$device" "$part" "$bootpart" "$rootfspart"  || exit $?
-# flash_emmc "$mountdir_prefix" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?
 flash_emmc "$mountdir_prefix" "$bootpart" "$rootfspart" || exit $?
 flash_u-boot "$device" || exit $?
-# finish "$mountdir_prefix" "$bootpart" "$rootfspart" "$recoveryfspart"
-finish "$mountdir_prefix" "$bootpart" "$rootfspart"
+clean_up "$mountdir_prefix" "$bootpart" "$rootfspart"

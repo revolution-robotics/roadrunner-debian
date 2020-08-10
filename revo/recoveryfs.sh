@@ -355,10 +355,26 @@ EOF
 
     # Install redirect-web-ports service.
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/redirect-web-ports" \
-            "${RECOVERYFS_BASE}/sbin"
+            "${RECOVERYFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/redirect-web-ports.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
     ln -s '/lib/systemd/system/redirect-web-ports.service' \
+       "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
+
+    # Install recover-emmc service.
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc.service" \
+            "${RECOVERYFS_BASE}/lib/systemd/system"
+    mkdir -p "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
+    ln -s '../recover-emmc.service' \
+       "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
+    ln -s 'opt/images/Debian' "${RECOVERYFS_BASE}/system-update"
+
+    # Install recover-emmc-monitor service
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor" \
+            "${RECOVERYFS_BASE}/usr/sbin"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor.service" \
+            "${RECOVERYFS_BASE}/lib/systemd/system"
+    ln -s '/lib/systemd/system/recover-emmc-monitor.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Install NetworkManager auto-share dispatcher.
@@ -376,6 +392,7 @@ EOF
        "${RECOVERYFS_BASE}/lib/systemd/system/sysinit.target.wants"
 
     rm -f "${RECOVERYFS_BASE}/etc/NetworkManager/dispatcher.d/"*ifupdown
+
     # END -- REVO i.MX7D update
 
     # install variscite-bt service
@@ -547,7 +564,7 @@ EOF
 
     # Enable colorized `ls' for `root'.
     sed -i -e '/export LS/s/^# *//' -e '/eval.*dircolors/s/^# *//' \
-        -e '/alias ls/s/^# *//' ${ROOTFS_BASE}/root/.bashrc
+        -e '/alias ls/s/^# *//' ${RECOVERYFS_BASE}/root/.bashrc
 
     # Prepare /var/log to be mounted as tmpfs.
     # NB: *~ is excluded from recoveryfs tarball.
@@ -646,7 +663,7 @@ make_recovery_image ()
         pr_info "Copying Debian images to /${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         if test -f "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}"; then
             install -m 0644 "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}" \
-                    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+                    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         fi
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
            "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
@@ -656,7 +673,7 @@ make_recovery_image ()
         #     cp ${LPARAM_OUTPUT_DIR}/recoveryfs.ubi.img \
         #        ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}/
         # fi
-        install -m 0644 "${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}" \
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/${DEF_RECOVERYFS_TARBALL_NAME}" \
            "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
 
         install -m 0644 "${LPARAM_OUTPUT_DIR}/"*.dtb \

@@ -1,0 +1,13 @@
+[Unit]
+Description=Recover eMMC
+DefaultDependencies=no
+Requires=sysinit.target
+After=sysinit.target
+After=system-update-pre.target
+Before=system-update.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/recover_emmc
+ExecStartPost=/bin/systemctl reboot
+FailureAction=reboot

@@ -342,10 +342,18 @@ EOF
 
     # Install redirect-web-ports service.
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/redirect-web-ports" \
-            "${ROOTFS_BASE}/sbin"
+            "${ROOTFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/redirect-web-ports.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
     ln -s '/lib/systemd/system/redirect-web-ports.service' \
+       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
+
+    # Install recover-emmc-monitor service
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor" \
+            "${ROOTFS_BASE}/usr/sbin"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor.service" \
+            "${ROOTFS_BASE}/lib/systemd/system"
+    ln -s '/lib/systemd/system/recover-emmc-monitor.service' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Install NetworkManager auto-share dispatcher.
@@ -363,6 +371,7 @@ EOF
        "${ROOTFS_BASE}/lib/systemd/system/sysinit.target.wants"
 
     rm -f "${ROOTFS_BASE}/etc/NetworkManager/dispatcher.d/"*ifupdown
+
     # END -- REVO i.MX7D update
 
     # install variscite-bt service

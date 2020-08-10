@@ -23,6 +23,11 @@ declare -r KERNEL_DTBS=imx7d-roadrunner-emmc.dtb
 declare -r ROOTFS_IMAGE=rootfs.tar.${COMPRESSION_SUFFIX}
 declare -r RECOVERYFS_IMAGE=recoveryfs.tar.${COMPRESSION_SUFFIX}
 
+if (( EUID != 0 )); then
+    echo "This script must be run with super-user privileges"
+    exit 1
+fi
+
 usage ()
 {
     cat <<EOF
@@ -43,11 +48,6 @@ pr_info ()
 }
 
 
-if (( EUID != 0 )); then
-    echo "This script must be run with super-user privileges"
-    exit 1
-fi
-
 # Check that none of the partitions to be flashed is mounted as root.
 sanity_check ()
 {
@@ -57,13 +57,14 @@ sanity_check ()
     local recoveryfspart=$4
 
     local rootdevice=${device}${part}${rootfspart}
+    local rootmount=$(findmnt -n "$rootdevice" | awk '{ print $1 }')
     local recoverydevice=${device}${part}${recoveryfspart}
+    local recoverymount=$(findmnt -n "$recoverydevice" | awk '{ print $1 }')
 
-    if test ."$(findmnt -n "$rootdevice" | awk '{ print $1 }')" = .'/'; then
+    if test ."$rootmount" = .'/'; then
         pr_error "$rootdevice: Cannot flash device mounted on root"
         return 1
-
-    elif test ."$(findmnt -n "$recoverydevice" | awk '{ print $1 }')" = .'/'; then
+    elif test ."$recoverymount" = .'/'; then
         pr_error "$recoverydevice: Cannot flash device mounted on root"
         return 1
     fi
@@ -350,7 +351,7 @@ flash_u-boot ()
     fi
 }
 
-finish ()
+clean_up ()
 {
 
     local mountdir_prefix=$1
@@ -410,4 +411,4 @@ mount_partitions "$mountdir_prefix" "$device" "$part" "$bootpart" "$rootfspart" 
 flash_emmc "$mountdir_prefix" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?
 copy_images "${mountdir_prefix}${recoveryfspart}"
 flash_u-boot "$device" || exit $?
-finish "$mountdir_prefix" "$bootpart" "$rootfspart" "$recoveryfspart"
+clean_up "$mountdir_prefix" "$bootpart" "$rootfspart" "$recoveryfspart"
