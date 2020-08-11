@@ -548,7 +548,7 @@ EOF
     # clean all packages
     pr_info "recoveryfs: clean"
     chmod +x cleanup
-    chroot ${RECOVERYFS_BASE} /cleanup
+    chroot "${RECOVERYFS_BASE}" /cleanup
 
     # kill latest dbus-daemon instance due to qemu-arm-static
     QEMU_PROC_ID=$(ps axf | grep dbus-daemon | grep qemu-arm-static | awk '{print $1}')
@@ -556,20 +556,20 @@ EOF
         kill -9 $QEMU_PROC_ID
     fi
 
-    rm ${RECOVERYFS_BASE}/usr/bin/qemu-arm-static
+    rm "${RECOVERYFS_BASE}/usr/bin/qemu-arm-static"
 
 
     # BEGIN -- REVO i.MX7D cleanup
-    install -m 0755 ${G_VENDOR_PATH}/recover_emmc.sh ${RECOVERYFS_BASE}/usr/sbin/recover_emmc
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc" "${RECOVERYFS_BASE}/usr/sbin"
 
     # Enable colorized `ls' for `root'.
     sed -i -e '/export LS/s/^# *//' -e '/eval.*dircolors/s/^# *//' \
-        -e '/alias ls/s/^# *//' ${RECOVERYFS_BASE}/root/.bashrc
+        -e '/alias ls/s/^# *//' "${RECOVERYFS_BASE}/root/.bashrc"
 
     # Prepare /var/log to be mounted as tmpfs.
     # NB: *~ is excluded from recoveryfs tarball.
-    mv ${RECOVERYFS_BASE}/var/log{,~}
-    install -d -m 755 ${RECOVERYFS_BASE}/var/log
+    mv "${RECOVERYFS_BASE}/var/log"{,~}
+    install -d -m 755 "${RECOVERYFS_BASE}/var/log"
     # END -- REVO i.MX7D cleanup
 }
 

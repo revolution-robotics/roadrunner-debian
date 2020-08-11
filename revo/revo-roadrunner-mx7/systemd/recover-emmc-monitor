@@ -21,6 +21,9 @@
 from threading import Thread, Event
 import os, re, selectors, signal, subprocess, sys, time
 
+eMMC_DEVICE = '/dev/mmcblk2'
+RECOVERY_PART = f'{eMMC_DEVICE}p3'
+
 class InitRecovery(Thread):
     def __init__(self):
         self.stop_event = Event()
@@ -34,6 +37,15 @@ class InitRecovery(Thread):
         self.status = 1
 
         Thread.__init__(self)
+
+    def boot_recoveryfs(self):
+        mount_point = '/media/recoveryfs'
+
+        subprocess.run(['mkdir', '-p',  f'{mount_point}'])
+        subprocess.run(['mount', f'{RECOVERY_PART}', f'{mount_point}'])
+        subprocess.run(['ln', '-sf',  'opt/images/Debian', f'{mount_point}/system-update'])
+        subprocess.run(['/usr/bin/fw_setenv', 'recovery_request', 'true'])
+        subprocess.run(['/bin/systemctl', 'reboot'])
 
     def write(self, led, s):
         led.write(s)
@@ -56,8 +68,7 @@ class InitRecovery(Thread):
             self.write(self.red_link_led, '1')
             self.write(self.red_stat_led, '1')
             time.sleep(5)
-            subprocess.run(['/usr/bin/fw_setenv', 'recovery_request', 'true'])
-            subprocess.run(['/bin/systemctl', 'reboot'])
+            self.boot_recoveryfs()
 
         self.write(self.red_pwr_led, '0')
         self.write(self.red_link_led, '0')
@@ -82,13 +93,13 @@ class InitRecovery(Thread):
 def main():
     BUTTON_DOWN = b'\x01'
     BUTTON_UP = b'\x00'
-    data = None
-    bufsize = 32
-    init_recovery = InitRecovery()
+    BUFSZ = 32
+
     root_device = subprocess.run([r"findmnt -n / | awk '{ print $2 }'"],
                                  stdout=subprocess.PIPE,
                                  shell=True).stdout.decode('utf-8').rstrip()
 
+    init_recovery = InitRecovery()
     signal.signal(signal.SIGINT, init_recovery.signal_handler)
     signal.signal(signal.SIGALRM, init_recovery.signal_handler)
     eventfd = os.open('/dev/input/event1', os.O_RDONLY)
@@ -99,8 +110,8 @@ def main():
         events = sel.select()
         for key, mask in events:
             if key.fd == eventfd:
-                data = os.read(key.fd, bufsize)
-                if len(data) != 32 or not re.match(r'.*mmcblk2', root_device):
+                data = os.read(key.fd, BUFSZ)
+                if len(data) != BUFSZ or not re.match(eMMC_DEVICE, root_device):
                     continue
 
                 if data[12:13] == BUTTON_DOWN:

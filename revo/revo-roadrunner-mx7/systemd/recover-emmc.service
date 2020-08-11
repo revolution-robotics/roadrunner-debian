@@ -8,6 +8,6 @@ Before=system-update.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/sbin/recover_emmc
+ExecStart=/usr/sbin/recover-emmc
 ExecStartPost=/bin/systemctl reboot
 FailureAction=reboot
