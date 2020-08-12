@@ -989,8 +989,10 @@ cmd_make_sdcard ()
 
 cmd_make_diskimage ()
 {
-    local ISO8601=$(date -u +'%Y%m%dT%H%M%SZ')
-    local IMAGE_FILE=${G_TMP_DIR}/${MACHINE}-${ISO8601}.img
+    local ISO8601=$(git log -1 --format='%aI' |
+                               sed -e 's/\+.*/Z/' -e 's/[-:]//g')
+    local COMMIT_DIRTY=$(git diff --no-ext-diff --quiet || echo '-dirty')
+    local IMAGE_FILE=${G_TMP_DIR}/${MACHINE}-${ISO8601}${COMMIT_DIRTY}.img
     local IMAGE_SIZE=$(( 7774208 * 512 )) # 3.7 GiB
     local LOOP_DEVICE
 
@@ -1012,7 +1014,7 @@ cmd_make_diskimage ()
             fi
             losetup -d "$loop_device"
         fi
-        rm -rf "${G_TMP_DIR}/"*
+        rm -rf "${G_TMP_DIR}"
     }
 
     pr_info "Initialize file-backed loop device"
