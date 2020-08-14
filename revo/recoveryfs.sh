@@ -68,7 +68,9 @@ make_debian_recoveryfs ()
     # add mirror to source list
     cat >etc/apt/sources.list <<EOF
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
+#deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
+#deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
     # raise backports priority
@@ -250,22 +252,19 @@ protected_install bluetooth
 # protected_install shared-mime-info
 
 # wifi support packages
-protected_install hostapd
+# protected_install hostapd
 # protected_install udhcpd
 
 # disable the hostapd service by default
-systemctl disable hostapd.service
+# systemctl disable hostapd.service
 
 # can support
-# protected_install can-utils
+protected_install can-utils
 
 # pm-utils
 # protected_install pm-utils
 
 # BEGIN -- REVO i.MX7D networking
-apt-get -y install ethtool
-apt-get -y install manpages-dev
-
 # ifupdown is superceded by NetworkManager
 apt-get -y purge ifupdown
 rm -f /etc/network/interfaces
@@ -553,7 +552,7 @@ EOF
 
     # kill latest dbus-daemon instance due to qemu-arm-static
     QEMU_PROC_ID=$(ps axf | grep dbus-daemon | grep qemu-arm-static | awk '{print $1}')
-    if [ -n "$QEMU_PROC_ID" ]; then
+    if test -n "$QEMU_PROC_ID"; then
         kill -9 $QEMU_PROC_ID
     fi
 
@@ -616,23 +615,12 @@ make_recovery_image ()
     format_device ()
     {
         pr_info "Formating device partitions"
-        if ! mkfs.vfat "${LPARAM_BLOCK_DEVICE}${part}1" -n BOOT ||
-                ! mkfs.ext4 "${LPARAM_BLOCK_DEVICE}${part}2" -L recoveryfs; then
+        if ! mkfs.vfat -n BOOT "${LPARAM_BLOCK_DEVICE}${part}1" >/dev/null 2>&1; then
             pr_error "Format did not complete successfully."
             echo "*** Please check media and try again! ***"
             return 1
-        fi
-    }
-
-    flash_u-boot ()
-    {
-        pr_info "Flashing U-Boot"
-        dd if="${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC}" \
-           of="$LPARAM_BLOCK_DEVICE" bs=1K seek=1
-        sync
-        if ! dd if="${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC}" \
-             of="$LPARAM_BLOCK_DEVICE" bs=1K seek=69; then
-            pr_error "Flash did not complete successfully."
+        elif ! mkfs.ext4 -L recoveryfs "${LPARAM_BLOCK_DEVICE}${part}2" >/dev/null 2>&1; then
+            pr_error "Format did not complete successfully."
             echo "*** Please check media and try again! ***"
             return 1
         fi
@@ -667,18 +655,19 @@ make_recovery_image ()
                     "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         fi
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         # if test ."$MACHINE" = .'imx6ul-var-dart' ||
         #        test ."$MACHINE" = .'var-som-mx7' ||
         #        test ."$MACHINE" = .'revo-roadrunner-mx7'; then
         #     cp ${LPARAM_OUTPUT_DIR}/recoveryfs.ubi.img \
         #        ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}/
         # fi
+        install -m 0644 "${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}" \
+                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${DEF_RECOVERYFS_TARBALL_NAME}" \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
-
+                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/"*.dtb \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
 
         # pr_info "Copying NAND U-Boot to /${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         # cp "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_NAND}" \
@@ -688,11 +677,29 @@ make_recovery_image ()
 
         pr_info "Copying MMC U-Boot to /${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC}" \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC}" \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
 
         return 0
+    }
+
+    flash_u-boot ()
+    {
+        pr_info "Flashing U-Boot"
+        if ! dd if="${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC}" \
+             of="$LPARAM_BLOCK_DEVICE" bs=1K seek=1 >/dev/null 2>&1; then
+            pr_error "Flash did not complete successfully."
+            echo "*** Please check media and try again! ***"
+            return 1
+        fi
+        sync
+        if ! dd if="${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC}" \
+             of="$LPARAM_BLOCK_DEVICE" bs=1K seek=69 >/dev/null 2>&1; then
+            pr_error "Flash did not complete successfully."
+            echo "*** Please check media and try again! ***"
+            return 1
+        fi
     }
 
     if test ."$LPARAM_BLOCK_DEVICE" = .'na'; then
@@ -721,7 +728,7 @@ make_recovery_image ()
     # Get total card size in blocks
     local total_size=$(blockdev --getsz "$LPARAM_BLOCK_DEVICE")
     local total_size_bytes=$(( total_size * 512 ))
-    local total_size_gib=$(bc <<< "scale=1; ${total_size_bytes}/(1024*1024*1024)")
+    local total_size_gib=$(perl -e "printf '%.1f', $total_size_bytes / 1024 ** 3")
 
     # Convert to MB
     total_size=$(( total_size / 2048 ))
@@ -745,16 +752,20 @@ make_recovery_image ()
         fi
         if test -b "${LPARAM_BLOCK_DEVICE}${part}${i}"; then
             tune2fs -L '' "${LPARAM_BLOCK_DEVICE}${part}${i}" >/dev/null 2>&1 || true
-            wipefs -a "${LPARAM_BLOCK_DEVICE}${part}${i}"
+            wipefs -a "${LPARAM_BLOCK_DEVICE}${part}${i}" >/dev/null 2>&1
         fi
     done
-    wipefs -a "$LPARAM_BLOCK_DEVICE"
+    wipefs -a "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1
 
-    dd if=/dev/zero of="$LPARAM_BLOCK_DEVICE" bs=1M count="$recoveryfs_offset"
+    if ! dd if=/dev/zero of="$LPARAM_BLOCK_DEVICE" bs=1M count="$recoveryfs_offset" >/dev/null 2>&1; then
+        pr_error "Flash did not complete successfully."
+        echo "*** Please check media and try again! ***"
+        return 1
+    fi
     sleep 2
     sync
 
-    flock "$LPARAM_BLOCK_DEVICE" sfdisk "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1 << EOF
+    flock "$LPARAM_BLOCK_DEVICE" sfdisk "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1 <<EOF
 $part1_start,$part1_size,c
 $part2_start,-,L
 EOF
@@ -768,24 +779,23 @@ EOF
     sleep 2
     sync
 
-    flash_u-boot || return 1
-    sleep 2
-    sync
-
     # Mount the partitions
     mkdir -p "$P1_MOUNT_DIR"
     mkdir -p "$P2_MOUNT_DIR"
     sync
 
-    mount "${LPARAM_BLOCK_DEVICE}${part}1"  "$P1_MOUNT_DIR"
-    mount "${LPARAM_BLOCK_DEVICE}${part}2"  "$P2_MOUNT_DIR"
+    mount -t vfat "${LPARAM_BLOCK_DEVICE}${part}1"  "$P1_MOUNT_DIR" >/dev/null 2>&1 || return 1
+    mount -t ext4 "${LPARAM_BLOCK_DEVICE}${part}2"  "$P2_MOUNT_DIR" >/dev/null 2>&1 || return 1
     sleep 2
     sync
 
     flash_device || return 1
     copy_debian_images
 
+    flash_u-boot || return 1
+
     pr_info "Sync device..."
+    sleep 2
     sync
     umount "$P1_MOUNT_DIR"
     umount "$P2_MOUNT_DIR"
@@ -793,5 +803,5 @@ EOF
     rm -rf "$P1_MOUNT_DIR"
     rm -rf "$P2_MOUNT_DIR"
 
-    pr_info "Done make bootable image!"
+    pr_info "Make bootable image completed successfully"
 }

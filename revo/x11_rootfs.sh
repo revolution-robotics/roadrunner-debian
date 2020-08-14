@@ -157,14 +157,17 @@ protected_install ()
     return \${RET_CODE}
 }
 
+# silence some apt warnings
+protected_install dialog
+
 # update packages and install base
 apt-get update || apt-get upgrade
 
 # local-apt-repository support
 protected_install local-apt-repository
 protected_install reprepro
-
 reprepro rereference
+
 # update packages and install base
 apt-get update || apt-get upgrade
 
@@ -357,8 +360,6 @@ EOF
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Install reset-usbboot service.
-    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/reset-usbboot" \
-            "${ROOTFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/reset-usbboot.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
     ln -s '/lib/systemd/system/reset-usbboot.service' \
@@ -642,12 +643,11 @@ make_x11_image ()
         #        ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
         # fi
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}" \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${DEF_RECOVERYFS_TARBALL_NAME}" \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
-
+                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/"*.dtb \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
 
         # pr_info "Copying NAND U-Boot to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
         # install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_NAND}" \
@@ -657,9 +657,9 @@ make_x11_image ()
 
         pr_info "Copying MMC U-Boot to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC}" \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC}" \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
 
         return 0
     }
@@ -735,9 +735,13 @@ make_x11_image ()
             wipefs -a "${LPARAM_BLOCK_DEVICE}${part}${i}" >/dev/null 2>&1
         fi
     done
-    wipefs -a "$LPARAM_BLOCK_DEVICE"
+    wipefs -a "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1
 
-    dd if=/dev/zero of="$LPARAM_BLOCK_DEVICE" bs=1M count="$rootfs_offset" >/dev/null 2>&1
+    if ! dd if=/dev/zero of="$LPARAM_BLOCK_DEVICE" bs=1M count="$rootfs_offset" >/dev/null 2>&1; then
+        pr_error "Flash did not complete successfully."
+        echo "*** Please check media and try again! ***"
+        return 1
+    fi
     sleep 2
     sync
 
