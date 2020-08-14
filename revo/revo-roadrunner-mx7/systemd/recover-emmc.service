@@ -5,6 +5,7 @@ Requires=sysinit.target
 After=sysinit.target
 After=system-update-pre.target
 Before=system-update.target
+ConditionKernelCommandLine=recovery_request
 
 [Service]
 Type=oneshot

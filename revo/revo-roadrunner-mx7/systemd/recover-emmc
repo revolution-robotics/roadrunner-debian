@@ -103,15 +103,25 @@ sanity_check ()
     local rootdevice=${device}${part}${rootfspart}
     local rootmount=$(findmnt -n "$rootdevice" | awk '{ print $1 }')
 
+    # Per /BOOT/boot.scr, set usbboot_request=reset to restore USB.
+    fw_setenv usbboot_request reset
+
     if test ."$system_update" != .'opt/images/Debian'; then
         pr_error "/system-update: Not symlinked to opt/images/Debian"
         return 1
     else
+
+        # Per systemd.offline-update(7) documentation, the symlink
+        # `/system-update' must exist prior to an offline update and
+        # removed early in the update process to prevent a reboot
+        # cycle in the event of a failure.
+        #
+        # But if recovery is initiated from U-Boot (e.g., if rootfs is
+        # not bootable), U-Boot is presently unable to create symlinks
+        # on ext4 file systems. So to support this case, the
+        # `/system-update' symlink should never be removed from the
+        # recovery file system.
         : rm -f /system-update
-    fi
-    if ! grep -q 'recovery_request' /proc/cmdline; then
-        pr_error "recovery_request: Missing kernel command-line parameter"
-        return 1
     fi
     if test ."$rootmount" = .'/'; then
         pr_error "$rootdevice: Cannot flash device mounted on root"

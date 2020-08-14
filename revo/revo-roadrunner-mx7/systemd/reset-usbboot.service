@@ -1,0 +1,10 @@
+[Unit]
+Description=Allow USB boot after post-recovery boot.
+ConditionKernelCommandLine=reset_usbboot
+
+[Service]
+Type=oneshot
+ExecStart=/bin/fw_setenv usbboot_request
+
+[Install]
+WantedBy=multi-user.target

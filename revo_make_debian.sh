@@ -1019,6 +1019,7 @@ cmd_make_diskimage ()
 
     pr_info "Initialize file-backed loop device"
     mkdir -p $(dirname "$IMAGE_FILE")
+    rm -f "$IMAGE_FILE"
     dd if=/dev/zero of="$IMAGE_FILE" bs="$IMAGE_SIZE" seek=1 count=0 >/dev/null 2>&1
     LOOP_DEVICE=$(losetup --nooverlap --find --show "$IMAGE_FILE")
 

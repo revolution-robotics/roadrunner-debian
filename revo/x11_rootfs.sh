@@ -356,6 +356,15 @@ EOF
     ln -s '/lib/systemd/system/recover-emmc-monitor.service' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
+    # Install reset-usbboot service.
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/reset-usbboot" \
+            "${ROOTFS_BASE}/usr/sbin"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/reset-usbboot.service" \
+            "${ROOTFS_BASE}/lib/systemd/system"
+    ln -s '/lib/systemd/system/reset-usbboot.service' \
+       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
+
+
     # Install NetworkManager auto-share dispatcher.
     # Fix permissions set by Git
     chmod -R g-w "${G_VENDOR_PATH}/NetworkManager/"*
