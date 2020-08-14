@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+#
+# @(#) 30-link-led
+#
+# Copyright © 2020, Revolution Robotics, Inc.
+#
+: ${AWK:='/usr/bin/awk'}
+: ${FLOCK:='/usr/bin/flock'}
+: ${NMCLI:='/usr/bin/nmcli'}
+: ${SED:='/bin/sed'}
+: ${TR:='/usr/bin/tr'}
+
+#  Avoid multiple instances of this script.
+if test ."$0" != ."$LOCKED"; then
+    exec env LOCKED=$0 $FLOCK -en "$0" "$0" "$@" || :
+fi
+
+declare interface=$1
+declare status=$2
+
+source "/usr/lib/NetworkManager/nm-funcs.sh"
+
+if internet_accessible; then
+    echo 1 >/sys/class/leds/link-blue-led/brightness
+    echo 0 >/sys/class/leds/link-red-led/brightness
+elif network_accessible; then
+    echo 1 >/sys/class/leds/link-blue-led/brightness
+    echo 1 >/sys/class/leds/link-red-led/brightness
+else
+    echo 1 >/sys/class/leds/link-blue-led/brightness
+    echo 1 >/sys/class/leds/link-red-led/brightness
+fi

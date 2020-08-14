@@ -380,6 +380,7 @@ EOF
     # Install NetworkManager auto-share dispatcher.
     # Fix permissions set by Git
     chmod -R g-w "${G_VENDOR_PATH}/NetworkManager/"*
+    chmod 750 "${G_VENDOR_PATH}/NetworkManager/etc/NetworkManager/dispatcher.d/30-link-led"
     chmod 750 "${G_VENDOR_PATH}/NetworkManager/etc/NetworkManager/dispatcher.d/50-default-ethernet-ap"
     chmod 750 "${G_VENDOR_PATH}/NetworkManager/etc/NetworkManager/dispatcher.d/51-default-wifi-ap"
 

@@ -164,6 +164,14 @@ get_managed_interfaces ()
     done
 }
 
+# network_accessible: Return true if network accessible, otherwise false.
+network_accessible ()
+{
+    local status=$($NMCLI networking connectivity check)
+
+    test ."$status" != .'none' && test ."$status" != .'unknown'
+}
+
 # internet_accessible: Return true if internet accessible, otherwise false.
 internet_accessible ()
 {
