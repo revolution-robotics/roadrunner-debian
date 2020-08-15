@@ -481,7 +481,7 @@ pip3 install pystemd
 pip3 install pytz
 
 # BEGIN -- REVO i.MX7D purge
-apt-get -y purge build-essential gcc-8 libpython2.7 libx11-6 manpages{,-dev}
+apt-get -y purge build-essential gcc-8 libx11-6 manpages{,-dev}
 apt-get --purge -y autoremove
 apt-get clean
 rm -r /var/lib/apt/lists/*
