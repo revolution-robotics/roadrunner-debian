@@ -66,6 +66,7 @@ GTAGS
 # ignored dirs
 /recoveryfs
 /rootfs
+/usbfs
 /output
 /src
 /toolchain

@@ -29,6 +29,8 @@ script_name=${0##*/}
 : ${OUTPUT_DIR:="${BUILD_DIR}/output"}
 : ${DEST_DIR:="${HOME}/output"}
 : ${NCPUS:='2'}
+: ${DISK_SIZE:='20G'}
+: ${MEMORY_SIZE:='2G'}
 : ${SSH_PUBKEY:="${HOME}/.ssh/id_rsa.pub"}
 
 #  Avoid multiple instances of this script.
@@ -51,7 +53,7 @@ if multipass list  | awk 'NR > 1 { print $1 }' | grep -q "$VMNAME"; then
 fi
 
 # Launch VM and mount local $DEST_DIR on VM's $OUTPUT_DIR via SSHFS.
-multipass launch --cpus "$NCPUS" --disk 15G --mem 2G --name "$VMNAME" focal
+multipass launch --cpus "$NCPUS" --disk "$DISK_SIZE" --mem "$MEMORY_SIZE" --name "$VMNAME" focal
 mkdir -p "$DEST_DIR"
 multipass exec "$VMNAME" -- mkdir -p "$OUTPUT_DIR"
 multipass mount "$DEST_DIR" "${VMNAME}:${OUTPUT_DIR}"
@@ -92,7 +94,7 @@ curl -sL https://ftp-master.debian.org/keys/release-10.asc |
 echo "Cloning build suite..."
 git init |& tee "/home/ubuntu/${OUTPUT_DIR}/git.log"
 git remote add origin https://github.com/revolution-robotics/roadrunner-debian.git |& tee -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
-git fetch |& tee -a git.log
+git fetch |& tee -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
 git checkout debian_buster_rr01 |& tee -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
 echo "Deploying sources..."
 MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c deploy |& tee "/home/ubuntu/${OUTPUT_DIR}/deploy.log"

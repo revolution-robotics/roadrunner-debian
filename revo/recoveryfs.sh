@@ -367,6 +367,7 @@ EOF
     ln -s '../recover-emmc.service' \
        "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
     ln -s 'opt/images/Debian' "${RECOVERYFS_BASE}/system-update"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc" "${RECOVERYFS_BASE}/usr/sbin"
 
     # Install recover-emmc-monitor service
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor" \
@@ -560,8 +561,6 @@ EOF
 
 
     # BEGIN -- REVO i.MX7D cleanup
-    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc" "${RECOVERYFS_BASE}/usr/sbin"
-
     # Enable colorized `ls' for `root'.
     sed -i -e '/export LS/s/^# *//' -e '/eval.*dircolors/s/^# *//' \
         -e '/alias ls/s/^# *//' "${RECOVERYFS_BASE}/root/.bashrc"

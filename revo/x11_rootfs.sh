@@ -357,6 +357,7 @@ EOF
     mkdir -p "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
     ln -s '../flash-emmc.service' \
        "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/flash-emmc" "${ROOTFS_BASE}/usr/sbin"
 
     # Install recover-emmc-monitor service
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor" \
@@ -547,8 +548,6 @@ EOF
 
 
     # BEGIN -- REVO i.MX7D cleanup
-    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/flash-emmc" "${ROOTFS_BASE}/usr/sbin"
-
     # Enable colorized `ls' for `root'.
     sed -i -e '/export LS/s/^# *//' -e '/eval.*dircolors/s/^# *//' \
         -e '/alias ls/s/^# *//' "${ROOTFS_BASE}/root/.bashrc"
