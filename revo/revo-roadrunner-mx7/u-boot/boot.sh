@@ -52,7 +52,7 @@ setenv green_pwr_led_off 'setenv silent 1; gpio clear 61; setenv silent'
 setenv green_pwr_led_on 'setenv silent 1; gpio set 61; setenv silent'
 setenv red_leds_on 'setenv silent 1; gpio set 60; gpio set 75; gpio set 74; setenv silent'
 setenv red_leds_off 'setenv silent 1; gpio clear 60; gpio clear 75; gpio clear 74; setenv silent'
-setenv hw_reset 'setenv silent 1; if gpio input $reset_pin; then enable_recovery=true; setenv reset_count 0xA; while itest.b $reset_count > 0; do setexpr reset_count $reset_count - 0x1; if $enable_recovery; then run red_leds_on; sleep 0.5; run red_leds_off; sleep 0.5; if gpio input $reset_pin; then true; else enable_recovery=false; fi; fi; done; $enable_recovery; else false; fi; setenv silent'
+setenv hw_reset 'setenv silent 1; if gpio input $reset_pin; then enable_recovery=true; setenv reset_count 0xA; while itest.b $reset_count > 0; do setexpr reset_count $reset_count - 0x1; if $enable_recovery; then run red_leds_on; sleep 0.5; run red_leds_off; sleep 0.5; if gpio input $reset_pin; then true; else enable_recovery=false; fi; fi; done; $enable_recovery; else false; fi'
 
 setenv silent 1
 i2c dev 1
@@ -84,11 +84,12 @@ usb start
 run green_pwr_led_off
 
 # If eMMC is jumpered...
-if test $mmcdev = 1; then
+if test $mmcdev -eq 1; then
 
 
     # If either reset button pressed or software reset requested...
     if test ."$sw_reset" = .'true' || run hw_reset; then
+        setenv silent
         run red_leds_on
         sleep 5
         run red_leds_off
@@ -119,7 +120,7 @@ fi
 # Otherwise, if USB boot is enabled and bootable USB drive present...
 if test ."$usbboot_request" = .'allow' && run usbloadimage; then
     run green_pwr_led_on
-    if test $mmcdev = 1; then
+    if test $mmcdev -eq 1; then
         setenv kernelargs "$kernelargs flash_emmc_from_usb"
         echo "Processing USB recovery request..."
     fi
