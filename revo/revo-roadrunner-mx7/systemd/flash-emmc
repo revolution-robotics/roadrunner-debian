@@ -19,7 +19,7 @@ declare -r EMMC_DEVICE=mmcblk2
 declare -r UBOOT_IMAGE=u-boot.img.mmc
 declare -r UBOOT_SCRIPT=boot.scr
 declare -r SPL_IMAGE=SPL.mmc
-declare -r KERNEL_IMAGE=zImage
+declare -r KERNEL_IMAGE=uImage
 declare -r KERNEL_DTBS=imx7d-roadrunner-emmc.dtb
 declare -r ROOTFS_IMAGE=rootfs.tar.${COMPRESSION_SUFFIX}
 declare -r RECOVERYFS_IMAGE=recoveryfs.tar.${COMPRESSION_SUFFIX}
@@ -122,6 +122,7 @@ sanity_check ()
 
         # Per /BOOT/boot.scr, set usbboot_request=override to force boot
         # to eMMC prior to restoring USB boot.
+        set_fw_utils_to_emmc_on_sd_card
         fw_setenv usbboot_request override
 
         if test ."$system_update" != .'opt/images/Debian'; then

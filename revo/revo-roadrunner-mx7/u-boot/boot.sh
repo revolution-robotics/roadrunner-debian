@@ -119,8 +119,10 @@ fi
 # Otherwise, if USB boot is enabled and bootable USB drive present...
 if test ."$usbboot_request" = .'allow' && run usbloadimage; then
     run green_pwr_led_on
-    setenv kernelargs "$kernelargs flash_emmc_from_usb"
-    echo "Processing USB recovery request..."
+    if test $mmcdev = 1; then
+        setenv kernelargs "$kernelargs flash_emmc_from_usb"
+        echo "Processing USB recovery request..."
+    fi
     run usbboot
 
 # Otherwise, if either eMMC or SD bootable...
