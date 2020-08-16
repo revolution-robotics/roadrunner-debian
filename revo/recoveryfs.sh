@@ -553,7 +553,7 @@ EOF
     # kill latest dbus-daemon instance due to qemu-arm-static
     QEMU_PROC_ID=$(ps axf | grep dbus-daemon | grep qemu-arm-static | awk '{print $1}')
     if test -n "$QEMU_PROC_ID"; then
-        kill -9 $QEMU_PROC_ID
+        kill -9 "$QEMU_PROC_ID"
     fi
 
     rm "${RECOVERYFS_BASE}/usr/bin/qemu-arm-static"

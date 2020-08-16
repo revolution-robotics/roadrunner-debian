@@ -1,35 +1,36 @@
 #
-# @(#) boot.scr
+# @(#) boot.sh
 #
 # Copyright © 2020, Revolution Robotics, Inc.
 #
-# This script probes for expansion modules and sets the appropriate
-# flattened device tree (FDT) file.
-#
-# It then checks if recovery is requested, either by software
-# `recovery_request' or by hardware reset button. If so and a bootable
-# USB drive is detected, then it's booted. Otherwise, the eMMC
-# recovery partition is booted.
+# This U-Boot script probes for expansion modules and selects the
+# appropriate flattened device tree (FDT) file. It then checks if
+# recovery is requested, either by software `recovery_request' or by
+# hardware reset button. If so booting to USB drive takes precedence.
 #
 # If recovery is not requested, but `usbboot_request' is set to
-# `allow' and a bootable USB drive is detected, then it's booted.
-# Otherwise, the eMMC rootfs partition is booted.
+# `allow', then again booting to USB drive takes precedence.
 #
-# After recovery is run (e.g., from USB drive), the U-Boot environment
-# variable `usbboot_request' is assigned the value `reset', which
-# forces booting to eMMC rootfs. From rootfs, a systemd service then
-# clears `usbboot_request' so that a USB drive can be booted in a
-# subsequent power cycle.
+# After an eMMC recovery procedure (e.g., from USB drive), the U-Boot
+# environment variable `usbboot_request' should be assigned the value
+# `override' to force booting to eMMC rootfs. From rootfs, the systemd
+# service `reset-usbboot.service' then clears `usbboot_request' so
+# that a USB drive can be booted on subsequent power cycle.
 #
-# To prevent booting to USB drive, set the U-Boot environment variable
-# `usbboot_request' to `deny'. This rule will enforced until a
-# recovery is requested. In particular, if the reset button is
-# continuously pressed for 10 seconds during boot (until all LEDs turn
-# solid red for 5 seconds), then recovery is attempted from a bootable
-# USB drive, if detected.
+# To prevent ever booting to USB drive, the U-Boot environment
+# variable `usbboot_request' should be set to `deny'. This is enforced
+# until a recovery is requested. Once recovery is initiated, booting
+# from USB drive takes precedence.
 
-# To reset `usbboot_request' after boot, use:
-#  fw_setenv usbboot_request reset
+# NB: U-Boot && and || operators are evidently grouped by right
+#     associativity - i.e.,
+#         cmd1 && cmd2 || cmd3
+#     is equivalent to
+#         cmd1 && { cmd2 || cmd3; }
+#     (except that U-Boot doesn't have curly brackets). This differs
+#     from all Unix shells (which use left associativity), so should be
+#     considered a bug and not used.
+
 if test ."$usbboot_request" = .''; then
     usbboot_request=allow
 fi
@@ -81,28 +82,51 @@ fi
 
 usb start
 run green_pwr_led_off
-if test $mmcdev = 1 && test ."$sw_reset" = .'true' || run hw_reset; then
-    run red_leds_on
-    sleep 5
-    setenv kernelargs "$kernelargs recovery_request"
-    if run usbloadimage; then
-        echo "Processing USB recovery request..."
-        run usbboot
-    elif run loadimage; then
-        setenv mmcrootpart 3
-        echo "Processing eMMC recovery request..."
-        run mmcboot
-    else
-        run netboot
+
+# If eMMC is jumpered...
+if test $mmcdev = 1; then
+
+
+    # If either reset button pressed or software reset requested...
+    if test ."$sw_reset" = .'true' || run hw_reset; then
+        run red_leds_on
+        sleep 5
+        run red_leds_off
+        run green_pwr_led_on
+
+        # If bootable USB drive present...
+        if run usbloadimage; then
+            setenv kernelargs "$kernelargs flash_emmc_from_usb"
+            echo "Processing USB recovery request..."
+            run usbboot
+
+            # Otherwise, if eMMC bootable...
+        elif run loadimage; then
+
+            # Use recovery partition.
+            setenv mmcrootpart 3
+            setenv kernelargs "$kernelargs flash_emmc_from_emmc"
+            echo "Processing eMMC recovery request..."
+            run mmcboot
+        else
+            setenv kernelargs "$kernelargs flash_emmc_from_net"
+            echo "Processing net recovery request..."
+            run netboot
+        fi
     fi
-elif test ."$usbboot_request" = .'allow' && run usbloadimage; then
+fi
+
+# Otherwise, if USB boot is enabled and bootable USB drive present...
+if test ."$usbboot_request" = .'allow' && run usbloadimage; then
     run green_pwr_led_on
-    setenv kernelargs "$kernelargs recovery_request"
+    setenv kernelargs "$kernelargs flash_emmc_from_usb"
     echo "Processing USB recovery request..."
     run usbboot
+
+# Otherwise, if either eMMC or SD bootable...
 elif run loadimage; then
     run green_pwr_led_on
-    if test ."$usbboot_request" = .'reset'; then
+    if test ."$usbboot_request" = .'override'; then
        setenv kernelargs "$kernelargs reset_usbboot"
     fi
     run mmcboot

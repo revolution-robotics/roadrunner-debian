@@ -26,12 +26,14 @@ declare -r DEF_DEBIAN_MIRROR=https://deb.debian.org/debian/
 declare -r DEB_RELEASE=buster
 declare -r DEF_ROOTFS_TARBALL_NAME=rootfs.tar.gz
 declare -r DEF_RECOVERYFS_TARBALL_NAME=recoveryfs.tar.gz
+declare -r DEF_USBFS_TARBALL_NAME=usbfs.tar.gz
 
 # base paths
 declare -r DEF_BUILDENV=$ABSOLUTE_DIRECTORY
 declare -r DEF_SRC_DIR=${DEF_BUILDENV}/src
 declare -r G_ROOTFS_DIR=${DEF_BUILDENV}/rootfs
 declare -r G_RECOVERYFS_DIR=${DEF_BUILDENV}/recoveryfs
+declare -r G_USBFS_DIR=${DEF_BUILDENV}/usbfs
 declare -r G_TMP_DIR=${DEF_BUILDENV}/tmp
 # declare -r G_TOOLS_PATH=${DEF_BUILDENV}/toolchain
 declare G_TOOLS_PATH=/usr/bin
@@ -82,7 +84,7 @@ Options:
   -c|--cmd <command>
      Supported commands:
        deploy      -- prepare environment for all commands
-       all         -- build or rebuild kernel/bootloader/rootfs/recoveryfs
+       all         -- build or rebuild kernel/bootloader/rootfs/recoveryfs/usbfs
        bootloader  -- build or rebuild U-Boot
        kernel      -- build or rebuild the Linux kernel
        modules     -- build or rebuild the Linux kernel modules & headers and install them in the rootfs and recoveryfs dirs
@@ -90,19 +92,21 @@ Options:
                        (including: make & install Debian packages, firmware and kernel modules & headers)
        recoveryfs  -- build or rebuild the Debian recovery filesystem and create recoveryfs.tar.gz
                        (including: make & install Debian packages, firmware and kernel modules & headers)
+       usbfs       -- build Debian recovery filesystem for USB from rootfs and create usbfs.tar.gz
        scripts     -- build U-Boot boot scripts
        bcmfw       -- install WiFi and Bluetooth firmware
        firmware    -- install DMA firmware
        rubi        -- generate or regenerate rootfs.ubi.img image from rootfs folder
        rtar        -- generate tarballs from rootfs and recoveryfs dirs
        clean       -- clean all build artifacts (without deleting sources code or resulted images)
-       sdcard      -- create a bootable SD card
-       diskimage   -- create a bootable image file
+       sdcard      -- create a bootable SD card from rootfs
+       diskimage   -- create a bootable image file from rootfs
+       usbimage    -- create a bootable recovery image for USB from usbfs
        flashimage  -- flash a disk image to SD card
   --debug          -- enable debug mode for this script
   -d|--dev         -- removable block device to write to (e.g., -d /dev/sdg)
-  -i|--image diskimage
-                   -- disk image to flash (image directory -- cf. option -o)
+  -i|--image image-file
+                   -- image file to flash (image directory -- cf. option -o)
   -j|--jobs n      -- Specifies the number of jobs to run simultaneously (default: ${G_CROSS_COMPILER_JOPTION#-j })
   -o|--output dir  -- destination directory for build images (default: "$PARAM_OUTPUT_DIR")
 
@@ -240,6 +244,7 @@ fi
 ## declarate dynamic variables ##
 declare -r G_ROOTFS_TARBALL_PATH="${PARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}"
 declare -r G_RECOVERYFS_TARBALL_PATH="${PARAM_OUTPUT_DIR}/${DEF_RECOVERYFS_TARBALL_NAME}"
+declare -r G_USBFS_TARBALL_PATH="${PARAM_OUTPUT_DIR}/${DEF_USBFS_TARBALL_NAME}"
 
 ###### local functions ######
 
@@ -917,7 +922,7 @@ cmd_make_recoveryfs ()
         make_bcm_fw "$G_BCM_FW_SRC_DIR" "$G_RECOVERYFS_DIR"
     fi
 
-    # pack rootfs
+    # pack recoveryfs
     make_tarball "$G_RECOVERYFS_DIR" "$G_RECOVERYFS_TARBALL_PATH"
 
     # if test ."$MACHINE" = .'imx6ul-var-dart' ||
@@ -927,6 +932,18 @@ cmd_make_recoveryfs ()
     #     make_ubi "$G_ROOTFS_DIR" "$G_TMP_DIR" "$PARAM_OUTPUT_DIR" \
     #              "$G_UBI_FILE_NAME"
     # fi
+}
+
+cmd_make_usbfs ()
+{
+    local SYSTEM_UPDATE_SYMLINK="opt/images/Debian"
+
+    rm -rf "$G_USBFS_DIR"
+    cp -a "$G_ROOTFS_DIR" "$G_USBFS_DIR"
+    ln -s "$SYSTEM_UPDATE_SYMLINK" "${G_USBFS_DIR}/system-update"
+
+    # pack usbfs
+    make_tarball "$G_USBFS_DIR" "$G_USBFS_TARBALL_PATH"
 }
 
 cmd_make_scripts ()
@@ -974,14 +991,19 @@ cmd_make_rfs_tar ()
 
     # pack recoveryfs
     make_tarball "$G_RECOVERYFS_DIR" "$G_RECOVERYFS_TARBALL_PATH"
+
+    # pack usbfs
+    make_tarball "$G_USBFS_DIR" "$G_USBFS_TARBALL_PATH"
 }
 
 cmd_make_sdcard ()
 {
+    local LPARAM_TARBALL=$1
+
     if test ."$MACHINE" = .'imx6ul-var-dart' ||
            test ."$MACHINE" = .'var-som-mx7' ||
            test ."$MACHINE" = .'revo-roadrunner-mx7'; then
-        make_x11_image "$PARAM_BLOCK_DEVICE" "$PARAM_OUTPUT_DIR"
+        make_x11_image "$PARAM_BLOCK_DEVICE" "$PARAM_OUTPUT_DIR" "$LPARAM_TARBALL"
     else
         make_weston_sdcard "$PARAM_BLOCK_DEVICE" "$PARAM_OUTPUT_DIR"
     fi
@@ -989,6 +1011,8 @@ cmd_make_sdcard ()
 
 cmd_make_diskimage ()
 {
+    local LPARAM_TARBALL=$1
+
     local ISO8601=$(git log -1 --format='%aI' |
                                sed -e 's/\+.*/Z/' -e 's/[-:]//g')
     local COMMIT_DIRTY=$(git diff --no-ext-diff --quiet || echo '-dirty')
@@ -1028,7 +1052,7 @@ cmd_make_diskimage ()
     if test ."$MACHINE" = .'imx6ul-var-dart' ||
            test ."$MACHINE" = .'var-som-mx7' ||
            test ."$MACHINE" = .'revo-roadrunner-mx7'; then
-        make_x11_image "$LOOP_DEVICE" "$PARAM_OUTPUT_DIR"
+        make_x11_image "$LOOP_DEVICE" "$PARAM_OUTPUT_DIR" "$LPARAM_TARBALL"
     else
         make_weston_sdcard "$LOOP_DEVICE" "$PARAM_OUTPUT_DIR"
     fi
@@ -1175,6 +1199,9 @@ case $PARAM_CMD in
     recoveryfs)
         cmd_make_recoveryfs
         ;;
+    usbfs)
+        cmd_make_usbfs
+        ;;
     bootloader)
         cmd_make_uboot
         ;;
@@ -1198,10 +1225,13 @@ case $PARAM_CMD in
         cmd_make_firmware $G_RECOVERYFS_DIR
         ;;
     sdcard)
-        cmd_make_sdcard
+        cmd_make_sdcard $DEF_ROOTFS_TARBALL_NAME
         ;;
     diskimage)
-        cmd_make_diskimage
+        cmd_make_diskimage $DEF_ROOTFS_TARBALL_NAME
+        ;;
+    usbimage)
+        cmd_make_diskimage $DEF_USBFS_TARBALL_NAME
         ;;
     flashimage)
         cmd_flash_diskimage
@@ -1219,7 +1249,8 @@ case $PARAM_CMD in
             cmd_make_kmodules $G_RECOVERYFS_DIR &&
             cmd_make_scripts
             cmd_make_rootfs &&
-            cmd_make_recoveryfs
+                cmd_make_recoveryfs &&
+                cmd_make_usbfs
         ;;
     clean)
         cmd_make_clean

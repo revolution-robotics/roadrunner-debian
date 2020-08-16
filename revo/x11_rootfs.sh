@@ -351,6 +351,13 @@ EOF
     ln -s '/lib/systemd/system/redirect-web-ports.service' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
+    # Install flash-emmc service.
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/flash-emmc.service" \
+            "${RECOVERYFS_BASE}/lib/systemd/system"
+    mkdir -p "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
+    ln -s '../flash-emmc.service' \
+       "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
+
     # Install recover-emmc-monitor service
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor" \
             "${ROOTFS_BASE}/usr/sbin"
@@ -528,28 +535,28 @@ EOF
     # clean all packages
     pr_info "rootfs: clean"
     chmod +x cleanup
-    chroot ${ROOTFS_BASE} /cleanup
+    chroot "${ROOTFS_BASE}" /cleanup
 
     # kill latest dbus-daemon instance due to qemu-arm-static
     QEMU_PROC_ID=$(ps axf | grep dbus-daemon | grep qemu-arm-static | awk '{print $1}')
     if test -n "$QEMU_PROC_ID"; then
-        kill -9 $QEMU_PROC_ID
+        kill -9 "$QEMU_PROC_ID"
     fi
 
-    rm ${ROOTFS_BASE}/usr/bin/qemu-arm-static
+    rm "${ROOTFS_BASE}/usr/bin/qemu-arm-static"
 
 
     # BEGIN -- REVO i.MX7D cleanup
-    install -m 0755 ${G_VENDOR_PATH}/flash_emmc.sh ${ROOTFS_BASE}/usr/sbin/flash_emmc
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/flash-emmc" "${ROOTFS_BASE}/usr/sbin"
 
     # Enable colorized `ls' for `root'.
     sed -i -e '/export LS/s/^# *//' -e '/eval.*dircolors/s/^# *//' \
-        -e '/alias ls/s/^# *//' ${ROOTFS_BASE}/root/.bashrc
+        -e '/alias ls/s/^# *//' "${ROOTFS_BASE}/root/.bashrc"
 
     # Prepare /var/log to be mounted as tmpfs.
     # NB: *~ is excluded from rootfs tarball.
-    mv ${ROOTFS_BASE}/var/log{,~}
-    install -d -m 755 ${ROOTFS_BASE}/var/log
+    mv "${ROOTFS_BASE}/var/log"{,~}
+    install -d -m 755 "${ROOTFS_BASE}/var/log"
     # END -- REVO i.MX7D cleanup
 }
 
@@ -583,6 +590,7 @@ make_x11_image ()
 {
     local LPARAM_BLOCK_DEVICE=$1
     local LPARAM_OUTPUT_DIR=$2
+    local LPARAM_TARBALL=$3
 
     local P1_MOUNT_DIR="${G_TMP_DIR}/p1"
     local P2_MOUNT_DIR="${G_TMP_DIR}/p2"
@@ -617,8 +625,8 @@ make_x11_image ()
                 "$P1_MOUNT_DIR"
         sync
 
-        pr_info "Flashing \"rootfs\" partition"
-        if ! tar -C "$P2_MOUNT_DIR" -zxpf "${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}"; then
+        pr_info "Flashing \"${LPARAM_TARBALL%%.*}\" partition"
+        if ! tar -C "$P2_MOUNT_DIR" -zxpf "${LPARAM_OUTPUT_DIR}/${LPARAM_TARBALL}"; then
             pr_error "Flash did not complete successfully."
             echo "*** Please check media and try again! ***"
             return 1

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 #
-# @(#) flash_emmc
+# @(#) flash-emmc
 #
 # Copyright © 2020 Revolution Robotics, Inc.
 #
-# This script creates a bootable eMMC storage device with Debian root
-# and recovery filesystems.
+# This script creates a bootable eMMC device with Debian root
+# and recovery filesystems. It must be run from a non-eMMC root
+# partition.
 #
 declare -r SCRIPT_NAME=${0##*/}
 
@@ -22,6 +23,9 @@ declare -r KERNEL_IMAGE=zImage
 declare -r KERNEL_DTBS=imx7d-roadrunner-emmc.dtb
 declare -r ROOTFS_IMAGE=rootfs.tar.${COMPRESSION_SUFFIX}
 declare -r RECOVERYFS_IMAGE=recoveryfs.tar.${COMPRESSION_SUFFIX}
+declare -r SYSTEM_UPDATE_LOG=/root/system-update.log
+
+declare interactive=true
 
 if (( EUID != 0 )); then
     echo "This script must be run with super-user privileges"
@@ -47,6 +51,50 @@ pr_info ()
     echo "I: $@"
 }
 
+pwr_led_on ()
+{
+    echo 1 >/sys/class/leds/pwr-green-led/brightness
+}
+
+pwr_led_off ()
+{
+    echo 0 >/sys/class/leds/pwr-green-led/brightness
+}
+
+stat_led_on ()
+{
+    echo 1 >/sys/class/leds/stat-blue-led/brightness
+}
+
+stat_led_off ()
+{
+    echo 0 >/sys/class/leds/stat-blue-led/brightness
+}
+
+link_led_on ()
+{
+    echo 1 >/sys/class/leds/link-blue-led/brightness
+}
+
+link_led_off ()
+{
+    echo 0 >/sys/class/leds/link-blue-led/brightness
+}
+
+cycle_leds ()
+{
+    while true; do
+        pwr_led_on
+        sleep 1
+        pwr_led_off
+        stat_led_on
+        sleep 1
+        stat_led_off
+        link_led_on
+        sleep 1
+        link_led_off
+    done
+}
 
 # Check that none of the partitions to be flashed is mounted as root.
 sanity_check ()
@@ -56,6 +104,7 @@ sanity_check ()
     local rootfspart=$3
     local recoveryfspart=$4
 
+    local system_update=$(readlink /system-update)
     local rootdevice=${device}${part}${rootfspart}
     local rootmount=$(findmnt -n "$rootdevice" | awk '{ print $1 }')
     local recoverydevice=${device}${part}${recoveryfspart}
@@ -67,6 +116,31 @@ sanity_check ()
     elif test ."$recoverymount" = .'/'; then
         pr_error "$recoverydevice: Cannot flash device mounted on root"
         return 1
+    fi
+
+    if ! $interactive; then
+
+        # Per /BOOT/boot.scr, set usbboot_request=override to force boot
+        # to eMMC prior to restoring USB boot.
+        fw_setenv usbboot_request override
+
+        if test ."$system_update" != .'opt/images/Debian'; then
+            pr_error "/system-update: Not symlinked to opt/images/Debian"
+            return 1
+        else
+
+            # Per systemd.offline-update(7) documentation, the symlink
+            # `/system-update' must exist prior to an offline update and
+            # removed early in the update process to prevent a reboot
+            # cycle in the event of a failure.
+            #
+            # But if recovery is initiated from U-Boot (e.g., if rootfs is
+            # not bootable), U-Boot is presently unable to create symlinks
+            # on ext4 file systems. So to support this case, the
+            # `/system-update' symlink should never be removed from the
+            # recovery file system.
+            : rm -f /system-update
+        fi
     fi
 }
 
@@ -142,7 +216,7 @@ partition_emmc ()
     local part=$2
 
     # Sizes in MiB
-    # RECOVERYFS_SIZE must match that in recover_emmc.
+    # RECOVERYFS_SIZE must match that in recover-emmc.
     local RECOVERYFS_SIZE=1792
     local BOOTLOAD_RESERVE_SIZE=4
     local SPARE_SIZE=8
@@ -159,8 +233,10 @@ partition_emmc ()
     local recoveryfs_offset=$(( rootfs_offset + rootfs_size ))
 
     pr_info "Device: $device, $total_size_gib GiB"
-    echo "============================================="
-    read -p "Press Enter to continue"
+    pr_info "============================================="
+    if $interactive; then
+        read -p "Press Enter to continue"
+    fi
 
     pr_info "Creating new partitions:"
     pr_info "Root file system size: $rootfs_size MiB"
@@ -213,13 +289,15 @@ format_emmc ()
     if ! mkfs.vfat -n BOOT "${device}${part}${bootpart}" >/dev/null 2>&1; then
         pr_error "${device}${part}${bootpart}: format failed"
         return 1
-    elif ! mkfs.ext4 -L rootfs "${device}${part}${rootfspart}" >/dev/null 2>&1; then
+    elif ! mkfs.ext4 -F -L rootfs "${device}${part}${rootfspart}" >/dev/null 2>&1; then
         pr_error "${device}${part}${rootfspart}: format failed"
         return 1
-    elif ! mkfs.ext4 -L recoveryfs "${device}${part}${recoveryfspart}" >/dev/null 2>&1; then
+    elif ! mkfs.ext4 -F -L recoveryfs "${device}${part}${recoveryfspart}" >/dev/null 2>&1; then
         pr_error "${device}${part}${recoveryfspart}: format failed"
         return 1
     fi
+    sleep 2
+    sync
 }
 
 mount_partitions ()
@@ -285,11 +363,10 @@ flash_emmc ()
         pr_error "$rootfsdir: eMMC flash did not complete successfully."
         return 1
     fi
-    echo
+    pr_info ""
 
     set_fw_utils_to_emmc_on_emmc "$rootfsdir"
     sync
-
 
     pr_info "Flashing eMMC \"recoveryfs\" partition"
 
@@ -298,7 +375,7 @@ flash_emmc ()
         pr_error "$recoveryfsdir: eMMC flash did not complete successfully."
         return 1
     fi
-    echo
+    pr_info ""
 
     set_fw_utils_to_emmc_on_emmc "$recoveryfsdir"
     sync
@@ -372,14 +449,22 @@ clean_up ()
     pr_info "eMMC flash completed successfully"
 }
 
-while getopts :b:hr: c;
+while getopts hq c;
 do
     case $c in
-        *)
+        h|\?)
             usage
             exit 1
             ;;
+        q)
+            interactive=false
+
+            # Log all stdout and stderr to SYSTEM_UPDATE_LOG
+            rm -f "$SYSTEM_UPDATE_LOG"
+            exec >"$SYSTEM_UPDATE_LOG" 2>&1
+            ;;
     esac
+    shift
 done
 
 declare soc=$(cat /sys/bus/soc/devices/soc0/soc_id)
@@ -403,10 +488,16 @@ pr_info "Internal storage: eMMC"
 
 sanity_check "$device" "$part" "$rootfspart" "$recoveryfspart" || exit $?
 check_images || exit $?
+
+if ! $interactive; then
+    trap 'turn_pwr_on; turn_stat_off; turn_link_off; kill $cycle_leds_pid; exit' 0 1 2 15
+
+    cycle_leds &
+    cycle_leds_pid=$!
+fi
+
 partition_emmc "$device" "$part" || exit $?
 format_emmc "$device" "$part" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?
-sleep 2
-sync
 mount_partitions "$mountdir_prefix" "$device" "$part" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?
 flash_emmc "$mountdir_prefix" "$bootpart" "$rootfspart" "$recoveryfspart" || exit $?
 copy_images "${mountdir_prefix}${recoveryfspart}"

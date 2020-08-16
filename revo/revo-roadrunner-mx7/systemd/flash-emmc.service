@@ -1,5 +1,5 @@
 [Unit]
-Description=Recover eMMC
+Description=Flash eMMC from USB
 DefaultDependencies=no
 Requires=sysinit.target
 After=sysinit.target
@@ -11,6 +11,6 @@ ConditionPathIsSymbolicLink=|/system-update
 
 [Service]
 Type=oneshot
-ExecStart=/usr/sbin/recover-emmc -q
+ExecStart=/usr/sbin/flash-emmc -q
 ExecStartPost=/bin/systemctl reboot
 FailureAction=reboot

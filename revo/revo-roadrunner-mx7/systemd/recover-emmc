@@ -4,8 +4,8 @@
 #
 # Copyright © 2020 Revolution Robotics, Inc.
 #
-# This script restores a Debian root filesystem on an eMMC storage
-# device from a recovery partition.
+# This script creates a bootable eMMC device with Debian root
+# file system. It is intended to be run from the eMMC recovery partition.
 #
 declare -r SCRIPT_NAME=${0##*/}
 
@@ -23,8 +23,10 @@ declare -r KERNEL_DTBS=imx7d-roadrunner-emmc.dtb
 declare -r ROOTFS_IMAGE=rootfs.tar.${COMPRESSION_SUFFIX}
 declare -r SYSTEM_UPDATE_LOG=/root/system-update.log
 
+declare interactive=true
+
 if (( EUID != 0 )); then
-    echo "This script must be run with super-user privileges"  >>$SYSTEM_UPDATE_LOG
+    echo "This script must be run with super-user privileges"
     exit 1
 fi
 
@@ -39,12 +41,12 @@ EOF
 
 pr_error ()
 {
-    echo "E: $@" >>$SYSTEM_UPDATE_LOG
+    echo "E: $@"
 }
 
 pr_info ()
 {
-    echo "I: $@" >>$SYSTEM_UPDATE_LOG
+    echo "I: $@"
 }
 
 pwr_led_on ()
@@ -92,7 +94,7 @@ cycle_leds ()
     done
 }
 
-# Verify that recover request is active.
+# Check that none of the partitions to be flashed is mounted as root.
 sanity_check ()
 {
     local device=$1
@@ -103,36 +105,41 @@ sanity_check ()
     local rootdevice=${device}${part}${rootfspart}
     local rootmount=$(findmnt -n "$rootdevice" | awk '{ print $1 }')
 
-    # Per /BOOT/boot.scr, set usbboot_request=reset to restore USB.
-    fw_setenv usbboot_request reset
-
-    if test ."$system_update" != .'opt/images/Debian'; then
-        pr_error "/system-update: Not symlinked to opt/images/Debian"
-        return 1
-    else
-
-        # Per systemd.offline-update(7) documentation, the symlink
-        # `/system-update' must exist prior to an offline update and
-        # removed early in the update process to prevent a reboot
-        # cycle in the event of a failure.
-        #
-        # But if recovery is initiated from U-Boot (e.g., if rootfs is
-        # not bootable), U-Boot is presently unable to create symlinks
-        # on ext4 file systems. So to support this case, the
-        # `/system-update' symlink should never be removed from the
-        # recovery file system.
-        : rm -f /system-update
-    fi
     if test ."$rootmount" = .'/'; then
         pr_error "$rootdevice: Cannot flash device mounted on root"
         return 1
+    fi
 
+    if ! $interactive; then
+
+        # Per /BOOT/boot.scr, set usbboot_request=override to force boot
+        # to eMMC prior to restoring USB boot.
+        fw_setenv usbboot_request override
+
+        if test ."$system_update" != .'opt/images/Debian'; then
+            pr_error "/system-update: Not symlinked to opt/images/Debian"
+            return 1
+        else
+
+            # Per systemd.offline-update(7) documentation, the symlink
+            # `/system-update' must exist prior to an offline update and
+            # removed early in the update process to prevent a reboot
+            # cycle in the event of a failure.
+            #
+            # But if recovery is initiated from U-Boot (e.g., if rootfs is
+            # not bootable), U-Boot is presently unable to create symlinks
+            # on ext4 file systems. So to support this case, the
+            # `/system-update' symlink should never be removed from the
+            # recovery file system.
+            : rm -f /system-update
+        fi
     fi
 }
 
 check_images ()
 {
-    local file
+    local dtb
+    local image
     local -a distribution_images=(
         "$UBOOT_IMAGE"
         "$UBOOT_SCRIPT"
@@ -186,7 +193,7 @@ partition_emmc ()
     local part=$2
 
     # Sizes in MiB
-    # RECOVERYFS_SIZE must match that in flash_emmc.
+    # RECOVERYFS_SIZE must match that in flash-emmc.
     local RECOVERYFS_SIZE=1792
     local BOOTLOAD_RESERVE_SIZE=4
     local SPARE_SIZE=8
@@ -204,6 +211,9 @@ partition_emmc ()
 
     pr_info "Device: $device, $total_size_gib GiB"
     pr_info "============================================="
+    if $interactive; then
+        read -p "Press Enter to continue"
+    fi
 
     pr_info "Creating new partitions:"
     pr_info "Root file system size: $rootfs_size MiB"
@@ -363,14 +373,22 @@ clean_up ()
     pr_info "eMMC flash completed successfully"
 }
 
-while getopts :b:hr: c;
+while getopts hq c;
 do
     case $c in
-        *)
+        h|\?)
             usage
             exit 1
             ;;
+        q)
+            interactive=false
+
+            # Log all stdout and stderr to SYSTEM_UPDATE_LOG
+            rm -f "$SYSTEM_UPDATE_LOG"
+            exec >"$SYSTEM_UPDATE_LOG" 2>&1
+            ;;
     esac
+    shift
 done
 
 declare soc=$(cat /sys/bus/soc/devices/soc0/soc_id)
@@ -379,8 +397,6 @@ declare part=p
 declare mountdir_prefix=/tmp/media/${EMMC_DEVICE}${part}
 declare bootpart=1
 declare rootfspart=2
-
-cat /dev/null >$SYSTEM_UPDATE_LOG
 
 if test ."$soc" != .'i.MX7D'; then
     pr_error "This script is for imaging an i.MX7D board's eMMC device"
@@ -396,10 +412,12 @@ pr_info "Internal storage: eMMC"
 sanity_check "$device" "$part" "$rootfspart" || exit $?
 check_images || exit $?
 
-trap 'turn_pwr_on; turn_stat_off; turn_link_off; kill $cycle_leds_pid; exit' 0 1 2 15
+if ! $interactive; then
+    trap 'turn_pwr_on; turn_stat_off; turn_link_off; kill $cycle_leds_pid; exit' 0 1 2 15
 
-cycle_leds &
-cycle_leds_pid=$!
+    cycle_leds &
+    cycle_leds_pid=$!
+fi
 
 format_emmc "$device" "$part" "$bootpart" "$rootfspart" || exit $?
 mount_partitions "$mountdir_prefix" "$device" "$part" "$bootpart" "$rootfspart"  || exit $?
