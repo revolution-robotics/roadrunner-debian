@@ -941,9 +941,6 @@ cmd_make_usbfs ()
     rm -rf "$G_USBFS_DIR"
     cp -a "$G_ROOTFS_DIR" "$G_USBFS_DIR"
     ln -s "$SYSTEM_UPDATE_SYMLINK" "${G_USBFS_DIR}/system-update"
-
-    # pack usbfs
-    make_tarball "$G_USBFS_DIR" "$G_USBFS_TARBALL_PATH"
 }
 
 cmd_make_scripts ()
@@ -993,6 +990,7 @@ cmd_make_rfs_tar ()
     make_tarball "$G_RECOVERYFS_DIR" "$G_RECOVERYFS_TARBALL_PATH"
 
     # pack usbfs
+    cmd_make_usbfs
     make_tarball "$G_USBFS_DIR" "$G_USBFS_TARBALL_PATH"
 }
 
@@ -1016,7 +1014,13 @@ cmd_make_diskimage ()
     local ISO8601=$(git log -1 --format='%aI' |
                                sed -e 's/\+.*/Z/' -e 's/[-:]//g')
     local COMMIT_DIRTY=$(git diff --no-ext-diff --quiet || echo '-dirty')
-    local IMAGE_FILE=${G_TMP_DIR}/${MACHINE}-${ISO8601}${COMMIT_DIRTY}.img
+
+    if test ."${LPARAM_TARBALL%%.*}" = .'usbfs'; then
+        local IMAGE_FILE=${G_TMP_DIR}/recovery-${MACHINE}-${ISO8601}${COMMIT_DIRTY}.img
+    else
+        local IMAGE_FILE=${G_TMP_DIR}/${MACHINE}-${ISO8601}${COMMIT_DIRTY}.img
+    fi
+
     local IMAGE_SIZE=$(( 7774208 * 512 )) # 3.7 GiB
     local LOOP_DEVICE
 
@@ -1175,6 +1179,9 @@ cmd_make_clean ()
 
     pr_info "Delete recoveryfs dir ${G_RECOVERYFS_DIR}"
     rm -rf "$G_RECOVERYFS_DIR"
+
+    pr_info "Delete usbfs dir ${G_USBFS_DIR}"
+    rm -rf "$G_USBFS_DIR"
 }
 
 ################ main function ################
@@ -1248,9 +1255,9 @@ case $PARAM_CMD in
             cmd_make_kmodules $G_ROOTFS_DIR &&
             cmd_make_kmodules $G_RECOVERYFS_DIR &&
             cmd_make_scripts
-            cmd_make_rootfs &&
-                cmd_make_recoveryfs &&
-                cmd_make_usbfs
+        cmd_make_rootfs &&
+            cmd_make_recoveryfs &&
+            cmd_make_usbfs
         ;;
     clean)
         cmd_make_clean
