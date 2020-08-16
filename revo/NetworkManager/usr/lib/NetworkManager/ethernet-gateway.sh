@@ -38,11 +38,11 @@ declare ipv4_gateway=$4
 
 validate_interface "$interface" || exit $?
 
-if ."$ipv4_addr" != .''; then
+if test ."$ipv4_addr" != .''; then
     validate_ipv4_address "$ipv4_addr" || exit $?
 fi
 
-if ."$ipv4_gateway" != .''; then
+if test ."$ipv4_gateway" != .''; then
     validate_ipv4_gateway "$ipv4_gateway" || exit $?
 fi
 
