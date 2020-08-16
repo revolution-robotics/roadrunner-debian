@@ -1195,6 +1195,11 @@ if [[ "$PARAM_CMD" != "deploy"  && "$EUID" != 0 ]]; then
     exit 1
 fi
 
+# Hack to allow:  ./revo_make_debian clean
+if test ."$1" = .'clean'; then
+    PARAM_CMD=clean
+fi
+
 pr_info "Command: \"$PARAM_CMD\" start..."
 
 make_prepare
