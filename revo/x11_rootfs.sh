@@ -548,6 +548,9 @@ EOF
 
 
     # BEGIN -- REVO i.MX7D cleanup
+    # Limit kernel messages to the console.
+    sed -i -e '/^#kernel.printk/s/^#*//' "${ROOTFS_BASE}/etc/sysctl.conf"
+
     # Enable colorized `ls' for `root'.
     sed -i -e '/export LS/s/^# *//' -e '/eval.*dircolors/s/^# *//' \
         -e '/alias ls/s/^# *//' "${ROOTFS_BASE}/root/.bashrc"
