@@ -491,7 +491,7 @@ sanity_check "$device" "$part" "$rootfspart" "$recoveryfspart" || exit $?
 check_images || exit $?
 
 if ! $interactive; then
-    trap 'turn_pwr_on; turn_stat_off; turn_link_off; kill $cycle_leds_pid; exit' 0 1 2 15
+    trap 'pwr_led_on; stat_led_off; link_led_off; kill $cycle_leds_pid; exit' 0 1 2 15
 
     cycle_leds &
     cycle_leds_pid=$!
