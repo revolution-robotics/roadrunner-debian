@@ -1010,10 +1010,13 @@ cmd_make_sdcard ()
 cmd_make_diskimage ()
 {
     local LPARAM_TARBALL=$1
-
-    local ISO8601=$(git log -1 --format='%aI' |
-                               sed -e 's/\+.*/Z/' -e 's/[-:]//g')
-    local COMMIT_DIRTY=$(git diff --no-ext-diff --quiet || echo '-dirty')
+    local ISO8601=$(date -u +'%Y%m%dT%H%M%SZ')
+    local COMMIT_DIRTY=$(
+        { git diff --no-ext-diff --quiet &&
+              git diff --no-ext-diff --quiet -C "$G_LINUX_KERNEL_SRC_DIR"  &&
+              git diff --no-ext-diff --quiet -C "$G_UBOOT_SRC_DIR"; } ||
+            echo '-dirty'
+          )
 
     if test ."${LPARAM_TARBALL%%.*}" = .'usbfs'; then
         local IMAGE_FILE=${G_TMP_DIR}/recovery-${MACHINE}-${ISO8601}${COMMIT_DIRTY}.img
