@@ -119,12 +119,6 @@ sanity_check ()
     fi
 
     if ! $interactive; then
-
-        # Per /BOOT/boot.scr, set usbboot_request=override to force boot
-        # to eMMC prior to restoring USB boot.
-        set_fw_utils_to_emmc_on_sd_card
-        fw_setenv usbboot_request override
-
         if test ."$system_update" != .'opt/images/Debian'; then
             pr_error "/system-update: Not symlinked to opt/images/Debian"
             return 1
@@ -427,6 +421,8 @@ flash_u-boot ()
         pr_error "eMMC flash did not complete successfully."
         return 1
     fi
+    sync
+    sleep 2
 }
 
 clean_up ()
@@ -504,3 +500,8 @@ flash_emmc "$mountdir_prefix" "$bootpart" "$rootfspart" "$recoveryfspart" || exi
 copy_images "${mountdir_prefix}${recoveryfspart}"
 flash_u-boot "$device" || exit $?
 clean_up "$mountdir_prefix" "$bootpart" "$rootfspart" "$recoveryfspart"
+
+# Per /BOOT/boot.scr, setting `usbboot_request' to `override' forces
+# boot to eMMC prior to restoring USB boot.
+set_fw_utils_to_emmc_on_sd_card
+fw_setenv usbboot_request override
