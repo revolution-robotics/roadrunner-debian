@@ -594,9 +594,8 @@ make_x11_image ()
     local LPARAM_OUTPUT_DIR=$2
     local LPARAM_TARBALL=$3
 
-    local P1_MOUNT_DIR="${G_TMP_DIR}/p1"
-    local P2_MOUNT_DIR="${G_TMP_DIR}/p2"
-    local DEBIAN_IMAGES_TO_ROOTFS_POINT="opt/images/Debian"
+    local P1_MOUNT_DIR=${G_TMP_DIR}/p1
+    local P2_MOUNT_DIR=${G_TMP_DIR}/p2
 
     local BOOTLOAD_RESERVE_SIZE=4
     local SPARE_SIZE=8
@@ -619,8 +618,14 @@ make_x11_image ()
     flash_device ()
     {
         pr_info "Flashing \"BOOT\" partition"
-        if test -f "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}"; then
-            install -m 0644 "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}" "$P1_MOUNT_DIR"
+        if test ."${LPARAM_TARBALL%%.*}" = .'provisionfs'; then
+
+            # Install provision.scr as boot.scr
+            install -m 0644 "${LPARAM_OUTPUT_DIR}/${UBOOT_PROVISION_SCRIPT}" \
+                    "${P1_MOUNT_DIR}/${UBOOT_SCRIPT}"
+        elif test -f "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}"; then
+            install -m 0644 "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}" \
+                    "$P1_MOUNT_DIR"
         fi
         install -m 0644 "${LPARAM_OUTPUT_DIR}/"*.dtb	"$P1_MOUNT_DIR"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
@@ -637,39 +642,39 @@ make_x11_image ()
 
     copy_debian_images ()
     {
-        mkdir -p "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        mkdir -p "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
 
-        pr_info "Copying Debian images to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        pr_info "Copying Debian images to /${G_IMAGES_DIR}"
         if test -f "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}"; then
             install -m 0644 "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}" \
-                    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+                    "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
         fi
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
-           "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+           "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
         # if test ."$MACHINE" = .'imx6ul-var-dart' ||
         #        test ."$MACHINE" = .'var-som-mx7' ||
         #        test ."$MACHINE" = .'revo-roadrunner-mx7'; then
         #     install -m 0644 ${LPARAM_OUTPUT_DIR}/rootfs.ubi.img \
-        #        ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}/
+        #        ${P2_MOUNT_DIR}/${G_IMAGES_DIR}/
         # fi
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}" \
-                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+                "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${DEF_RECOVERYFS_TARBALL_NAME}" \
-                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+                "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/"*.dtb \
-                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+                "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
 
-        # pr_info "Copying NAND U-Boot to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        # pr_info "Copying NAND U-Boot to /${G_IMAGES_DIR}"
         # install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_NAND}" \
-        #    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        #    "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
         # install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_NAND}" \
-        #    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        #    "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
 
-        pr_info "Copying MMC U-Boot to /${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+        pr_info "Copying MMC U-Boot to /${G_IMAGES_DIR}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC}" \
-                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+                "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC}" \
-                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_ROOTFS_POINT}"
+                "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
 
         return 0
     }

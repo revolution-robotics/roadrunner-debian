@@ -27,6 +27,7 @@ declare -r DEB_RELEASE=buster
 declare -r DEF_ROOTFS_TARBALL_NAME=rootfs.tar.gz
 declare -r DEF_RECOVERYFS_TARBALL_NAME=recoveryfs.tar.gz
 declare -r DEF_USBFS_TARBALL_NAME=usbfs.tar.gz
+declare -r DEF_PROVISIONFS_TARBALL_NAME=provisionfs.tar.gz
 
 # base paths
 declare -r DEF_BUILDENV=$ABSOLUTE_DIRECTORY
@@ -34,6 +35,7 @@ declare -r DEF_SRC_DIR=${DEF_BUILDENV}/src
 declare -r G_ROOTFS_DIR=${DEF_BUILDENV}/rootfs
 declare -r G_RECOVERYFS_DIR=${DEF_BUILDENV}/recoveryfs
 declare -r G_USBFS_DIR=${DEF_BUILDENV}/usbfs
+declare -r G_PROVISIONFS_DIR=${DEF_BUILDENV}/provisionfs
 declare -r G_TMP_DIR=${DEF_BUILDENV}/tmp
 # declare -r G_TOOLS_PATH=${DEF_BUILDENV}/toolchain
 declare G_TOOLS_PATH=/usr/bin
@@ -83,39 +85,41 @@ Options:
   -h|--help        -- print this help, then exit
   -c|--cmd <command>
      Supported commands:
-       deploy      -- prepare environment for all commands
-       all         -- build or rebuild kernel/bootloader/rootfs/recoveryfs/usbfs
-       bootloader  -- build or rebuild U-Boot
-       kernel      -- build or rebuild the Linux kernel
-       modules     -- build or rebuild the Linux kernel modules & headers and install them in the rootfs and recoveryfs dirs
-       rootfs      -- build or rebuild the Debian root filesystem and create rootfs.tar.gz
-                       (including: make & install Debian packages, firmware and kernel modules & headers)
-       recoveryfs  -- build or rebuild the Debian recovery filesystem and create recoveryfs.tar.gz
-                       (including: make & install Debian packages, firmware and kernel modules & headers)
-       usbfs       -- build Debian recovery filesystem for USB from rootfs and create usbfs.tar.gz
-       scripts     -- build U-Boot boot scripts
-       bcmfw       -- install WiFi and Bluetooth firmware
-       firmware    -- install DMA firmware
-       rubi        -- generate or regenerate rootfs.ubi.img image from rootfs folder
-       rtar        -- generate tarballs from rootfs and recoveryfs dirs
-       clean       -- clean all build artifacts (without deleting sources code or resulted images)
-       sdcard      -- create a bootable SD card from rootfs
-       diskimage   -- create a bootable image file from rootfs
-       usbimage    -- create a bootable recovery image for USB from usbfs
-       flashimage  -- flash a disk image to SD card
-  --debug          -- enable debug mode for this script
-  -d|--dev         -- removable block device to write to (e.g., -d /dev/sdg)
+       deploy        -- download kernel and U-Boot sources
+       all           -- build kernel, bootloader, rootfs, recoveryfs,
+                        usbfs and provisionfs
+       bootloader    -- build U-Boot (SPL.mmc and u-boot.img.mmc)
+       kernel        -- build Linux kernel (uImage)
+       modules       -- build and install Linux kernel modules and headers
+       rootfs        -- build Debian root filesystem (rootfs.tar.gz),
+                        including kernel modules, headers and firmware
+       recoveryfs    -- build Debian recovery filesystem (recoveryfs.tar.gz),
+                        including kernel modules, headers and firmware
+       usbfs         -- build Debian USB filesystem (usbfs.tar.gz),
+                        including kernel modules, headers and firmware
+       provisionfs   -- build Debian provision filesystem (provisionfs.tar.gz),
+                        including kernel modules, headers and firmware
+       scripts       -- build U-Boot boot scripts
+       bcmfw         -- install WiFi and Bluetooth firmware
+       firmware      -- install DMA firmware
+       rtar          -- generate tarballs from rootfs and recoveryfs dirs
+       clean         -- clean all build artifacts
+       diskimage     -- create a bootable image file from rootfs
+       usbimage      -- create a bootable recovery image file from usbfs
+       provisionimage-- create a bootable provision image file from provisionfs
+       flashimage    -- flash a disk image to SD card
+  --debug            -- enable debug mode for this script
+  -d|--dev           -- removable block device to write to (e.g., -d /dev/sdg)
   -i|--image image-file
-                   -- image file to flash (image directory -- cf. option -o)
-  -j|--jobs n      -- Specifies the number of jobs to run simultaneously (default: ${G_CROSS_COMPILER_JOPTION#-j })
-  -o|--output dir  -- destination directory for build images (default: "$PARAM_OUTPUT_DIR")
+                     -- image file to flash (image directory -- cf. option -o)
+  -j|--jobs n        -- Specifies the number of jobs to run simultaneously (default: ${G_CROSS_COMPILER_JOPTION#-j })
+  -o|--output dir    -- destination directory for build images (default: "$PARAM_OUTPUT_DIR")
 
 Examples:
   deploy and build:                 ./${SCRIPT_NAME} --cmd deploy && sudo ./${SCRIPT_NAME} --cmd all
   make the Linux kernel only:       sudo ./${SCRIPT_NAME} --cmd kernel
   make rootfs only:                 sudo ./${SCRIPT_NAME} --cmd rootfs
   make recoveryfs only:             sudo ./${SCRIPT_NAME} --cmd recoveryfs
-  create bootable SD card:          sudo ./${SCRIPT_NAME} --cmd sdcard [--dev /dev/sdX]
   create boot image:                sudo ./${SCRIPT_NAME} --cmd diskimage
   flash image to SD card:           sudo ./${SCRIPT_NAME} --cmd flashimage
 EOF
@@ -163,6 +167,8 @@ declare G_CROSS_COMPILER_PATH=${G_TOOLS_PATH}
 ## parse input arguments ##
 declare -r SHORTOPTS=c:d:i:j:o:h
 declare -r LONGOPTS=cmd:,debug,dev:,help,image:,jobs:,output:
+
+declare -r G_IMAGES_DIR=opt/images/Debian
 
 declare ARGS=$(
     getopt -s bash --options "$SHORTOPTS"  \
@@ -245,6 +251,7 @@ fi
 declare -r G_ROOTFS_TARBALL_PATH="${PARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}"
 declare -r G_RECOVERYFS_TARBALL_PATH="${PARAM_OUTPUT_DIR}/${DEF_RECOVERYFS_TARBALL_NAME}"
 declare -r G_USBFS_TARBALL_PATH="${PARAM_OUTPUT_DIR}/${DEF_USBFS_TARBALL_NAME}"
+declare -r G_PROVISIONFS_TARBALL_PATH="${PARAM_OUTPUT_DIR}/${DEF_PROVISIONFS_TARBALL_NAME}"
 
 ###### local functions ######
 
@@ -936,14 +943,37 @@ cmd_make_recoveryfs ()
 
 cmd_make_usbfs ()
 {
-    local SYSTEM_UPDATE_SYMLINK="opt/images/Debian"
-
     rm -rf "$G_USBFS_DIR"
     cp -a "$G_ROOTFS_DIR" "$G_USBFS_DIR"
-    ln -s "$SYSTEM_UPDATE_SYMLINK" "${G_USBFS_DIR}/system-update"
+    ln -s "$G_IMAGES_DIR" "${G_USBFS_DIR}/system-update"
 
     # pack usbfs
     make_tarball "$G_USBFS_DIR" "$G_USBFS_TARBALL_PATH"
+}
+
+cmd_make_provisionfs ()
+{
+    local SD_DEVICE=/dev/mmcblk0
+
+    rm -rf "$G_PROVISIONFS_DIR"
+    cp -a "$G_ROOTFS_DIR" "$G_PROVISIONFS_DIR"
+    ln -s "$G_IMAGES_DIR" "${G_PROVISIONFS_DIR}/system-update"
+
+    # Enable flash-emmc to update SD U-Boot environment.
+    sed -i -e '/mtd/s/^#*/#/' "${G_PROVISIONFS_DIR}/etc/fw_env.config"
+    sed -i -e "s;#*/dev/mmcblk.;${SD_DEVICE};" \
+        "${G_PROVISIONFS_DIR}/etc/fw_env.config"
+    sed -i  -e '/^set_fw_utils_to_emmc_on_sd_card$/d' \
+        "${G_PROVISIONFS_DIR}/usr/sbin/flash-emmc"
+
+    # Install service to restore /system-update removed by systemd.
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/symlink-system-update.service" \
+            "${G_PROVISIONFS_DIR}/lib/systemd/system"
+    ln -s '/lib/systemd/system/symlink-system-update.service' \
+       "${G_PROVISIONFS_DIR}/etc/systemd/system/multi-user.target.wants"
+
+    # pack provisionfs
+    make_tarball "$G_PROVISIONFS_DIR" "$G_PROVISIONFS_TARBALL_PATH"
 }
 
 cmd_make_scripts ()
@@ -994,24 +1024,18 @@ cmd_make_rfs_tar ()
 
     # create and pack usbfs
     cmd_make_usbfs
-}
 
-cmd_make_sdcard ()
-{
-    local LPARAM_TARBALL=$1
-
-    if test ."$MACHINE" = .'imx6ul-var-dart' ||
-           test ."$MACHINE" = .'var-som-mx7' ||
-           test ."$MACHINE" = .'revo-roadrunner-mx7'; then
-        make_x11_image "$PARAM_BLOCK_DEVICE" "$PARAM_OUTPUT_DIR" "$LPARAM_TARBALL"
-    else
-        make_weston_sdcard "$PARAM_BLOCK_DEVICE" "$PARAM_OUTPUT_DIR"
-    fi
+    # create and pack provisionfs
+    cmd_make_provisionfs
 }
 
 cmd_make_diskimage ()
 {
     local LPARAM_TARBALL=$1
+
+    local LOOP_DEVICE
+    local IMAGE_FILE
+    local IMAGE_SIZE=$(( 7774208 * 512 )) # 3.7 GiB
     local ISO8601=$(date -u +'%Y%m%dT%H%M%SZ')
     local COMMIT_DIRTY=$(
         { git diff --no-ext-diff --quiet &&
@@ -1019,15 +1043,6 @@ cmd_make_diskimage ()
               git diff --no-ext-diff --quiet -C "$G_UBOOT_SRC_DIR"; } ||
             echo '-dirty'
           )
-
-    if test ."${LPARAM_TARBALL%%.*}" = .'usbfs'; then
-        local IMAGE_FILE=${G_TMP_DIR}/recovery-${MACHINE}-${ISO8601}${COMMIT_DIRTY}.img
-    else
-        local IMAGE_FILE=${G_TMP_DIR}/${MACHINE}-${ISO8601}${COMMIT_DIRTY}.img
-    fi
-
-    local IMAGE_SIZE=$(( 7774208 * 512 )) # 3.7 GiB
-    local LOOP_DEVICE
 
     cleanup_make_diskimage ()
     {
@@ -1050,6 +1065,19 @@ cmd_make_diskimage ()
         rm -rf "${G_TMP_DIR}"
     }
 
+    case ${LPARAM_TARBALL%%.*} in
+        usbfs)
+            IMAGE_FILE=${G_TMP_DIR}/recovery-${MACHINE}-${ISO8601}${COMMIT_DIRTY}.img
+            ;;
+        provisionfs)
+            IMAGE_FILE=${G_TMP_DIR}/provision-${MACHINE}-${ISO8601}${COMMIT_DIRTY}.img
+            ;;
+
+        *)
+            IMAGE_FILE=${G_TMP_DIR}/${MACHINE}-${ISO8601}${COMMIT_DIRTY}.img
+            ;;
+    esac
+
     pr_info "Initialize file-backed loop device"
     mkdir -p $(dirname "$IMAGE_FILE")
     rm -f "$IMAGE_FILE"
@@ -1063,7 +1091,7 @@ cmd_make_diskimage ()
            test ."$MACHINE" = .'revo-roadrunner-mx7'; then
         make_x11_image "$LOOP_DEVICE" "$PARAM_OUTPUT_DIR" "$LPARAM_TARBALL"
     else
-        make_weston_sdcard "$LOOP_DEVICE" "$PARAM_OUTPUT_DIR"
+        make_weston_image "$LOOP_DEVICE" "$PARAM_OUTPUT_DIR"
     fi
 
     losetup -d "$LOOP_DEVICE"
@@ -1187,6 +1215,9 @@ cmd_make_clean ()
 
     pr_info "Delete usbfs dir ${G_USBFS_DIR}"
     rm -rf "$G_USBFS_DIR"
+
+    pr_info "Delete provisionfs dir ${G_PROVISIONFS_DIR}"
+    rm -rf "$G_PROVISIONFS_DIR"
 }
 
 ################ main function ################
@@ -1219,6 +1250,9 @@ case $PARAM_CMD in
     usbfs)
         cmd_make_usbfs
         ;;
+    provisionfs)
+        cmd_make_provisionfs
+        ;;
     bootloader)
         cmd_make_uboot
         ;;
@@ -1241,14 +1275,14 @@ case $PARAM_CMD in
         cmd_make_firmware $G_ROOTFS_DIR
         cmd_make_firmware $G_RECOVERYFS_DIR
         ;;
-    sdcard)
-        cmd_make_sdcard $DEF_ROOTFS_TARBALL_NAME
-        ;;
     diskimage)
         cmd_make_diskimage $DEF_ROOTFS_TARBALL_NAME
         ;;
     usbimage)
         cmd_make_diskimage $DEF_USBFS_TARBALL_NAME
+        ;;
+    provisionimage)
+        cmd_make_diskimage $DEF_PROVISIONFS_TARBALL_NAME
         ;;
     flashimage)
         cmd_flash_diskimage
@@ -1267,7 +1301,8 @@ case $PARAM_CMD in
             cmd_make_scripts
         cmd_make_rootfs &&
             cmd_make_recoveryfs &&
-            cmd_make_usbfs
+            cmd_make_usbfs &&
+            cmd_make_provisionfs
         ;;
     clean)
         cmd_make_clean

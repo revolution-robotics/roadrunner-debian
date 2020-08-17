@@ -366,7 +366,7 @@ EOF
     mkdir -p "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
     ln -s '../recover-emmc.service' \
        "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
-    ln -s 'opt/images/Debian' "${RECOVERYFS_BASE}/system-update"
+    ln -s "$G_IMAGES_DIR" "${RECOVERYFS_BASE}/system-update"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc" "${RECOVERYFS_BASE}/usr/sbin"
 
     # Install recover-emmc-monitor service
@@ -608,7 +608,6 @@ make_recovery_image ()
 
     local P1_MOUNT_DIR="${G_TMP_DIR}/p1"
     local P2_MOUNT_DIR="${G_TMP_DIR}/p2"
-    local DEBIAN_IMAGES_TO_RECOVERYFS_POINT="opt/images/Debian"
 
     local BOOTLOAD_RESERVE_SIZE=4
     local SPARE_SIZE=8
@@ -649,39 +648,39 @@ make_recovery_image ()
 
     copy_debian_images ()
     {
-        mkdir -p "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+        mkdir -p "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
 
-        pr_info "Copying Debian images to /${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+        pr_info "Copying Debian images to /${G_IMAGES_DIR}"
         if test -f "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}"; then
             install -m 0644 "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}" \
-                    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+                    "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
         fi
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${BUILD_IMAGE_TYPE}" \
-                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+                "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
         # if test ."$MACHINE" = .'imx6ul-var-dart' ||
         #        test ."$MACHINE" = .'var-som-mx7' ||
         #        test ."$MACHINE" = .'revo-roadrunner-mx7'; then
         #     cp ${LPARAM_OUTPUT_DIR}/recoveryfs.ubi.img \
-        #        ${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}/
+        #        ${P2_MOUNT_DIR}/${G_IMAGES_DIR}/
         # fi
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}" \
-                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+                "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${DEF_RECOVERYFS_TARBALL_NAME}" \
-                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+                "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/"*.dtb \
-                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+                "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
 
-        # pr_info "Copying NAND U-Boot to /${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+        # pr_info "Copying NAND U-Boot to /${G_IMAGES_DIR}"
         # cp "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_NAND}" \
-        #    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+        #    "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
         # cp "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_NAND}" \
-        #    "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+        #    "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
 
-        pr_info "Copying MMC U-Boot to /${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+        pr_info "Copying MMC U-Boot to /${G_IMAGES_DIR}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_SPL_NAME_FOR_EMMC}" \
-                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+                "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
         install -m 0644 "${LPARAM_OUTPUT_DIR}/${G_UBOOT_NAME_FOR_EMMC}" \
-                "${P2_MOUNT_DIR}/${DEBIAN_IMAGES_TO_RECOVERYFS_POINT}"
+                "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
 
         return 0
     }

@@ -6,7 +6,7 @@
 - [Build U-Boot, Linux kernel and modules](#build-u-boot-linux-kernel-and-modules)
 - [Populate root and recovery filesystems](#populate-root-and-recovery-filesystems)
 - [Create bootable image file](#create-bootable-image-file)
-- [Flash bootable image to SD card](#flash-bootable-image-to-sd-card)
+- [Flash bootable image to SD card](#flash-bootable-image-to-sd-card-or-usb-flash-drive)
 - [Subsequent builds](#subsequent-builds)
 
 ## Overview
@@ -100,7 +100,7 @@ _output/\${MACHINE}-\${ISO8601}.img.gz_):
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage
 ```
 
-## Flash bootable image to SD card
+## Flash bootable image to SD card or USB flash drive
 Flash the bootable image file to SD card:
 
 ```shell

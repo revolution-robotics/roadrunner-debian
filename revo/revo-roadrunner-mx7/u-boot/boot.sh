@@ -12,7 +12,7 @@
 # `allow', then again booting to USB drive takes precedence.
 #
 # After an eMMC recovery procedure (e.g., from USB drive), the U-Boot
-# environment variable `usbboot_request' should be assigned the value
+# environment variable `usbboot_request' must be assigned the value
 # `override' to force booting to eMMC rootfs. From rootfs, the systemd
 # service `reset-usbboot.service' then clears `usbboot_request' so
 # that a USB drive can be booted on subsequent power cycle.
@@ -86,7 +86,6 @@ run green_pwr_led_off
 # If eMMC is jumpered...
 if test $mmcdev -eq 1; then
 
-
     # If either reset button pressed or software reset requested...
     if test ."$sw_reset" = .'true' || run hw_reset; then
         setenv silent
@@ -101,7 +100,7 @@ if test $mmcdev -eq 1; then
             echo "Processing USB recovery request..."
             run usbboot
 
-            # Otherwise, if eMMC bootable...
+        # Otherwise, if bootable eMMC or SD drive present...
         elif run loadimage; then
 
             # Use recovery partition.
@@ -109,6 +108,8 @@ if test $mmcdev -eq 1; then
             setenv kernelargs "$kernelargs flash_emmc_from_emmc"
             echo "Processing eMMC recovery request..."
             run mmcboot
+
+        # Otherwise, try booting over the network...
         else
             setenv kernelargs "$kernelargs flash_emmc_from_net"
             echo "Processing net recovery request..."
@@ -126,13 +127,15 @@ if test ."$usbboot_request" = .'allow' && run usbloadimage; then
     fi
     run usbboot
 
-# Otherwise, if either eMMC or SD bootable...
+# Otherwise, if bootable eMMC or SD drive present...
 elif run loadimage; then
     run green_pwr_led_on
     if test ."$usbboot_request" = .'override'; then
        setenv kernelargs "$kernelargs reset_usbboot"
     fi
     run mmcboot
+
+# Otherwise, try booting over the network...
 else
     run netboot
 fi

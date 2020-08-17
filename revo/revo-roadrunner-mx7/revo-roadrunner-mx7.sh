@@ -27,6 +27,7 @@ G_LINUX_DTB="imx7d-roadrunner-emmc.dtb"
         # imx7d-var-som-nand-m4.dtb"
 
 UBOOT_SCRIPT="boot.scr"
+UBOOT_PROVISION_SCRIPT="provision.scr"
 BUILD_IMAGE_TYPE="uImage"
 if test ."$BUILD_IMAGE_TYPE" = .'uImage'; then
     UIMAGE_LOADADDR=0x80800000
