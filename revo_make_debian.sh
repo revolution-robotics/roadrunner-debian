@@ -941,6 +941,9 @@ cmd_make_usbfs ()
     rm -rf "$G_USBFS_DIR"
     cp -a "$G_ROOTFS_DIR" "$G_USBFS_DIR"
     ln -s "$SYSTEM_UPDATE_SYMLINK" "${G_USBFS_DIR}/system-update"
+
+    # pack usbfs
+    make_tarball "$G_USBFS_DIR" "$G_USBFS_TARBALL_PATH"
 }
 
 cmd_make_scripts ()
@@ -989,9 +992,8 @@ cmd_make_rfs_tar ()
     # pack recoveryfs
     make_tarball "$G_RECOVERYFS_DIR" "$G_RECOVERYFS_TARBALL_PATH"
 
-    # pack usbfs
+    # create and pack usbfs
     cmd_make_usbfs
-    make_tarball "$G_USBFS_DIR" "$G_USBFS_TARBALL_PATH"
 }
 
 cmd_make_sdcard ()
