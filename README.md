@@ -6,7 +6,8 @@
 - [Build U-Boot, Linux kernel and modules](#build-u-boot-linux-kernel-and-modules)
 - [Populate root and recovery filesystems](#populate-root-and-recovery-filesystems)
 - [Create bootable image file](#create-bootable-image-file)
-- [Flash bootable image to SD card](#flash-bootable-image-to-sd-card-or-usb-flash-drive)
+- [Flash bootable image to SD card or USB flash drive](#flash-bootable-image-to-sd-card-or-usb-flash-drive)
+- [Enable booting from USB flash drive](#enable-booting-from-usb-flash-drive)
 - [Subsequent builds](#subsequent-builds)
 
 ## Overview
@@ -57,35 +58,37 @@ MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c deploy
 ```
 
 ## Build U-Boot, Linux kernel and modules
-Build the primary (SPL) and secondary (U-Boot) bootloaders (and save
-them as _output/SPL.mmc_ and _output/u-boot.img.mmc_, respecitvely.):
+To build the primary (SPL) and secondary (U-Boot) bootloaders (and save
+them as _output/SPL.mmc_ and _output/u-boot.img.mmc_, respecitvely.), use:
 
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c bootloader
 ```
 
-Build the Linux kernel (zImage) and Device Tree (DTB) files (and save
-them to _output_):
+To build the Linux kernel (zImage) and Device Tree (DTB) files (and save
+them to _output_), use:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c kernel
 ```
 
-Build kernel modules (and install them under _rootfs_):
+To build kernel modules (and install them under _rootfs_), use:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c modules
 ```
 
 ## Populate root and recovery filesystems
-Bootstrap Debian to _rootfs_ and install kernel modules and firmware:
+To bootstrap Debian to _rootfs_ and install kernel modules and
+firmware, use:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rootfs
 ```
 
-Bootstrap Debian to _recoveryfs_ and install kernel modules and firmware:
+To bootstrap Debian to _recoveryfs_ and install kernel modules and
+firmware, use:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c recoveryfs
@@ -93,15 +96,16 @@ sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c recoveryfs
 
 ## Create bootable image file
 
-Create a  bootable image file (4 GB compressed and saved as
-_output/\${MACHINE}-\${ISO8601}.img.gz_):
+To create a  bootable image file (4 GB compressed and saved as
+_output/\${MACHINE}-\${ISO8601}.img.gz_), use:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage
 ```
 
 ## Flash bootable image to SD card or USB flash drive
-Flash the bootable image file to SD card:
+To flash a bootable image file (from subdirectory _output_, by
+default) to SD card or USB flash drive, use:
 
 ```shell
 sudo ./revo_make_debian.sh -c flashimage
@@ -111,6 +115,32 @@ If multiple image files exist, select one when prompted from the list
 printed on the console. If multiple removable drives exist, select one
 when prompted from the list printed on the console.
 
+## Enable booting from USB flash drive
+The U-Boot script that enables booting from USB flash drive is always
+read from either SD card or eMMC. To enable booting from USB flash
+drive without an SD card installed, it is necessary to first flash
+eMMC. The process for doing so is as follows:
+
+Ensure that the onboard pins labeled __BMO__ are jumpered for booting from
+SD.¹  Then with a bootable SD card installed, power cycle the board.
+At the console, log in and run the command:
+
+```
+flash-emmc
+```
+
+This installs a U-Boot boot loader, a Debian root file system and a
+recovery file system onto eMMC. Once the `flash-emmc` command
+completes successfully, halt the system and remove the SD card,
+then jumper the __BMO__ pins for booting from eMMC and boot up.
+
+Now, whenever the system is booted, it first looks for a bootable USB
+flash drive and uses that, if available.  Otherwise, it boots to either
+eMMC or SD card, depending on how __BMO__ pins are jumpered.
+
+¹ On my boards, the pins must not be jumpered in order to boot from SD
+card. In subsequent builds, they may need to be jumpered.
+
 ## Subsequent builds
 After editing kernel sources, the kernel and modules can be rebuilt
 without re-running Debian bootstrap as follows:
@@ -119,10 +149,12 @@ without re-running Debian bootstrap as follows:
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c kernel
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c modules
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rtar
+sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage
 ```
 
 Likewise, after editing U-Boot sources, rebuild U-Boot with:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c bootloader
+sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage
 ```
