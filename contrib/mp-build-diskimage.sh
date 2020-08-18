@@ -102,6 +102,8 @@ echo "Building all..."
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -j "$NCPUS" -c all |& tee "/home/ubuntu/${OUTPUT_DIR}/all.log"
 echo "Creating disk image..."
 echo | sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage |& tee "/home/ubuntu/${OUTPUT_DIR}/diskimage.log"
+echo | sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c usbimage |& tee "/home/ubuntu/${OUTPUT_DIR}/usbimage.log"
+echo | sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c provisionimage |& tee "/home/ubuntu/${OUTPUT_DIR}/provisionimage.log"
 uptime >"/home/ubuntu/${OUTPUT_DIR}/runtime.log"
 EOF
 

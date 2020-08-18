@@ -963,10 +963,13 @@ cmd_make_provisionfs ()
     sed -i -e '/mtd/s/^#*/#/' "${G_PROVISIONFS_DIR}/etc/fw_env.config"
     sed -i -e "s;#*/dev/mmcblk.;${SD_DEVICE};" \
         "${G_PROVISIONFS_DIR}/etc/fw_env.config"
-    sed -i  -e '/^set_fw_utils_to_emmc_on_sd_card$/d' \
+
+    # Remove /system-update.
+    sed -i  -e '/^set_fw_utils_to_emmc_on_sd_card$/s;;rm -f /system-update;' \
         "${G_PROVISIONFS_DIR}/usr/sbin/flash-emmc"
 
-    # Install service to restore /system-update removed by systemd.
+    # Install service to restore /system-update late in boot so that
+    # it's not flagged by systemd.
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/symlink-system-update.service" \
             "${G_PROVISIONFS_DIR}/lib/systemd/system"
     ln -s '/lib/systemd/system/symlink-system-update.service' \
