@@ -381,7 +381,7 @@ make_kernel ()
          $IMAGE_EXTRA_ARGS -C "$4" "$BUILD_IMAGE_TYPE"
 
     pr_info "make $3"
-    make CROSS_COMPILE="$1" ARCH="$ARCH_ARGS" $G_CROSS_COMPILER_JOPTION -C "$4" "$3"
+    make CROSS_COMPILE="$1" ARCH="$ARCH_ARGS" $G_CROSS_COMPILER_JOPTION -C "$4" $3
 
     pr_info "Copy kernel and dtb files to output dir: $5"
     cp "${4}/${KERNEL_BOOT_IMAGE_SRC}/${BUILD_IMAGE_TYPE}" "$5"
