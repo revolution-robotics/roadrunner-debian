@@ -21,19 +21,26 @@
 #
 #     See below for definition of vm_ipv4.
 #
-script_name=${0##*/}
+declare script_name=${0##*/}
 
 : ${FLOCK:='/usr/bin/flock'}
 : ${VMNAME:='roadrunner'}
-: ${BUILD_DIR:='roadrunner_debian'}
-: ${OUTPUT_DIR:="${BUILD_DIR}/output"}
-: ${DEST_DIR:="${HOME}/output"}
 : ${NCPUS:='2'}
 : ${DISK_SIZE:='20G'}
 : ${MEMORY_SIZE:='2G'}
 : ${SSH_PUBKEY:="${HOME}/.ssh/id_rsa.pub"}
+: ${BUILD_DIR:='roadrunner_debian'}
+: ${OUTPUT_DIR:="${BUILD_DIR}/output"}
+: ${DEST_DIR:="${HOME}/output"}
 
-#  Avoid multiple instances of this script.
+# If apt-cacher-ng is listening on localhost:3142
+if  pgrep apt-cacher-ng >/dev/null && sudo lsof -ti :3142 >/dev/null; then
+    declare acng_proxy="-p http://$(hostname):3142/deb.debian.org/debian/"
+fi
+
+: ${DEBIAN_PROXY:="$acng_proxy"}
+
+#  Avoid running multiple instances of this script.
 if test ."$0" != ."$LOCKED"; then
     exec env LOCKED=$0 $FLOCK -en "$0" "$0" "$@" || :
 fi
@@ -42,7 +49,7 @@ fi
 if multipass list  | awk 'NR > 1 { print $1 }' | grep -q "$VMNAME"; then
 
     # Prompt whether to overwrite.
-    prompt="$VMNAME: Virtual machine instance already exists. Overwrite [y/N]? "
+    declare prompt="$VMNAME: Virtual machine instance already exists. Overwrite [y/N]? "
     if ! read -t 10 -n 1 -p "$prompt" || [[ ! ."$REPLY" =~ \.[yY] ]]; then
         echo
         exit 1
@@ -66,6 +73,26 @@ multipass mount "$DEST_DIR" "${VMNAME}:${OUTPUT_DIR}"
 if test -f "$SSH_PUBKEY"; then
     cat "$SSH_PUBKEY" |
         multipass exec "$VMNAME" -- bash -c "cat >>.ssh/authorized_keys"
+fi
+
+# Add host to guest's /etc/hosts
+host_gw_if=$(
+    nmcli |
+        awk -F':' '/^[^[:blank:]/]+:/ { iface=$1 }
+                   /ip4 default/ { exit }
+                   END { print iface }'
+          )
+host_gw_ipv4=$(nmcli --get-values 'ip4.address' device show $host_gw_if)
+cat <<EOF | multipass exec "$VMNAME" -- sudo bash -c "cat >>/etc/hosts"
+# localhosts
+${host_gw_ipv4%/*} $(hostname)
+EOF
+
+# If apt-cacher-ng proxy available, add it to the VM's apt configuration.
+if [[ ."$DEBIAN_PROXY" =~ \..*3142 ]]; then
+    cat <<EOF | multipass exec "$VMNAME" -- sudo bash -c "cat >>/etc/apt/apt.conf.d/10acng-proxy"
+Acquire::http::Proxy "http://$(hostname):3142";
+EOF
 fi
 
 # Install build script.
@@ -99,7 +126,7 @@ git checkout debian_buster_rr01 |& tee -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
 echo "Deploying sources..."
 MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c deploy |& tee "/home/ubuntu/${OUTPUT_DIR}/deploy.log"
 echo "Building all..."
-sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -j "$NCPUS" -c all |& tee "/home/ubuntu/${OUTPUT_DIR}/all.log"
+sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -j "$NCPUS" $DEBIAN_PROXY -c all |& tee "/home/ubuntu/${OUTPUT_DIR}/all.log"
 echo "Creating disk image..."
 echo | sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage |& tee "/home/ubuntu/${OUTPUT_DIR}/diskimage.log"
 echo | sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c usbimage |& tee "/home/ubuntu/${OUTPUT_DIR}/usbimage.log"

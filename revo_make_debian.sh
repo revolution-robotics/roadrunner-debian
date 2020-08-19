@@ -106,7 +106,8 @@ Options:
        clean         -- clean all build artifacts
        diskimage     -- create a bootable image file from rootfs
        usbimage      -- create a bootable recovery image file from usbfs
-       provisionimage-- create a bootable provision image file from provisionfs
+       provisionimage
+                     -- create a bootable provision image file from provisionfs
        flashimage    -- flash a disk image to SD card
   --debug            -- enable debug mode for this script
   -d|--dev           -- removable block device to write to (e.g., -d /dev/sdg)
@@ -114,6 +115,8 @@ Options:
                      -- image file to flash (image directory -- cf. option -o)
   -j|--jobs n        -- Specifies the number of jobs to run simultaneously (default: ${G_CROSS_COMPILER_JOPTION#-j })
   -o|--output dir    -- destination directory for build images (default: "$PARAM_OUTPUT_DIR")
+  -p|--proxy http-proxy
+                     -- specify a Debian mirror (default: $PARAM_DEB_LOCAL_MIRROR)
 
 Examples:
   deploy and build:                 ./${SCRIPT_NAME} --cmd deploy && sudo ./${SCRIPT_NAME} --cmd all
@@ -165,8 +168,8 @@ fi
 declare G_CROSS_COMPILER_PATH=${G_TOOLS_PATH}
 
 ## parse input arguments ##
-declare -r SHORTOPTS=c:d:i:j:o:h
-declare -r LONGOPTS=cmd:,debug,dev:,help,image:,jobs:,output:
+declare -r SHORTOPTS=c:d:hi:j:o:p:
+declare -r LONGOPTS=cmd:,debug,dev:,help,image:,jobs:,output:,proxy:
 
 declare -r G_IMAGES_DIR=opt/images/Debian
 
@@ -217,6 +220,10 @@ while true; do
         -o|--output) # select output dir
             shift
             PARAM_OUTPUT_DIR=$1
+            ;;
+        -p|--proxy)
+            shift
+            PARAM_DEB_LOCAL_MIRROR=$1
             ;;
         --)
             shift

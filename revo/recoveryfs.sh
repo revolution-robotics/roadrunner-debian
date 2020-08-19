@@ -16,8 +16,6 @@ make_debian_recoveryfs ()
     rm -rf "${RECOVERYFS_BASE}/"*
 
     pr_info "recoveryfs: debootstrap"
-    # debootstrap --verbose --no-check-gpg --foreign --arch armhf "${DEB_RELEASE}" \
-    #             "${RECOVERYFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
     debootstrap --variant=minbase --verbose  --foreign --arch armhf \
                 --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
                 "${DEB_RELEASE}" "${RECOVERYFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
@@ -67,10 +65,10 @@ make_debian_recoveryfs ()
 
     # add mirror to source list
     cat >etc/apt/sources.list <<EOF
-deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
-#deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
-deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
-#deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
+deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
+#deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
+deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
+#deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
     # raise backports priority

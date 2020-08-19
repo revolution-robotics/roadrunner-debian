@@ -16,8 +16,6 @@ make_debian_x11_rootfs ()
     rm -rf ${ROOTFS_BASE}/*
 
     pr_info "rootfs: debootstrap"
-    # debootstrap --verbose --no-check-gpg --foreign --arch armhf ${DEB_RELEASE} \
-    #             ${ROOTFS_BASE}/ ${PARAM_DEB_LOCAL_MIRROR}
     debootstrap --verbose  --foreign --arch armhf \
                 --keyring=/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg \
                 ${DEB_RELEASE} ${ROOTFS_BASE}/ ${PARAM_DEB_LOCAL_MIRROR}
@@ -63,10 +61,10 @@ make_debian_x11_rootfs ()
 
     # add mirror to source list
     cat >etc/apt/sources.list <<EOF
-deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
-deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
-deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
-deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
+deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
+deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
+deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
+deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
     # raise backports priority
