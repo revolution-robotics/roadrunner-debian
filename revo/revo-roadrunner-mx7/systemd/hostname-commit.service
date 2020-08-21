@@ -1,0 +1,18 @@
+[Unit]
+Description=Generate unique hostname
+DefaultDependencies=no
+Wants=network.target system-update-pre.target
+Before=system-update-pre.target
+After=local-fs.target network.target
+ConditionPathExists=!/etc/hostname
+
+[Service]
+Type=oneshot
+
+# Give network queuing disciplines time to be loaded.
+ExecStartPre=/bin/sleep 4
+ExecStart=/bin/bash -c '/usr/sbin/commit-hostname'
+ExecStartPost=/bin/systemctl disable hostname-commit
+
+[Install]
+WantedBy=network.target

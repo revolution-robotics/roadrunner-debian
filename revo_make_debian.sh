@@ -749,7 +749,7 @@ get_removable_devices ()
     local model
 
     mapfile -t devices < <(
-        grep -lv ^0$ '/sys/block/'*'/removable' |
+        grep -lv '^0$' '/sys/block/'*'/removable' |
             sed -e 's;removable$;device/uevent;' |
             xargs grep -l '^DRIVER=sd$' |
             sed -e 's;device/uevent;size;' |

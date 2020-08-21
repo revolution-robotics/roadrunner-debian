@@ -56,7 +56,7 @@ elif test ."$status" = .'up'; then
     declare -i i=0
     for interface in "${interfaces[@]}"; do
         if ! is_connected_interface "$interface"; then
-            $ACCESS_POINT "REVO auto-shared ${interface}" "$interface" "revo-${interface}" "revo-${interface}" 'a' "10.$(( WIFI_CLASS_B + i++ )).0.1/24"
+            $ACCESS_POINT "REVO auto-shared ${interface}" "$interface" "${hostname}-${interface}" "${hostname}" 'a' "10.$(( WIFI_CLASS_B + i++ )).0.1/24"
         fi
     done
 fi

@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#
+# @(#) commit-hostname
+#
+# Copyright © 2020 Revolution Robotics, Inc.
+#
+# This script generates and sets a unique hostname. It is intended to
+# be run by hostname-commit.service. The following files are affected:
+#
+#     /etc/hostname
+#     /etc/mailname
+#     /etc/hosts
+#
+# NB: A hostname is generated from the MAC of the first enumerated
+#     physical interface, which is identified by its queuing
+#     disciple (mq). But queueing disciples must be loaded, so upon
+#     systemd reaching network.target, a brief delay must be added
+#     before running this script.
+#
+hashed_mac_prefix=$(
+    ip -o link show |
+        sed -nE -e '/qdisc mq/{s/.*ether ([^ ]*) .*$/\1/p;q}' |
+        openssl dgst -r -sha256 |
+        cut -c1-6
+                 )
+hostname=revoedge-${hashed_mac_prefix}
+hostnamectl set-hostname "$hostname"
+echo "$hostname" >/etc/mailname
+
+if grep -q '^127.0.1.1' /etc/hosts; then
+    sed -iE -e "/^127.0.1.1/c 127.0.1.1	$hostname" /etc/hosts
+else
+    sed -iE -e "/^127.0.0.1/a 127.0.1.1	$hostname" /etc/hosts
+fi

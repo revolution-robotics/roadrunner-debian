@@ -86,10 +86,12 @@ EOF
 # /dev/mmcblk0p1  /boot           vfat    defaults        0       0
 EOF
 
-    echo "$MACHINE" > etc/hostname
+    # Unique hostname generated on boot (see below).
+    # echo "$MACHINE" > etc/hostname
+
+    # "127.0.1.1 $hostname"  added when hostname generated on boot
     cat >etc/hosts <<EOF
 127.0.0.1	localhost
-127.0.1.1	$MACHINE
 
 # The following lines are desirable for IPv6 capable hosts
 ::1		ip6-localhost ip6-loopback
@@ -314,6 +316,21 @@ EOF
     # fourth-stage
 
     # BEGIN -- REVO i.MX7D updates
+    # Generate unique hostname on first boot
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/hostname-commit.service" \
+            "${ROOTFS_BASE}/lib/systemd/system"
+    ln -s '/lib/systemd/system/hostname-commit.service' \
+       "${ROOTFS_BASE}/etc/systemd/system/network.target.wants/hostname-commit.service"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/commit-hostname" "${ROOTFS_BASE}/usr/sbin"
+
+    # Remove machine ID and hostname to force generation of unique ones.
+    rm -f "${ROOTFS_BASE}/etc/machine-id" \
+       "${ROOTFS_BASE}/var/lib/dbus/machine-id" \
+       "${ROOTFS_BASE}/etc/hostname"
+
+    # Exim mailname is updated when hostname generated
+    # echo "$MACHINE" > "${ROOTFS_BASE}/etc/mailname"
+
     # Regenerate SSH keys on first boot
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/regenerate-ssh-host-keys.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
@@ -325,9 +342,6 @@ EOF
             "${ROOTFS_BASE}/etc"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/profile" \
             "${ROOTFS_BASE}/etc"
-
-    # Set Exim hostname to $MACHINE
-    echo "$MACHINE" > "${ROOTFS_BASE}/etc/mailname"
 
     # Mount /tmp, /var/tmp and /var/log on tmpfs.
     install -m 0644 "${ROOTFS_BASE}/usr/share/systemd/tmp.mount" \
@@ -546,6 +560,14 @@ EOF
 
 
     # BEGIN -- REVO i.MX7D cleanup
+    # Restore APT source list to default Debian mirror.
+    cat >"${RECOVERYFS_BASE}/etc/apt/sources.list" <<EOF
+deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
+#deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
+deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
+#deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
+EOF
+
     # Limit kernel messages to the console.
     sed -i -e '/^#kernel.printk/s/^#*//' "${ROOTFS_BASE}/etc/sysctl.conf"
 

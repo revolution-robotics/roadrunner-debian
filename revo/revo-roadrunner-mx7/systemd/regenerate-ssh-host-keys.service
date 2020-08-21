@@ -1,6 +1,8 @@
 [Unit]
 Description=Regenerate SSH host keys
-Before=ssh.service
+Wants=system-update-pre.target hostname-commit.service
+Before=system-update-pre.target ssh.service
+After=hostname-commit.service
 
 [Service]
 Type=oneshot

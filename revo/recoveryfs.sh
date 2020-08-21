@@ -90,10 +90,12 @@ EOF
 # /dev/mmcblk0p1  /boot           vfat    defaults        0       0
 EOF
 
-    echo "$MACHINE" > etc/hostname
+    # Unique hostname generated on boot (see below).
+    # echo "$MACHINE" > etc/hostname
+
+    # "127.0.1.1 $hostname"  added when hostname generated on boot
     cat >etc/hosts <<EOF
 127.0.0.1	localhost
-127.0.1.1	$MACHINE
 
 # The following lines are desirable for IPv6 capable hosts
 ::1		ip6-localhost ip6-loopback
@@ -323,6 +325,21 @@ EOF
     install -m 0755 ${G_VENDOR_PATH}/recovery_resources/resize \
             ${RECOVERYFS_BASE}/usr/bin
 
+    # Generate unique hostname on first boot
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/hostname-commit.service" \
+            "${RECOVERYFS_BASE}/lib/systemd/system"
+    ln -s '/lib/systemd/system/hostname-commit.service' \
+       "${RECOVERYFS_BASE}/etc/systemd/system/network.target.wants/hostname-commit.service"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/commit-hostname" "${RECOVERYFS_BASE}/usr/sbin"
+
+    # Remove machine ID and hostname to force generation of unique ones.
+    rm -f "${RECOVERYFS_BASE}/etc/machine-id" \
+       "${RECOVERYFS_BASE}/var/lib/dbus/machine-id" \
+       "${RECOVERYFS_BASE}/etc/hostname"
+
+    # Exim mailname is updated when hostname generated
+    # echo "$MACHINE" > "${RECOVERYFS_BASE}/etc/mailname"
+
     # Regenerate SSH keys on first boot
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/regenerate-ssh-host-keys.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
@@ -334,9 +351,6 @@ EOF
             "${RECOVERYFS_BASE}/etc"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/profile" \
             "${RECOVERYFS_BASE}/etc"
-
-    # Set Exim hostname to $MACHINE
-    echo "$MACHINE" > "${RECOVERYFS_BASE}/etc/mailname"
 
     # Mount /tmp, /var/tmp and /var/log on tmpfs.
     install -m 0644 "${RECOVERYFS_BASE}/usr/share/systemd/tmp.mount" \
@@ -555,10 +569,18 @@ EOF
         kill -9 "$QEMU_PROC_ID"
     fi
 
-    rm "${RECOVERYFS_BASE}/usr/bin/qemu-arm-static"
+    rm -f "${RECOVERYFS_BASE}/usr/bin/qemu-arm-static"
 
 
     # BEGIN -- REVO i.MX7D cleanup
+    # Restore APT source list to default Debian mirror.
+    cat >"${RECOVERYFS_BASE}/etc/apt/sources.list" <<EOF
+deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
+#deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
+deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
+#deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
+EOF
+
     # Limit kernel messages to the console.
     sed -i -e '/^#kernel.printk/s/^#*//' "${RECOVERYFS_BASE}/etc/sysctl.conf"
 
