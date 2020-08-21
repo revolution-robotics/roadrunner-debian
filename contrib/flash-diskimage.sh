@@ -14,6 +14,8 @@ declare PARAM_DEBUG=0
 declare PARAM_OUTPUT_DIR=${HOME}/output
 declare PARAM_BLOCK_DEVICE=na
 declare PARAM_DISK_IMAGE=na
+declare BYTES_WRITTEN=na
+declare BYTES_VERIFIED=na
 
 usage ()
 {
@@ -185,55 +187,47 @@ is_removable_device ()
     fi
 }
 
-flash_diskimage ()
+select_media ()
 {
-    local LPARAM_DISK_IMAGE=$PARAM_DISK_IMAGE
-    local LPARAM_BLOCK_DEVICE=$PARAM_BLOCK_DEVICE
-
     local total_size
     local total_size_bytes
     local total_size_gib
     local -i i
 
-    if test ! -f "$LPARAM_DISK_IMAGE"; then
-        if test -f "${PARAM_OUTPUT_DIR}/${LPARAM_DISK_IMAGE}"; then
-            LPARAM_DISK_IMAGE=${PARAM_OUTPUT_DIR}/${LPARAM_DISK_IMAGE}
+    if test ! -f "$PARAM_DISK_IMAGE"; then
+        if test -f "${PARAM_OUTPUT_DIR}/${PARAM_DISK_IMAGE}"; then
+            PARAM_DISK_IMAGE=${PARAM_OUTPUT_DIR}/${PARAM_DISK_IMAGE}
         else
-            LPARAM_DISK_IMAGE=$(select_disk_image)
+            PARAM_DISK_IMAGE=$(select_disk_image)
         fi
-        if test ! -f "$LPARAM_DISK_IMAGE"; then
+        if test ! -f "$PARAM_DISK_IMAGE"; then
             pr_error "Image not available"
             exit 1
         fi
     fi
 
-    if ! is_removable_device "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1; then
-        LPARAM_BLOCK_DEVICE=$(select_removable_device | awk '{ print $1 }')
-        if test ! -b "$LPARAM_BLOCK_DEVICE"; then
+    if ! is_removable_device "$PARAM_BLOCK_DEVICE" >/dev/null 2>&1; then
+        PARAM_BLOCK_DEVICE=$(select_removable_device | awk '{ print $1 }')
+        if test ! -b "$PARAM_BLOCK_DEVICE"; then
             pr_error "Device not available"
             exit 1
         fi
     fi
 
-    total_size=$(sudo blockdev --getsz "$LPARAM_BLOCK_DEVICE")
+    total_size=$(sudo blockdev --getsz "$PARAM_BLOCK_DEVICE")
     total_size_bytes=$(( total_size * 512 ))
     total_size_gib=$(perl -e "printf '%.1f', $total_size_bytes / 1024 ** 3")
 
     echo '============================================='
-    pr_info "Image: ${LPARAM_DISK_IMAGE##*/}"
-    pr_info "Device: $LPARAM_BLOCK_DEVICE, $total_size_gib GiB"
+    pr_info "Image: ${PARAM_DISK_IMAGE##*/}"
+    pr_info "Device: $PARAM_BLOCK_DEVICE, $total_size_gib GiB"
     echo '============================================='
     read -p "Press Enter to continue"
+}
 
-    pr_info "Flashing image to device..."
-
-    for (( i=0; i < 10; i++ )); do
-        if test -n "$(findmnt -n "${LPARAM_BLOCK_DEVICE}${i}")"; then
-            sudo umount -f "${LPARAM_BLOCK_DEVICE}${i}"
-        fi
-    done
-
-    case $(file "$LPARAM_DISK_IMAGE") in
+get_compression_format ()
+{
+    case $(file "$PARAM_DISK_IMAGE") in
         *bzip2*)
             ZCAT='bzip2 -dc'
             ;;
@@ -256,13 +250,55 @@ flash_diskimage ()
             ZCAT=cat
             ;;
     esac
+}
 
-    if ! $ZCAT "$LPARAM_DISK_IMAGE" | sudo dd of="$LPARAM_BLOCK_DEVICE" bs=1M; then
+flash_diskimage ()
+{
+    pr_info "Flashing image to device..."
+
+    for (( i=0; i < 10; i++ )); do
+        if test -n "$(findmnt -n "${PARAM_BLOCK_DEVICE}${i}")"; then
+            sudo umount -f "${PARAM_BLOCK_DEVICE}${i}"
+        fi
+    done
+
+    errfile=$(mktemp "/tmp/${SCRIPT_NAME}.XXXXX")
+    trap 'rm -f "$errfile"' 0 1 2 15 RETURN
+
+    if ! $ZCAT "$PARAM_DISK_IMAGE" |
+            sudo dd of="$PARAM_BLOCK_DEVICE" bs=1M 2>"$errfile"; then
         pr_error "Flash did not complete successfully."
         echo "*** Please check media and try again! ***"
     fi
+
+
+    BYTES_WRITTEN=$(awk '/bytes/ { print $1 }' "$errfile")
+
+    rm -f "$errfile"
+    trap - 0 1 2 15 RETURN
 }
 
+verify_diskimage ()
+{
+    pr_info "Verifying device against image..."
+
+    errfile=$(mktemp "/tmp/${SCRIPT_NAME}.XXXXX")
+    trap 'rm "$errfile"' 0 1 2 15 RETURN
+
+    $ZCAT "$PARAM_DISK_IMAGE" |
+        sudo cmp -n "$BYTES_WRITTEN" "$PARAM_BLOCK_DEVICE" - >"$errfile" 2>&1
+
+    BYTES_VERIFIED=$(sed -nE -e 's/.*differ: byte +([0-9]+).*$/\1/p' "$errfile")
+    if test ! -s "$errfile"; then
+        pr_info "Compared: $BYTES_WRITTEN bytes"
+        pr_info 'Device successfully verified'
+    else
+        pr_error "Device and image differ at byte: $BYTES_VERIFIED"
+    fi
+
+    rm -f "$errfile"
+    trap - 0 1 2 15 RETURN
+}
 
 ## parse input arguments ##
 declare -r SHORTOPTS=d:i:o:h
@@ -318,4 +354,7 @@ if test ."$PARAM_DEBUG" = .'1'; then
     set -x
 fi
 
+select_media
+get_compression_format
 flash_diskimage
+verify_diskimage
