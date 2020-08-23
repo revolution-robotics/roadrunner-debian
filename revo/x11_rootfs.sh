@@ -561,7 +561,7 @@ EOF
 
     # BEGIN -- REVO i.MX7D cleanup
     # Restore APT source list to default Debian mirror.
-    cat >"${RECOVERYFS_BASE}/etc/apt/sources.list" <<EOF
+    cat >"${ROOTFS_BASE}/etc/apt/sources.list" <<EOF
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
 #deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
