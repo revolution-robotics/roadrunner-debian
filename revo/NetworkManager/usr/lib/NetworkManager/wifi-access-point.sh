@@ -13,7 +13,7 @@
 #
 #     profile
 #     interface (e.g., wlan0)
-#     ssid (default: $(hostname))
+#     ssid (default: $(hostname)-$(get_managed_interfaces wifi | head -1))
 #     password (default: $(hostname))
 #     wifi_band ('a' | 'bg', default: 'a')
 #     ipv4_addr (default: $DEFAULT_IPV4_ADDR)
@@ -35,7 +35,7 @@ where:
   -h        - Display help, then exit
   profile   - NetworkManger profile name
   iface     - WiFi interface (default: $(get_managed_interfaces wifi | head -1))
-  ssid      - Name (SSID) of WiFi network (default: $(hostname))
+  ssid      - Name (SSID) of WiFi network (default: $(hostname)-$(get_managed_interfaces wifi | head -1))
   password  - WiFi network password (default: $(hostname))
   band      - WiFi band - either 'a' or 'bg' (default: 'a')
   ipv4_addr - IPv4 address and netmask (default: $DEFAULT_IPV4_ADDR)
@@ -45,7 +45,7 @@ fi
 
 declare profile=$1
 declare interface=${2:-$(get_managed_interfaces wifi | head -1)}
-declare ssid=${3:-$(hostname)}
+declare ssid=${3:-"$(hostname)-${interface}"}
 declare password=${4:-$(hostname)}
 declare wifi_band=${5:-'a'}
 declare ipv4_addr=${6:-"$DEFAULT_IPV4_ADDR"}

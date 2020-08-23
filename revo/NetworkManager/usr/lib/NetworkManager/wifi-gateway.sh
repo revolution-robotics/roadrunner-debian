@@ -42,6 +42,10 @@ declare password=$4
 declare ipv4_addr=$5
 declare ipv4_gateway=$6
 
+declare -i state
+declare -i attempts
+declare -i checks
+
 validate_interface "$interface" || exit $?
 
 if test ."$ipv4_addr" != .''; then
@@ -55,4 +59,4 @@ fi
 disconnect_interface "$interface"
 remove_previous_profile "$profile"
 create_wifi_profile gw "$profile" "$interface" "$ssid" "$password"
-activate_profile "$profile"
+activate_profile "$profile" 'toggle'

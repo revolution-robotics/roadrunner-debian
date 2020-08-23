@@ -4,10 +4,10 @@
 #
 # Copyright © 2020, Revolution Robotics, Inc.
 #
-: ${AWK:='/bin/awk'}
-: ${NMCLI:='/bin/nmcli'}
+: ${AWK:='/usr/bin/awk'}
+: ${NMCLI:='/usr/bin/nmcli'}
 : ${SED:='/bin/sed'}
-: ${TR:='/bin/tr'}
+: ${TR:='/usr/bin/tr'}
 
 # Access points use base address 10.X.0.1 where X is WIFI_CLASS_B or
 # ETHERNET_CLASS_B.
@@ -18,18 +18,33 @@ declare -ri ETHERNET_CLASS_B=200
 activate_profile ()
 {
     local profile=$1
+    local toggle=${2:-'false'}
 
     if is_shared_profile "$profile" && ! internet_accessible; then
         echo "${FUNCNAME[0]}: Warning: No Internet access" >&2
     fi
 
-    if ! is_active_profile "$profile"; then
+    # Toggling a connection down and back up provides a workaround for
+    # a NetworkManager issue where creating a new profile results in
+    # the diagnostic 'no proxy object exists'.
+    if ! is_active_profile "$profile" || test ."$toggle" != .'false'; then
         echo "${FUNCNAME[0]}: $profile: Bring up profile" >&2
         if is_wifi_profile "$profile"; then
             $NMCLI radio wifi on
         fi
+        $NMCLI connection down "$profile" >/dev/null 2>&1
         $NMCLI connection up "$profile"
     fi
+}
+
+# connection_state: Return NetworkManager numeric connection status of
+#     given interface (where 100 == connected).
+connection_state ()
+{
+    local interface=$1
+
+    $NMCLI --terse --fields GENERAL.STATE device show "$interface" |
+        $SED -E 's/.*:([0-9]+).*/\1/'
 }
 
 # create_ethernet_profile: Create NetworkManager Ethernet profile.
@@ -70,7 +85,7 @@ create_wifi_profile ()
     local wifi_band=$6
     local ipv4_addr=$7
 
-    echo "$NMCLI connection add type wifi con-name "\""$profile"\"" ifname "\""$interface"\"" ssid "\""$ssid"\"""
+    # echo "$NMCLI connection add type wifi con-name "\""$profile"\"" ifname "\""$interface"\"" ssid "\""$ssid"\"""
     $NMCLI connection add type wifi con-name "$profile" ifname "$interface" ssid "$ssid"
     $NMCLI connection modify "$profile" wifi-sec.key-mgmt wpa-psk
     $NMCLI connection modify "$profile" wifi-sec.psk "$password"
