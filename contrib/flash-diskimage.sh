@@ -263,7 +263,7 @@ flash_diskimage ()
     done
 
     errfile=$(mktemp "/tmp/${SCRIPT_NAME}.XXXXX")
-    trap 'rm -f "$errfile"' 0 1 2 15 RETURN
+    trap 'rm -f "$errfile"; exit' 0 1 2 15 RETURN
 
     if ! $ZCAT "$PARAM_DISK_IMAGE" |
             sudo dd of="$PARAM_BLOCK_DEVICE" bs=1M 2>"$errfile"; then
@@ -283,7 +283,7 @@ verify_diskimage ()
     pr_info "Verifying device against image..."
 
     errfile=$(mktemp "/tmp/${SCRIPT_NAME}.XXXXX")
-    trap 'rm "$errfile"' 0 1 2 15 RETURN
+    trap 'rm "$errfile"; exit' 0 1 2 15 RETURN
 
     $ZCAT "$PARAM_DISK_IMAGE" |
         sudo cmp -n "$BYTES_WRITTEN" "$PARAM_BLOCK_DEVICE" - >"$errfile" 2>&1

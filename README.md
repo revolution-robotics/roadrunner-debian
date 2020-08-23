@@ -111,39 +111,33 @@ default) to SD card or USB flash drive, use:
 sudo ./revo_make_debian.sh -c flashimage
 ```
 
-If multiple image files exist, select one when prompted from the list
-printed on the console. If multiple removable drives exist, select one
-when prompted from the list printed on the console.
+If multiple image files exist, you'll be prompted to select one. Likewise, if
+multiple removable drives exist, select one at the prompt.
 
 ## Enable booting from USB flash drive
 The U-Boot script that enables booting from USB flash drive is always
 read from either SD card or eMMC. To enable booting from USB flash
 drive without an SD card installed, it is necessary to first flash
-eMMC. The process for doing so is as follows:
-
-Ensure that the onboard pins labeled __BMO__ are jumpered for booting from
-SD.¹  Then with a bootable SD card installed, power cycle the board.
-At the console, log in and run the command:
+eMMC, which can be done as follows. Ensure that the pins labeled
+__BMO__ are not jumpered,¹ then with a bootable SD card installed,
+power cycle the board. At the console, log in and run the command:
 
 ```
 flash-emmc
 ```
 
-This installs a U-Boot boot loader, a Debian root file system and a
+This installs a U-Boot boot loader, Debian root file system and
 recovery file system onto eMMC. Once the `flash-emmc` command
-completes successfully, halt the system and remove the SD card,
-then jumper the __BMO__ pins for booting from eMMC and boot up.
+completes successfully, jumper the __BMO__ pins and reboot. Now,
+whenever the system boots, it first looks for a USB flash drive and
+uses that if it's bootable.
 
-Now, whenever the system is booted, it first looks for a bootable USB
-flash drive and uses that, if available.  Otherwise, it boots to either
-eMMC or SD card, depending on how __BMO__ pins are jumpered.
-
-¹ On my boards, the pins must not be jumpered in order to boot from SD
-card. In subsequent builds, they may need to be jumpered.
+¹ On currents boards, U-Boot is read from eMMC if the __BMO__ pins are
+jumpered and SD otherwise. In future builds, this may be reversed.
 
 ## Subsequent builds
-After editing kernel sources, the kernel and modules can be rebuilt
-without re-running Debian bootstrap as follows:
+After editing kernel sources, a new disk image can be created without
+re-running Debian bootstrap as follows:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c kernel
@@ -152,9 +146,13 @@ sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rtar
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage
 ```
 
-Likewise, after editing U-Boot sources, rebuild U-Boot with:
+Likewise, after editing U-Boot sources, create a new disk image with:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c bootloader
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage
 ```
+
+After commiting changes to the kernel or U-Boot source trees, to
+incorporate the changes into new builds, update
+the file *${G_VENDOR_PATH}/${MACHINE}/${MACHINE}.sh*.

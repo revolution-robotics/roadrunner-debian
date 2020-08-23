@@ -1111,6 +1111,11 @@ cmd_make_diskimage ()
     pr_info "Compressing image file \"$(basename $IMAGE_FILE)\"..."
     $ZIP "$IMAGE_FILE"
     mv "${IMAGE_FILE}.${COMPRESSION_SUFFIX}" "$PARAM_OUTPUT_DIR"
+    (
+        cd "$PARAM_OUTPUT_DIR" &&
+            openssl dgst -sha512 "${IMAGE_FILE##*/}.${COMPRESSION_SUFFIX}" \
+                    >"${IMAGE_FILE##*/}.${COMPRESSION_SUFFIX}.asc"
+    )
 }
 
 cmd_flash_diskimage ()
