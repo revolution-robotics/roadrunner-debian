@@ -61,7 +61,7 @@ declare -r G_CROSS_COMPILER_32BIT_PREFIX=arm-linux-gnueabihf-
 declare G_CROSS_COMPILER_JOPTION="-j 6"
 
 #### user rootfs/recoveryfs packages ####
-declare -r G_USER_PACKAGES="bash-completion binutils cockpit cockpit-networkmanager curl dnsutils ed git libsystemd-dev openvpn network-manager-openvpn pciutils python3-asteval python3-cryptography python3-dateutil python3-lxml python3-pip python3-psutil python3-serial python3-websocket python3-websockets python3-zmq sudo traceroute"
+declare -r G_USER_PACKAGES="avahi-daemon bash-completion binutils cockpit cockpit-networkmanager curl dnsutils ed git libsystemd-dev openvpn network-manager-openvpn pciutils python3-asteval python3-cryptography python3-dateutil python3-lxml python3-pip python3-psutil python3-serial python3-websocket python3-websockets python3-zmq sudo traceroute"
 
 export LC_ALL=C
 
@@ -167,16 +167,23 @@ fi
 # declare G_CROSS_COMPILER_PATH=${G_TOOLS_PATH}/${G_CROSS_COMPILER_NAME}/bin
 declare G_CROSS_COMPILER_PATH=${G_TOOLS_PATH}
 
+declare -r G_IMAGES_DIR=opt/images/Debian
+
 ## parse input arguments ##
+declare ARGS
+declare status
 declare -r SHORTOPTS=c:d:hi:j:o:p:
 declare -r LONGOPTS=cmd:,debug,dev:,help,image:,jobs:,output:,proxy:
 
-declare -r G_IMAGES_DIR=opt/images/Debian
+ARGS=$(
+    getopt --name "$SCRIPT_NAME" --options "$SHORTOPTS"  \
+           --longoptions "$LONGOPTS" -- "$@"
+    )
 
-declare ARGS=$(
-    getopt -s bash --options "$SHORTOPTS"  \
-           --longoptions "$LONGOPTS" --name "$SCRIPT_NAME" -- "$@"
-        )
+status=$?
+if (( status != 0 )); then
+    exit $status
+fi
 
 eval set -- "$ARGS"
 

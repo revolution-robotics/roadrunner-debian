@@ -385,21 +385,17 @@ EOF
     ln -s '/lib/systemd/system/reset-usbboot.service' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-
-    # Install NetworkManager auto-share dispatcher.
-    # Fix permissions set by Git
-    chmod -R g-w "${G_VENDOR_PATH}/NetworkManager/"*
-    chmod 750 "${G_VENDOR_PATH}/NetworkManager/etc/NetworkManager/dispatcher.d/30-link-led"
-    chmod 750 "${G_VENDOR_PATH}/NetworkManager/etc/NetworkManager/dispatcher.d/50-default-ethernet-ap"
-    chmod 750 "${G_VENDOR_PATH}/NetworkManager/etc/NetworkManager/dispatcher.d/51-default-wifi-ap"
-
-    tar -C "${G_VENDOR_PATH}/NetworkManager" -cf - . |
-        tar -C "${ROOTFS_BASE}" -oxf -
-
+    # Enable NetworkManager dispatcher
     ln -sf '/lib/systemd/system/NetworkManager-dispatcher.service' \
        "${ROOTFS_BASE}/etc/systemd/system/dbus-org.freedesktop.nm-dispatcher.service"
-    ln -s '../NetworkManager-autoshare-clean.service' \
-       "${ROOTFS_BASE}/lib/systemd/system/sysinit.target.wants"
+
+    # Fix NetworkManager dispatch permissions set by Git
+    chmod -R g-w "${G_VENDOR_PATH}/NetworkManager/"*
+    chmod 750 "${G_VENDOR_PATH}/NetworkManager/etc/NetworkManager/dispatcher.d/30-link-led"
+
+    # Install NetworkManager scripts
+    tar -C "${G_VENDOR_PATH}/NetworkManager" -cf - . |
+        tar -C "${ROOTFS_BASE}" -oxf -
 
     rm -f "${ROOTFS_BASE}/etc/NetworkManager/dispatcher.d/"*ifupdown
 

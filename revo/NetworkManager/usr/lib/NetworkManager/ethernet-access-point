@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+#
+# @(#) ethernet-access-point
+#
+# Copyright © 2020, Revolution Robotics, Inc.
+#
+# This script creates and activates a NetworkManger Ethernet access point
+# profile. It's assumed that there's a separate network interface with
+# Internet access.
+#
+script_name=${0##*/}
+script_dir=${0%/*}
+
+: ${CAT:='/bin/cat'}
+
+source "${script_dir}/ip-funcs"
+source "${script_dir}/nm-funcs"
+
+declare -r DEFAULT_IPV4_ADDR=10.${ETHERNET_CLASS_B}.0.1/24
+
+usage ()
+{
+    $CAT <<EOF
+Usage: $script_name -p PROFILE -i INTERFACE OPTIONS
+where OPTIONS are:
+  -h|--help      Display help, then exit
+  -p|--profile=PROFILE
+                 Set connection profile name to PROFILE (e.g., eth0-ap)
+  -i|--interface=INTERFACE
+                 Set network interface to INTERFACE (e.g., eth0)
+  -a|--address=IPv4_ADDR
+                 Set IPv4 address/netmask to IPv4_ADDR
+                 (default: ${DEFAULT_IPV4_ADDR})
+EOF
+}
+
+declare profile
+declare interface
+declare ipv4_addr=$DEFAULT_IPV4_ADDR
+
+declare opts
+declare status
+declare -r short_opts=a:,h,i:,p:
+declare -r long_opts=address:,help,interface:,profile:
+
+opts=$(
+    getopt --name "$script_name" --options "$short_opts"  \
+           --longoptions "$long_opts" -- "$@"
+    )
+
+status=$?
+if (( status != 0 )); then
+    exit 1
+fi
+
+eval set -- "$opts"
+
+while true; do
+    case "$1" in
+        -a|--address)
+            ipv4_addr=$2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -i|--interface)
+            interface=$2
+            ;;
+        -p|--profile)
+            profile=$2
+            ;;
+        --)
+            break
+            ;;
+    esac
+    shift 2
+done
+
+validate_interface "$interface" || exit $?
+validate_ipv4_network "$interface" "$ipv4_addr" || exit $?
+
+disconnect_interface "$interface"
+remove_previous_profile "$profile"
+create_ethernet_profile ap "$profile" "$interface" "$ipv4_addr"
+activate_profile "$profile"

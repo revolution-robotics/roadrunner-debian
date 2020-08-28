@@ -48,7 +48,8 @@ connection_state ()
 }
 
 # create_ethernet_profile: Create NetworkManager Ethernet profile.
-#     Mode is either `ap' for an access point or `gw' for a gateway.
+#     Mode is one of `ap' for access point, `gw' for gateway or 'll'
+#     for link-local.
 create_ethernet_profile ()
 {
     local mode=$1
@@ -57,24 +58,34 @@ create_ethernet_profile ()
     local ipv4_addr=$4
     local ipv4_gateway=$5
 
-    echo "$NMCLI connection add type ethernet con-name "\""$profile"\"" ifname "\""$interface"\""" >&2
+    # echo "$NMCLI connection add type ethernet con-name "\""$profile"\"" ifname "\""$interface"\""" >&2
     $NMCLI connection add type ethernet con-name "$profile" ifname "$interface"
 
-    if test ."$ipv4_addr" != .''; then
-        $NMCLI connection modify "$profile" ipv4.addresses "$ipv4_addr"
-    fi
-
-    if test ."mode" != .'ap' -a ."$ipv4_gateway" != .''; then
-        $NMCLI connection modify "$profile" ipv4.gateway "$ipv4_gateway"
-    fi
-
-    if test ."$mode" = .'ap'; then
-        $NMCLI connection modify "$profile" ipv4.method shared
-    fi
+    case "$mode" in
+        ap)
+            $NMCLI connection modify "$profile" ipv4.method shared
+            $NMCLI connection modify "$profile" ipv4.addresses "$ipv4_addr"
+            ;;
+        gw)
+            if test ."$ipv4_addr" = .''; then
+                $NMCLI connection modify "$profile" ipv4.method auto
+            else
+                $NMCLI connection modify "$profile" ipv4.method manual
+                $NMCLI connection modify "$profile" ipv4.addresses "$ipv4_addr"
+                if test ."$ipv4_gateway" != .''; then
+                    $NMCLI connection modify "$profile" ipv4.gateway "$ipv4_gateway"
+                fi
+            fi
+            ;;
+        ll)
+            $NMCLI connection modify "$profile" ipv4.method link-local
+            ;;
+    esac
 }
 
 # create_wifi_profile: Create NetworkManager WiFi profile.
-#     Mode is either `ap' for an access point or `gw' for a gateway.
+#     Mode is one of `ap' for access point, `gw' for gateway or 'll'
+#     for link-local.
 create_wifi_profile ()
 {
     local mode=$1
@@ -90,22 +101,31 @@ create_wifi_profile ()
     $NMCLI connection modify "$profile" wifi-sec.key-mgmt wpa-psk
     $NMCLI connection modify "$profile" wifi-sec.psk "$password"
 
-    if test ."$ipv4_addr" != .''; then
-        $NMCLI connection modify "$profile" ipv4.addresses "$ipv4_addr"
-    fi
-
-    if test ."mode" != .'ap' -a ."$ipv4_gateway" != .''; then
-        $NMCLI connection modify "$profile" ipv4.gateway "$ipv4_gateway"
-    fi
-
-    if test ."$mode" = ."ap"; then
-        $NMCLI connection modify "$profile" wifi.mode ap
-        $NMCLI connection modify "$profile" wifi.band "$wifi_band"
-        $NMCLI connection modify "$profile" ipv4.method shared
-        $NMCLI connection modify "$profile" wifi-sec.proto rsn
-        $NMCLI connection modify "$profile" wifi-sec.group ccmp
-        $NMCLI connection modify "$profile" wifi-sec.pairwise ccmp
-    fi
+    case "$mode" in
+        ap)
+            $NMCLI connection modify "$profile" ipv4.method shared
+            $NMCLI connection modify "$profile" ipv4.addresses "$ipv4_addr"
+            $NMCLI connection modify "$profile" wifi.mode ap
+            $NMCLI connection modify "$profile" wifi.band "$wifi_band"
+            $NMCLI connection modify "$profile" wifi-sec.proto rsn
+            $NMCLI connection modify "$profile" wifi-sec.group ccmp
+            $NMCLI connection modify "$profile" wifi-sec.pairwise ccmp
+            ;;
+        gw)
+            if test ."$ipv4_addr" = .''; then
+                $NMCLI connection modify "$profile" ipv4.method auto
+            else
+                $NMCLI connection modify "$profile" ipv4.method manual
+                $NMCLI connection modify "$profile" ipv4.addresses "$ipv4_addr"
+                if test ."$ipv4_gateway" != .''; then
+                    $NMCLI connection modify "$profile" ipv4.gateway "$ipv4_gateway"
+                fi
+            fi
+            ;;
+        ll)
+            $NMCLI connection modify "$profile" ipv4.method link-local
+            ;;
+    esac
 }
 
 # disconnect_interface: Bring down any connection on the given interface.
@@ -179,12 +199,31 @@ get_managed_interfaces ()
     done
 }
 
-# network_accessible: Return true if network accessible, otherwise false.
-network_accessible ()
+# interface_profiles: Return profile(s) for given interface.
+interface_profiles ()
 {
-    local status=$($NMCLI networking connectivity check)
+    local interface=$1
 
-    test ."$status" != .'none' && test ."$status" != .'unknown'
+    local profile_found=false
+    local device
+    local profile
+    local profiles
+
+    mapfile -t profiles < <(get_active_profiles ethernet)
+
+    for profile in "${profiles[@]}"; do
+        device=$(
+            $NMCLI --terse --fields GENERAL.DEVICES connection show "$profile" |
+                $AWK -F: '{ print $2 }'
+            )
+        if test ."$device" = ."$interface"; then
+            echo "$profile"
+            profile_found=true
+        fi
+    done
+    if ! $profile_found; then
+        return 1
+    fi
 }
 
 # internet_accessible: Return true if internet accessible, otherwise false.
@@ -193,6 +232,15 @@ internet_accessible ()
     local status=$($NMCLI networking connectivity check)
 
     test ."$status" = .'full'
+}
+
+# ipv4_addresses: Return IPv4 address(es) bound to given interface.
+ipv4_addresses ()
+{
+    local interface=$1
+
+    $NMCLI --terse --fields IP4.ADDRESS device show "$interface" |
+        $AWK -F: '{ print $2 }'
 }
 
 # is_active_profile: Return true if given profile is active, otherwise false.
@@ -257,6 +305,14 @@ is_wifi_profile ()
     test ."$status" = .'802-11-wireless'
 }
 
+# network_accessible: Return true if network accessible, otherwise false.
+network_accessible ()
+{
+    local status=$($NMCLI networking connectivity check)
+
+    test ."$status" != .'none' && test ."$status" != .'unknown'
+}
+
 # remove_previous_profile: Remove given profile if it already exists.
 remove_previous_profile ()
 {
@@ -316,7 +372,7 @@ validate_ipv4_address ()
 }
 
 # validate_ipv4_gateway: Verify format of given dotted quad.
-validate_ipv4_address ()
+validate_ipv4_gateway ()
 {
     local dotted_quad=$1
 

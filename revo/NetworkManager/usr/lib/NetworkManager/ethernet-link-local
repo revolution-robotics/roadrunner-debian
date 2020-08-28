@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+#
+# @(#) ethernet-link-local
+#
+# Copyright © 2020, Revolution Robotics, Inc.
+#
+# This script creates and activates a NetworkManger IPv4LL profile.
+#
+script_name=${0##*/}
+script_dir=${0%/*}
+
+: ${CAT:='/bin/cat'}
+
+source "${script_dir}/ip-funcs"
+source "${script_dir}/nm-funcs"
+
+usage ()
+{
+    $CAT <<EOF
+Usage: $script_name -p PROFILE -i INTERFACE OPTIONS
+where OPTIONS are:
+  -h|--help      Display help, then exit
+  -p|--profile=PROFILE
+                 Set connection profile name to PROFILE (e.g., eth0-ll)
+  -i|--interface=INTERFACE
+                 Set network interface to INTERFACE (e.g., eth0)
+EOF
+}
+
+declare profile
+declare interface
+
+declare opts
+declare status
+declare -r short_opts=h,i:,p:
+declare -r long_opts=help,interface:,profile:
+
+opts=$(
+    getopt --name "$script_name" --options "$short_opts"  \
+           --longoptions "$long_opts" -- "$@"
+    )
+
+status=$?
+if (( status != 0 )); then
+    exit 1
+fi
+
+eval set -- "$opts"
+
+while true; do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -i|--interface)
+            interface=$2
+            ;;
+        -p|--profile)
+            profile=$2
+            ;;
+        --)
+            break
+            ;;
+    esac
+    shift 2
+done
+
+if test ."$profile" = .''; then
+    echo "$script_name: $profile: Not a valid profile name" >&2
+    exit 1
+fi
+
+validate_interface "$interface" || exit $?
+
+disconnect_interface "$interface"
+remove_previous_profile "$profile"
+create_ethernet_profile ll "$profile" "$interface"
+activate_profile "$profile"
