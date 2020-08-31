@@ -14,12 +14,10 @@ script_dir=${0%/*}
 source "${script_dir}/ip-funcs"
 source "${script_dir}/nm-funcs"
 
-declare profile
-declare interface=${2:-$(get_managed_interfaces wifi | head -1)}
-declare ipv4_addr
-declare ipv4_gateway
-declare ssid
-declare password
+declare -A param=(
+    [mode]=gw
+    [interface]=$(get_managed_interfaces wifi | head -1)
+)
 
 usage ()
 {
@@ -28,25 +26,29 @@ Usage: $script_name -p PROFILE -i INTERFACE -s SSID -p PASSWORD OPTIONS
 where OPTIONS are:
   -h|--help      Display help, then exit
   -p|--profile=PROFILE
-                 Set connection profile name to PROFILE (e.g., ${interface}-gw)
+                 Set connection profile name to PROFILE (e.g., ${param[interface]}-gw)
   -i|--interface=INTERFACE
-                 Set network interface to INTERFACE (default: ${interface})
+                 Set network interface to INTERFACE (default: ${param[interface]})
   -s|--ssid      Set WiFi network name to SSID
   -P|--password=PASSWORD
                  Set WiFi network password to PASSWORD
   -a|--address=IPv4_ADDR
-                 Set IPv4 address/netmask to IPv4_ADDR (optional)
+                 Set IPv4 address/netmask of interface to IPv4_ADDR (optional)
                  (e.g., 10.100.0.25/24)
   -g|--gateway=IPv4_GATEWAY
                  Set IPv4 address of gateway to IPv4_GATEWAY (optional)
                  (e.g., 10.100.0.1)
+  -o|--priority=PRIORITY
+                 Set connection priority to PRIORITY
+  -r|--retries=RETRIES
+                 Set connection retries to RETRIES
 EOF
 }
 
 declare opts
 declare status
-declare -r short_opts=a:,g:,h,i:,P:,p:,s:
-declare -r long_opts=address:,gateway:,help,interface:,password:,profile:,ssid:
+declare -r short_opts=a:,g:,h,i:,o:,P:,p:,r:,s:
+declare -r long_opts=address:,gateway:,help,interface:,password:,priority:,profile:,retries:,ssid:
 
 opts=$(
     getopt --name "$script_name" --options "$short_opts"  \
@@ -55,7 +57,7 @@ opts=$(
 
 status=$?
 if (( status != 0 )); then
-    exit 1
+    exit $status
 fi
 
 eval set -- "$opts"
@@ -63,26 +65,32 @@ eval set -- "$opts"
 while true; do
     case "$1" in
         -a|--address)
-            ipv4_addr=$2
+            param[ipv4_addr]=$2
             ;;
         -g|--gateway)
-            ipv4_gateway=$2
+            param[ipv4_gateway]=$2
             ;;
         -h|--help)
             usage
             exit 0
             ;;
         -i|--interface)
-            interface=$2
+            param[interface]=$2
+            ;;
+        -o|--priority)
+            param[priority]=$2
             ;;
         -P|--password)
-            password=$2
+            param[password]=$2
             ;;
         -p|--profile)
-            profile=$2
+            param[profile]=$2
+            ;;
+        -r|--retries)
+            param[retries]=$2
             ;;
         -s|--ssid)
-            ssid=$2
+            param[ssid]=$2
             ;;
         --)
             break
@@ -91,22 +99,22 @@ while true; do
     shift 2
 done
 
-if test ."$profile" = .''; then
-    echo "$script_name: $profile: Not a valid profile name" >&2
+if test ."${param[profile]}" = .''; then
+    echo "$script_name: $param[profile]: Not a valid profile name" >&2
     exit 1
 fi
 
-validate_interface "$interface" || exit $?
+validate_interface "${param[interface]}" || exit $?
 
-if test ."$ipv4_addr" != .''; then
-    validate_ipv4_address "$ipv4_addr" || exit $?
+if test ."${param[ipv4_addr]}" != .''; then
+    validate_ipv4_address "${param[ipv4_addr]}" || exit $?
 fi
 
-if test ."$ipv4_gateway" != .''; then
-    validate_ipv4_gateway "$ipv4_gateway" || exit $?
+if test ."${param[ipv4_gateway]}" != .''; then
+    validate_ipv4_gateway "${param[ipv4_gateway]}" || exit $?
 fi
 
-disconnect_interface "$interface"
-remove_previous_profile "$profile"
-create_wifi_profile gw "$profile" "$interface" "$ssid" "$password" "$ipv4_addr" "$ipv4_gateway"
-activate_profile "$profile" 'toggle'
+disconnect_interface "${param[interface]}"
+remove_previous_profile "${param[profile]}"
+create_wifi_profile 'param'
+activate_profile "${param[profile]}" 'toggle'

@@ -4,10 +4,17 @@
 #
 # Copyright © 2020, Revolution Robotics, Inc.
 #
+# This script checks network connectivity status and adjusts link LEDs
+# accordingly. NetworkManager reports "limited" connectivity even when
+# no connection profiles are active, so a heuristic is used to decide
+# how "limited" the connection status is.
+#
 : ${AWK:='/usr/bin/awk'}
 : ${FLOCK:='/usr/bin/flock'}
+: ${IP:='/sbin/ip'}
 : ${NMCLI:='/usr/bin/nmcli'}
 : ${SED:='/bin/sed'}
+: ${SLEEP:='/bin/sleep'}
 : ${TR:='/usr/bin/tr'}
 
 #  Avoid multiple instances of this script.
@@ -18,15 +25,41 @@ fi
 declare interface=$1
 declare status=$2
 
-source "/usr/lib/NetworkManager/nm-funcs.sh"
+source "/usr/lib/NetworkManager/nm-funcs"
+
+declare device
+declare -a devices
+declare device_active=false
 
 if internet_accessible; then
     echo 1 >/sys/class/leds/link-blue-led/brightness
     echo 0 >/sys/class/leds/link-red-led/brightness
 elif network_accessible; then
-    echo 1 >/sys/class/leds/link-blue-led/brightness
-    echo 1 >/sys/class/leds/link-red-led/brightness
+
+    # Filter devices on queuing discipline - `mq' and `pfifo' hopefully
+    # correspond to ethernet and WiFi interfaces.
+    mapfile -t devices < <(
+        $IP -o link show |
+            $AWK '/qdisc (mq|pfifo)/ { sub(/:/, "", $2); print $2 }'
+    )
+
+    for device in "${devices[@]}"; do
+
+        # device has active connection
+        if interface_profiles "$device" >/dev/null 2>&1; then
+            device_active=true
+            break
+        fi
+    done
+
+    if $device_active; then
+        echo 1 >/sys/class/leds/link-blue-led/brightness
+        echo 1 >/sys/class/leds/link-red-led/brightness
+    else
+        echo 0 >/sys/class/leds/link-blue-led/brightness
+        echo 1 >/sys/class/leds/link-red-led/brightness
+    fi
 else
-    echo 1 >/sys/class/leds/link-blue-led/brightness
+    echo 0 >/sys/class/leds/link-blue-led/brightness
     echo 1 >/sys/class/leds/link-red-led/brightness
 fi

@@ -14,6 +14,10 @@ script_dir=${0%/*}
 source "${script_dir}/ip-funcs"
 source "${script_dir}/nm-funcs"
 
+declare -A param=(
+    [mode]=ll
+)
+
 usage ()
 {
     $CAT <<EOF
@@ -24,16 +28,17 @@ where OPTIONS are:
                  Set connection profile name to PROFILE (e.g., eth0-ll)
   -i|--interface=INTERFACE
                  Set network interface to INTERFACE (e.g., eth0)
+  -o|--priority=PRIORITY
+                 Set connection priority to PRIORITY
+  -r|--retries=RETRIES
+                 Set connection retries to RETRIES
 EOF
 }
 
-declare profile
-declare interface
-
 declare opts
 declare status
-declare -r short_opts=h,i:,p:
-declare -r long_opts=help,interface:,profile:
+declare -r short_opts=h,i:,o:,p:,r:
+declare -r long_opts=help,interface:,priority:,profile:,retries:
 
 opts=$(
     getopt --name "$script_name" --options "$short_opts"  \
@@ -42,7 +47,7 @@ opts=$(
 
 status=$?
 if (( status != 0 )); then
-    exit 1
+    exit $status
 fi
 
 eval set -- "$opts"
@@ -54,10 +59,16 @@ while true; do
             exit 0
             ;;
         -i|--interface)
-            interface=$2
+            param[interface]=$2
+            ;;
+        -o|--priority)
+            param[priority]=$2
             ;;
         -p|--profile)
-            profile=$2
+            param[profile]=$2
+            ;;
+        -r|--retries)
+            param[retries]=$2
             ;;
         --)
             break
@@ -66,14 +77,14 @@ while true; do
     shift 2
 done
 
-if test ."$profile" = .''; then
-    echo "$script_name: $profile: Not a valid profile name" >&2
+if test ."${param[profile]}" = .''; then
+    echo "$script_name: ${param[profile]}: Not a valid profile name" >&2
     exit 1
 fi
 
-validate_interface "$interface" || exit $?
+validate_interface "${param[interface]}" || exit $?
 
-disconnect_interface "$interface"
-remove_previous_profile "$profile"
-create_ethernet_profile ll "$profile" "$interface"
-activate_profile "$profile"
+disconnect_interface "${param[interface]}"
+remove_previous_profile "${param[profile]}"
+create_ethernet_profile 'param'
+activate_profile "${param[profile]}"

@@ -48,82 +48,100 @@ connection_state ()
 }
 
 # create_ethernet_profile: Create NetworkManager Ethernet profile.
-#     Mode is one of `ap' for access point, `gw' for gateway or 'll'
+#     $argv[mode] is one of `ap' for access point, `gw' for gateway or 'll'
 #     for link-local.
 create_ethernet_profile ()
 {
-    local mode=$1
-    local profile=$2
-    local interface=$3
-    local ipv4_addr=$4
-    local ipv4_gateway=$5
+    local -n argv=$1
 
-    # echo "$NMCLI connection add type ethernet con-name "\""$profile"\"" ifname "\""$interface"\""" >&2
-    $NMCLI connection add type ethernet con-name "$profile" ifname "$interface"
+    $NMCLI connection add type ethernet con-name "${argv[profile]}" \
+           ifname "${argv[interface]}"
 
-    case "$mode" in
+    if test ."${argv[priority]}" != .''; then
+        $NMCLI connection modify "${argv[profile]}" \
+               connection.autoconnect-priority "${argv[priority]}"
+    fi
+
+    if test ."${argv[retries]}" != .''; then
+        $NMCLI connection modify "${argv[profile]}" \
+               connection.autoconnect-retries "${argv[retries]}"
+    fi
+
+    case "${argv[mode]}" in
         ap)
-            $NMCLI connection modify "$profile" ipv4.method shared
-            $NMCLI connection modify "$profile" ipv4.addresses "$ipv4_addr"
+            $NMCLI connection modify "${argv[profile]}" ipv4.method shared
+            $NMCLI connection modify "${argv[profile]}" \
+                   ipv4.addresses "${argv[ipv4_addr]}"
             ;;
         gw)
-            if test ."$ipv4_addr" = .''; then
-                $NMCLI connection modify "$profile" ipv4.method auto
+            if test ."${argv[ipv4_addr]}" = .''; then
+                $NMCLI connection modify "${argv[profile]}" ipv4.method auto
             else
-                $NMCLI connection modify "$profile" ipv4.method manual
-                $NMCLI connection modify "$profile" ipv4.addresses "$ipv4_addr"
-                if test ."$ipv4_gateway" != .''; then
-                    $NMCLI connection modify "$profile" ipv4.gateway "$ipv4_gateway"
+                $NMCLI connection modify "${argv[profile]}" ipv4.method manual
+                $NMCLI connection modify "${argv[profile]}" \
+                       ipv4.addresses "${argv[ipv4_addr]}"
+                if test ."${argv[ipv4_gateway]}" != .''; then
+                    $NMCLI connection modify "${argv[profile]}" \
+                           ipv4.gateway "${argv[ipv4_gateway]}"
                 fi
             fi
             ;;
         ll)
-            $NMCLI connection modify "$profile" ipv4.method link-local
+            $NMCLI connection modify "${argv[profile]}" ipv4.method link-local
             ;;
     esac
 }
 
 # create_wifi_profile: Create NetworkManager WiFi profile.
-#     Mode is one of `ap' for access point, `gw' for gateway or 'll'
+#     $argv[mode] is one of `ap' for access point, `gw' for gateway or 'll'
 #     for link-local.
 create_wifi_profile ()
 {
-    local mode=$1
-    local profile=$2
-    local interface=$3
-    local ssid=$4
-    local password=$5
-    local wifi_band=$6
-    local ipv4_addr=$7
+    local -n argv=$1
 
-    # echo "$NMCLI connection add type wifi con-name "\""$profile"\"" ifname "\""$interface"\"" ssid "\""$ssid"\"""
-    $NMCLI connection add type wifi con-name "$profile" ifname "$interface" ssid "$ssid"
-    $NMCLI connection modify "$profile" wifi-sec.key-mgmt wpa-psk
-    $NMCLI connection modify "$profile" wifi-sec.psk "$password"
+    $NMCLI connection add type wifi con-name "${argv[profile]}" \
+           ifname "${argv[interface]}" ssid "${argv[ssid]}"
+    $NMCLI connection modify "${argv[profile]}" wifi-sec.key-mgmt wpa-psk
+    $NMCLI connection modify "${argv[profile]}" \
+           wifi-sec.psk "${argv[password]}"
 
-    case "$mode" in
+    if test ."${argv[priority]}" != .''; then
+        $NMCLI connection modify "${argv[profile]}" \
+               connection.autoconnect-priority "${argv[priority]}"
+    fi
+
+    if test ."${argv[retries]}" != .''; then
+        $NMCLI connection modify "${argv[profile]}" \
+               connection.autoconnect-retries "${argv[retries]}"
+    fi
+
+    case "${argv[mode]}" in
         ap)
-            $NMCLI connection modify "$profile" ipv4.method shared
-            $NMCLI connection modify "$profile" ipv4.addresses "$ipv4_addr"
-            $NMCLI connection modify "$profile" wifi.mode ap
-            $NMCLI connection modify "$profile" wifi.band "$wifi_band"
-            $NMCLI connection modify "$profile" wifi-sec.proto rsn
-            $NMCLI connection modify "$profile" wifi-sec.group ccmp
-            $NMCLI connection modify "$profile" wifi-sec.pairwise ccmp
+            $NMCLI connection modify "${argv[profile]}" ipv4.method shared
+            $NMCLI connection modify "${argv[profile]}" \
+                   ipv4.addresses "${argv[ipv4_addr]}"
+            $NMCLI connection modify "${argv[profile]}" wifi.mode ap
+            $NMCLI connection modify "${argv[profile]}" \
+                   wifi.band "${argv[wifi_band]}"
+            $NMCLI connection modify "${argv[profile]}" wifi-sec.proto rsn
+            $NMCLI connection modify "${argv[profile]}" wifi-sec.group ccmp
+            $NMCLI connection modify "${argv[profile]}" wifi-sec.pairwise ccmp
             ;;
         gw)
-            if test ."$ipv4_addr" = .''; then
-                $NMCLI connection modify "$profile" ipv4.method auto
+            if test ."${argv[ipv4_addr]}" = .''; then
+                $NMCLI connection modify "${argv[profile]}" ipv4.method auto
             else
-                $NMCLI connection modify "$profile" ipv4.method manual
-                $NMCLI connection modify "$profile" ipv4.addresses "$ipv4_addr"
-                if test ."$ipv4_gateway" != .''; then
-                    $NMCLI connection modify "$profile" ipv4.gateway "$ipv4_gateway"
+                $NMCLI connection modify "${argv[profile]}" ipv4.method manual
+                $NMCLI connection modify "${argv[profile]}" \
+                       ipv4.addresses "${argv[ipv4_addr]}"
+                if test ."${argv[ipv4_gateway]}" != .''; then
+                    $NMCLI connection modify "${argv[profile]}" \
+                           ipv4.gateway "${argv[ipv4_gateway]}"
                 fi
             fi
             ;;
         ll)
-            $NMCLI connection modify "$profile" ipv4.method link-local
+            $NMCLI connection modify "${argv[profile]}" ipv4.method link-local
             ;;
     esac
 }
