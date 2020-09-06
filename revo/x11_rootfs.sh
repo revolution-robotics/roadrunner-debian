@@ -556,6 +556,11 @@ EOF
 
 
     # BEGIN -- REVO i.MX7D cleanup
+    # Run curl with system root certificates file.
+    mv "${ROOTFS_BASE}/usr/bin/curl"{,.dist}
+    install -m 755 "${G_VENDOR_PATH}/x11_resources/curl/curl" \
+            "${ROOTFS_BASE}/usr/bin/curl"
+
     # Restore APT source list to default Debian mirror.
     cat >"${ROOTFS_BASE}/etc/apt/sources.list" <<EOF
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
