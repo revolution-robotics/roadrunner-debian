@@ -72,6 +72,16 @@ GTAGS
 /toolchain
 /tmp
 
+# certificates, keys and signing requests
+*.pem
+*.key
+*.crt
+*.req
+*.csr
+
+# javascript artifacts
+node_modules
+
 *.log
 *.orig
 *.scr

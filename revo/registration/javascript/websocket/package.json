@@ -1,0 +1,11 @@
+{
+  "name": "websocket-examples",
+  "version": "1.0.0",
+  "description": "WebSocket examples",
+  "main": "index.js",
+  "author": "Andrew L. Moore (https://github.com/slewsys/ws-examples)",
+  "license": "MIT",
+  "dependencies": {
+    "websocket": "^1.0.32"
+  }
+}
