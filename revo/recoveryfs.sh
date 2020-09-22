@@ -63,6 +63,11 @@ make_debian_recoveryfs ()
     # cp -r ${G_VENDOR_PATH}/deb/shared-mime-info/* \
     #    ${RECOVERYFS_BASE}/srv/local-apt-repository
 
+    # BEGIN -- REVO i.MX7D step-cli
+    cp -r ${G_VENDOR_PATH}/deb/step-cli/* \
+       ${RECOVERYFS_BASE}/srv/local-apt-repository
+    # END -- REVO i.MX7D step-cli
+
     # add mirror to source list
     cat >etc/apt/sources.list <<EOF
 deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
@@ -265,6 +270,8 @@ protected_install can-utils
 # protected_install pm-utils
 
 # BEGIN -- REVO i.MX7D networking
+protected_install step-cli
+
 # ifupdown is superceded by NetworkManager
 apt-get -y purge ifupdown
 rm -f /etc/network/interfaces

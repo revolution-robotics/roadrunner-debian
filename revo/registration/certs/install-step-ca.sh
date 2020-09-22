@@ -1,0 +1,315 @@
+#!/usr/bin/env bash
+#
+# @(#) install-step-ca
+#
+# This script installs Debian packages `step-cli' and `step-certificates'
+# to Ubuntu running on x86_64 architecture.
+#
+declare script_name=${0##*/}
+
+declare cli_uri=https://github.com/smallstep/cli
+declare certificates_uri=https://github.com/smallstep/certificates
+
+declare -A param=(
+    [username]=step
+    [groupname]=step
+    [name]=RevoEdge
+    [provisioner]=step
+    [fqdn]=ca.revotics.slewsys.org
+    [address]=:14727
+    [template]=init-step-ca.in
+    [logdir]=/var/log/step
+    [password_file]=step-ca.pwd
+    [provisioner_password_file]=provisioner.pwd
+)
+
+: ${STEP_CLI:='/usr/bin/step-cli'}
+: ${STEP_CA:='/usr/bin/step-ca'}
+
+if getent passwd "${param[username]}" >/dev/null; then
+    declare homedir=$(
+        getent passwd "${param[username]}" |
+            awk -F: '{ print $6 }'
+            )
+    : ${STEPPATH:="${homedir}/.step"}
+else
+    : ${STEPPATH:="/home/${param[username]}/.step"}
+fi
+
+usage ()
+{
+    local -n argv=$1
+
+    cat <<EOF
+Usage: $script_name OPTIONS
+where OPTIONS are:
+  -h|--help  Display help, then exit.
+  -a|--address=IPADDR:PORT
+             Set IP address of certificate authority web UI.
+             (default: ${argv[address]})
+  -f|--fqdn=HOSTNAME
+             Set DNS host name of certificate authority.
+             (default: ${argv[fqdn]})
+  -g|--group-name=NAME
+             Set group of certificate authority owner.
+             (default: ${argv[groupname]})
+  -l|--logdir=DIR
+             Set logging directory of  certificate authority service.
+             (default: ${argv[logdir]})
+  -n|--name=CN
+             Set common name of certificate authority (\`Root CA' is appended).
+             (default: ${argv[name]})
+  -p|--provisioner=NAME
+             Set name of certificate authority JWK provisioner.
+             (default: ${argv[provisioner]})
+  -P|--password-file=PATHNAME
+             Set name of file containing certificate authority password.
+             (default: ${STEPPATH}/secrets/${argv[password_file]})
+  -Q|--provisioner-password-file=PATHNAME
+             Set name of file containing provisioner password.
+             (default: ${STEPPATH}/secrets/${argv[provisioner_password_file]})
+  -t|--template=PATHNAME
+             Set name of certificate authority initialization template.
+             (default: ${argv[template]})
+  -u|--user-name=NAME
+             Set name of certificate authority owner.
+             (default: ${argv[groupname]})
+EOF
+}
+
+# Return latest GIT repository tag of the form vX.Y.Z.
+get-current-tag ()
+{
+    local uri=$1
+
+    # GIT output format:
+    #     f8bc862f1f40000864555374c08f59670f2cf6b9	refs/tags/v0.14.2
+    #     3137b01136102d36f7631c0ecbd344bfe60090b3	refs/tags/v0.14.2-rc.1
+    #     1b757d26aa177e1ad816b51f74cbfbdd5d69d73a	refs/tags/v0.14.3
+    #     ea17bc44bce8630e93a997fd5de41d22a0fa061e	refs/tags/v0.14.4-rc.1
+    #
+    # After filtering and sorting:
+    #     v0.14.2
+    #     v0.14.3
+    git ls-remote --tags "$uri" |
+        grep -v -- '-rc\.' |
+        sed 's;.*refs/tags/;;' |
+        sort --version-sort -k1.2 |
+        tail -1
+}
+
+fetch-and-install-dpkg ()
+{
+    local uri=$1
+
+    local tag=$(get-current-tag "$uri")
+    local debian_pkg=step-${uri##*/}_${tag#v}_amd64.deb
+
+    local tmpdir=$(mktemp -d "/tmp/${FUNCNAME[0]}.XXXXX")
+
+    trap 'rm -rf "$tmpdir"; exit' 0 1 2 15
+
+    cd "$tmpdir"
+    curl -C - -LO "${uri}/releases/download/${tag}/${debian_pkg}"
+    sudo apt install "./${debian_pkg}"
+    cd "$OLDPWD"
+
+    rm -rf "$tmpdir"
+    trap - 0 1 2 15
+}
+
+initialize-step-ca ()
+{
+    local -n argv=$1
+
+    if ! getent group "${argv[groupname]}" >/dev/null; then
+        sudo groupadd "${argv[groupname]}"
+    fi
+
+    if ! getent passwd "${argv[username]}" >/dev/null; then
+        sudo useradd -g "${argv[groupname]}" -c 'Smallstep CA' -m \
+             -s /bin/bash "${argv[username]}"
+    fi
+
+    # Update /etc/hosts with IPv4LL hostname.
+    local gw_ip=$(hostname -I | awk '{ print $1 }')
+    local ipv4ll=$(hostname).local
+
+    sudo sed -i -e "\$a $gw_ip\t$ipv4ll" /etc/hosts
+
+    local tmpfile=$(mktemp "/tmp/${FUNCNAME[0]}.XXXXX")
+
+    trap 'rm -f "$tmpfile"; exit' 0 1 2 15
+
+    sed -e "s|@NAME@|${argv[name]}|" \
+        -e "s|@PROVISIONER@|${argv[provisioner]}|" \
+        -e "s|@FQDN@|${argv[fqdn]}|" \
+        -e "s|@ADDRESS@|${argv[address]}|" \
+        -e "s|@PASSWORD_FILE@|${STEPPATH}/secrets/${argv[password_file]}|" \
+        -e "s|@PROVISIONER_PASSWORD_FILE@|${STEPPATH}/secrets/${argv[provisioner_password_file]}|" \
+        "${argv[template]}" >"$tmpfile"
+
+    chmod 0755 "$tmpfile"
+    sudo -u "${argv[username]}" STEPPATH="$STEPPATH" bash -c "$tmpfile"
+
+    rm -f "$tmpfile"
+    trap - 0 1 2 15
+}
+
+deploy-step-ca-service ()
+{
+    local -n argv=$1
+
+    # If /var/log is mounted as tmpfs, populate with logdir.
+    if test -f /usr/lib/tmpfiles.d/var-log.conf; then
+        if ! grep -q "${argv[logdir]}" /usr/lib/tmpfiles.d/var-log.conf; then
+            sudo sed -i  -e "\$a d ${argv[logdir]}\t\t0755 ${argv[username]}\t${argv[groupname]}\t\t-" /usr/lib/tmpfiles.d/var-log.conf
+        fi
+    fi
+    sudo install -d -m 0755 -o "${argv[username]}" -g "${argv[groupname]}" \
+         /var/log/step
+
+    # Rotate step-ca log.
+    local tmpfile=$(mktemp "/tmp/${FUNCNAME[0]}.XXXXX")
+
+    trap 'rm -f "$tmpfile"; exit' 0 1 2 15
+
+    cat >$tmpfile <<EOF
+/var/log/step/step-ca.log
+{
+  rotate 12
+  monthly
+  compress
+  missingok
+  notifempty
+}
+EOF
+
+    sudo install -m 644 "$tmpfile" /etc/logrotate.d/step
+
+    rm -f "$tmpfile"
+    trap - 0 1 2 15
+
+    # Install and enable step-ca.service.
+    local tmpfile=$(mktemp "/tmp/${FUNCNAME[0]}.XXXXX")
+
+    trap 'rm -f "$tmpfile"; exit' 0 1 2 15
+    cat >$tmpfile <<EOF
+[Unit]
+Description=${argv[name]} Root Certificate Authority
+After=syslog.target network.target
+
+[Service]
+Type=simple
+User=${argv[username]}
+Group=${argv[groupname]}
+ExecStart=/bin/bash -c "step-ca \$(step path)/config/ca.json --password-file=\$(step path)/secrets/${argv[password_file]} >>${argv[logdir]}/step-ca.log 2>&1"
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo install -m 644 "$tmpfile" /usr/lib/systemd/system/step-ca.service
+
+    rm -f "$tmpfile"
+    trap - 0 1 2 15
+}
+
+issue-link-local-certificate ()
+{
+    local -n argv=$1
+
+    sudo -E -u ${argv[username]} provisioner=${argv[provisioner]} \
+         STEPPATH=$STEPPATH bash <<'EOF'
+    declare link_local=$(hostname).local
+    declare token=$(
+        step ca token "$link_local" --issuer "$provisioner" --password-file "$(step path)/secrets/provisioner.pwd"
+          )
+    eval cd ~$USER
+    step ca certificate "$link_local" "${link_local}.crt" "${link_local}.key" --token "$token"
+EOF
+}
+
+declare opts
+declare status
+declare -r short_opts=a:,f:,g:,h,l:,n:,p:,P:,Q:,t:,u:
+declare -r long_opts=address:,fqdn:,group-name:,help,logdir:,provisioner:,password-file:,provisioner-password-file:,template:,user-name:
+
+opts=$(
+    getopt --name "$script_name" --options "$short_opts"  \
+           --longoptions "$long_opts" -- "$@"
+    )
+
+status=$?
+if (( status != 0 )); then
+    exit $status
+fi
+
+eval set -- "$opts"
+
+while true; do
+    case "$1" in
+        -a|--address)
+            param[address]=$2
+            ;;
+        -f|--fqdn)
+            param[fqdn]=$2
+            ;;
+        -g|--group-name)
+            param[groupname]=$2
+            ;;
+        -h|--help)
+            usage 'param'
+            exit 0
+            ;;
+        -l|--logdir)
+            param[logdir]=$2
+            ;;
+        -n|--name)
+            param[name]=$2
+            ;;
+        -p|--provisioner)
+            param[provisioner]=$2
+            ;;
+        -P|--password-file)
+            param[password_file]=$2
+            ;;
+        -Q|--provisioner-password-file)
+            param[provisioner_password_file]=$2
+            ;;
+        -t|--template)
+            param[template]=$2
+            ;;
+        -u|--username)
+            param[username]=$2
+            if getent passwd "$2" >/dev/null; then
+                STEPPATH=$(getent passwd "$2" | awk -F: '{ print $6 }')/.step
+            else
+                STEPPATH=/home/$2/.step
+            fi
+            ;;
+        --)
+            break
+            ;;
+    esac
+    shift 2
+done
+
+if test ! -x "$STEP_CLI"; then
+    fetch-and-install-dpkg "$cli_uri"
+fi
+
+if test ! -x "$STEP_CA"; then
+    fetch-and-install-dpkg "$certificates_uri"
+fi
+
+initialize-step-ca 'param'
+deploy-step-ca-service 'param'
+sudo systemctl enable step-ca
+sudo systemctl start step-ca
+sudo systemctl daemon-reload
+issue-link-local-certificate 'param'
+
+sudo systemctl status step-ca

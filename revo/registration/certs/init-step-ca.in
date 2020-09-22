@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+#
+# This script initializes the step CA.
+
+# Exit immediately on error.
+set -e
+
+# Return uniformly distributed random integer in the range [0,$bound).
+random-integer ()
+{
+    local -i bound=${1:-65536}
+
+    local -i bytes=2
+
+    # Max value of `od' statement is 65535, so `bc' computes a
+    # value less than $bound truncated (i.e., rounded down) to an
+    # integer.
+    bc <<< "scale=0; $(od -An -l -N$bytes /dev/urandom) * $bound / 65536"
+}
+
+# Return string of uniformly distributed random printable-ASCII chars.
+# If length is not specified, it defaults to 64.
+random-string ()
+{
+    local -i len=${1:-64}
+
+    local -a ascii_chars=( {0..9} {a..z} {A..Z} \! \# \$ % \& \( \) \* + - / \< = \> @ \[ \] ^ _ \{ \| \} \~ )
+    local -i char_count=${#ascii_chars[*]}
+    local id
+
+    for i in $(seq $len); do
+        id+="${ascii_chars[$(random-integer $char_count)]}"
+    done
+    printf "%s\n" "$id"
+}
+
+init-step-ca ()
+{
+    local -n argv=$1
+
+    if test -f "${argv[password_file]}"; then
+        echo "${argv[password_file]}: File exists; Cannot overwrite"
+    else
+        install -d -m 0700 "${argv[password_file]%/*}"
+        install -m 0600 <(random-string 20) "${argv[password_file]}"
+    fi
+
+    if test -f "${argv[provisioner_password_file]}"; then
+        echo "${argv[provisioner_password_file]}: File exists; Cannot overwrite"
+    else
+        install -d -m 0700 "${argv[provisioner_password_file]%/*}"
+        install -m 0600 <(random-string 20) "${argv[provisioner_password_file]}"
+    fi
+
+    step ca init \
+         --name "${argv[name]}" \
+         --provisioner "${argv[provisioner]}" \
+         --dns "${argv[fqdn]}" \
+         --address "${argv[address]}" \
+         --password-file "${argv[password_file]}" \
+         --provisioner-password-file "${argv[provisioner_password_file]}"
+
+    # Update $(step path)/config/ca.json to:
+    #
+    #    "db": {
+    #       "type": "badgerV2",
+    #       "dataSource": "/root/.step/db",
+    #       "badgerFileLoadingMode": "FileIO"
+    #    }
+    #
+    # See: https://github.com/smallstep/certificates/issues/279#issuecomment-635686362
+    #
+    local data_source=$(jq '.db.dataSource' < "$(step path)/config/ca.json")
+
+    local tmpfile=$(mktemp "/tmp/${FUNCNAME[0]}.XXXXX")
+
+    trap 'rm -rf "$tmpfile"; exit' 0 1 2 15
+
+    jq '.db = { "type" : "badgerV2", "dataSource" : '"$data_source"', "badgerFileLoadingMode" : "FileIO" }' < "$(step path)/config/ca.json" >"$tmpfile"
+
+    mv "$(step path)/config/ca.json"{,~}
+    install -m 0644 "$tmpfile" "$(step path)/config/ca.json"
+
+    rm -f "$tmpfile"
+    trap - 0 1 2 15
+}
+
+declare -A param=(
+    [name]="@NAME@"
+    [provisioner]="@PROVISIONER@"
+    [fqdn]="@FQDN@"
+    [address]="@ADDRESS@"
+    [password_file]="@PASSWORD_FILE@"
+    [provisioner_password_file]="@PROVISIONER_PASSWORD_FILE@"
+)
+
+init-step-ca 'param'
