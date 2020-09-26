@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #
 # @(#) boot.sh
 #
@@ -64,19 +65,19 @@ setenv silent
 
 # If 0x23 is a valid I2C address...
 if test $status23 -eq 0; then
-    echo 'Digital GPIO expansion board found'
+    echo 'REVO digital GPIO expansion board detected'
     setenv fdt_file imx7d-roadrunner-dio.dtb
-    setenv kernelargs "$kernelargs REVO-DIO-v1.0"
+    setenv kernelargs "$kernelargs REVO_IND-GPIO-16_v1.0"
 
 # If 0x49 is a valid I2C address...
 elif test $status49 -eq 0; then
-    echo 'Mixed signal expansion board found'
+    echo 'REVO mixed-signal expansion board detected'
     setenv fdt_file imx7d-roadrunner-mixio.dtb
-    setenv kernelargs "$kernelargs REVO-MIXIO-v1.0"
+    setenv kernelargs "$kernelargs REVO_IOMIX-A_v1.0"
 
 # Otherwise...
 else
-    echo 'Expansion board not found'
+    echo 'Expansion board not detected'
 fi
 
 usb start
