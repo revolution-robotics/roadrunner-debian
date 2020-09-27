@@ -6,7 +6,7 @@ readonly ARCH_CPU="32BIT"
 readonly G_UBOOT_SRC_DIR="${DEF_SRC_DIR}/uboot"
 readonly G_UBOOT_GIT="https://github.com/revolution-robotics/roadrunner-uboot-imx.git"
 readonly G_UBOOT_BRANCH="imx_v2018.03_4.14.78_1.0.0_ga_var01_rr01"
-readonly G_UBOOT_REV="4fc0559d8d11f815374635be04cd2920329a35a9"
+readonly G_UBOOT_REV="8a94d2c33c7251cb24412771a3ed158c9a5cd01d"
 readonly G_UBOOT_DEF_CONFIG_MMC='mx7d_roadrunner_defconfig'
 readonly G_UBOOT_DEF_CONFIG_NAND='mx7d_roadrunner_nand_defconfig'
 readonly G_UBOOT_NAME_FOR_EMMC='u-boot.img.mmc'
@@ -18,7 +18,7 @@ readonly G_SPL_NAME_FOR_NAND='SPL.nand'
 readonly G_LINUX_KERNEL_SRC_DIR="${DEF_SRC_DIR}/kernel"
 readonly G_LINUX_KERNEL_GIT="https://github.com/revolution-robotics/roadrunner-linux-imx.git"
 readonly G_LINUX_KERNEL_BRANCH="imx_4.14.78_1.0.0_ga_var01_rr01"
-readonly G_LINUX_KERNEL_REV="9dd4c42276be25b3facb644cfadc433adde5fdc9"
+readonly G_LINUX_KERNEL_REV="91bfc10e13478365005ba56d17220a4f01cc0d1f"
 readonly G_LINUX_KERNEL_DEF_CONFIG='imx_v7_roadrunner_defconfig'
 G_LINUX_DTB="imx7d-roadrunner-mixio.dtb
         imx7d-roadrunner-dio.dtb"
