@@ -12,6 +12,7 @@ Type=oneshot
 # Give network queuing disciplines time to be loaded.
 ExecStartPre=/bin/sleep 4
 ExecStart=/bin/bash -c '/usr/sbin/commit-hostname'
+ExecStartPost=/bin/systemctl try-restart avahi-daemon.service
 ExecStartPost=/bin/systemctl disable hostname-commit
 
 [Install]
