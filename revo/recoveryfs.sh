@@ -328,9 +328,11 @@ EOF
     # fourth-stage
 
     # BEGIN -- REVO i.MX7D updates
-    # Support resizing a serial console - taken from Debian xterm package.
-    install -m 0755 ${G_VENDOR_PATH}/recovery_resources/resize \
-            ${RECOVERYFS_BASE}/usr/bin
+    # Update logrotate
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/logrotate/logrotate.conf" \
+            "${RECOVERYFS_BASE}/etc"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/logrotate/rsyslog" \
+            "${RECOVERYFS_BASE}/etc/logrotate.d"
 
     # Generate unique hostname on first boot
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/hostname-commit.service" \
@@ -352,6 +354,10 @@ EOF
             "${RECOVERYFS_BASE}/lib/systemd/system"
     ln -s '/lib/systemd/system/regenerate-ssh-host-keys.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
+
+    # Support resizing a serial console - taken from Debian xterm package.
+    install -m 0755 ${G_VENDOR_PATH}/recovery_resources/resize \
+            ${RECOVERYFS_BASE}/usr/bin
 
     # Set PATH and resize serial console window.
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/bash.bashrc" \

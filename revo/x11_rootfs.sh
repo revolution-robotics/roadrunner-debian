@@ -323,6 +323,12 @@ EOF
     # fourth-stage
 
     # BEGIN -- REVO i.MX7D updates
+    # Update logrotate
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/logrotate/logrotate.conf" \
+            "${ROOTFS_BASE}/etc"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/logrotate/rsyslog" \
+            "${ROOTFS_BASE}/etc/logrotate.d"
+
     # Generate unique hostname on first boot
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/hostname-commit.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
@@ -344,6 +350,12 @@ EOF
     ln -s '/lib/systemd/system/regenerate-ssh-host-keys.service' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
+    # Support resizing a serial console - taken from Debian xterm package.
+    if test ! -f "${ROOTFS_BASE}/usr/bin/resize"; then
+        install -m 0755 ${G_VENDOR_PATH}/recovery_resources/resize \
+                ${ROOTFS_BASE}/usr/bin
+    fi
+
     # Set PATH and resize serial console window.
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/bash.bashrc" \
             "${ROOTFS_BASE}/etc"
@@ -358,7 +370,7 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/var-log.conf" \
             "${ROOTFS_BASE}/usr/lib/tmpfiles.d"
 
-    # Mount systemd journal on tmpfs
+    # Mount systemd journal on tmpfs, /run/log/journal.
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
             "${ROOTFS_BASE}/etc/systemd"
 
