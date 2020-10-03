@@ -8,58 +8,61 @@ curl -L https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/
 
 [install-step-ca.sh](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_buster_rr01/revo/registration/certs/install-step-ca.sh)
 
-## Building `step` and `step-ca` for ARM
-To build and package `step-cli` and `step-ca`, the following tools are needed:
-- `go`
-- `golangci-lint`
-- `debuild`
-- `debhelper`
-
-
+## Build `step` for ARM
 To build `step-cli` for ARM,  create a Debian rootfs, e.g., see
  [Debian GNU/Linux build suite for REVO boards](https://github.com/revolution-robotics/roadrunner-debian))
 with multipass VM manager, e.g., see
 [mp-build-diskimage](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_buster_rr01/contrib/mp-build-diskimage.sh),
-then run:
+and run:
 
 ```
-chroot rootfs /bin/bash
+cd roadrunner_debian
+contrib/chrootfs.sh
 ```
 
-then
+From the QEMU virtual ARM rootfs, to build `step-cli` run:
 
 ```
-sudo apt install golang-go
+sudo apt update
+sudo apt install -y golang-go
 curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.31.0
 sudo install $(go env GOPATH)/bin/golangci-lint /usr/bin/
-sudo apt install debhelper devscripts
+sudo apt install -y debhelper devscripts
 mkdir $HOME/smallstep
 cd $HOME/smallstep
 git clone https://github.com/smallstep/cli.git
 cd ./cli
-latest_tag=$(git tag -l | sort -V -k1.2 | grep -v -- '-rc\.' | tail -1)
-tag_commit=$(git rev-parse $latest_tag | cut -c-7)
-head_commit=$(git rev-parse HEAD | cut -c-7)
-if test ."$tag_commit" = ."$head_commit"; then
-    version=${latest_tag#v}
-else
-    version=${latest_tag#v}~g${head_commit}
-fi
-sed -i -e "1s;(0.0.1);($version);" debian/changelog
+make bootstrap
+make changelog
 make build
+mv crypto/kdf/kdf_test.go{,~}
+make debian
+cd ..
 ```
 
-The Debian package step fails, so this must be created manually.
-Build the package on amd64 and use that as the basis for the arm
-package as follows:
+TODO: Override dh_auto_test to speed up `make debian`.
+
+## Build `step` for ARM
+
+After building `step`, build `step-ca` with:
 
 ```
-cd debian
-tar zxf ../step-cli_amd64.tgz
-sed -i -e '/amd64/s//armhf/' step-cli/DEBIAN/control
-install -m 0755 ../bin/step step-cli/usr/bin/step-cli
-dpkg-deb --build step-cli
-mv step-cli.deb step-cli-${version}_armhf.deb
+sudo apt install -y libpcsclite-dev
+go get /root/go/pkg/mod/github.com/go-piv/piv-go@v1.6.0/piv/pcsc_linux.go
+sed -i -e 's/8010002E/7FFFFFFF/'  /root/go/pkg/mod/github.com/go-piv/piv-go@v1.6.0/piv/pcsc_linux.go
+go get /root/go/pkg/mod/github.com/go-piv/piv-go@v1.6.0/piv/pcsc_linux.go
+git clone https://github.com/smallstep/certificates.git
+cd ./certificates
+cat >>debian/rules <EOF
+
+override_dh_auto_clean:
+	echo "dh_auto_clean: disabled"
+
+override_dh_auto_test:
+	echo "dh_auto_test: disabled"
+EOF
+make debian
+cd ..
 ```
 
 

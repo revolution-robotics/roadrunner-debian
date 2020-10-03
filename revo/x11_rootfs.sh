@@ -59,10 +59,10 @@ make_debian_x11_rootfs ()
     # cp -r ${G_VENDOR_PATH}/deb/shared-mime-info/* \
     #    ${ROOTFS_BASE}/srv/local-apt-repository
 
-    # BEGIN -- REVO i.MX7D step-cli
-    cp -r ${G_VENDOR_PATH}/deb/step-cli/* \
+    # BEGIN -- REVO i.MX7D smallstep
+    cp -r ${G_VENDOR_PATH}/deb/smallstep/* \
        ${ROOTFS_BASE}/srv/local-apt-repository
-    # END -- REVO i.MX7D step-cli
+    # END -- REVO i.MX7D smallstep
 
     # add mirror to source list
     cat >etc/apt/sources.list <<EOF
@@ -267,6 +267,7 @@ protected_install pm-utils
 
 # BEGIN -- REVO i.MX7D networking
 protected_install step-cli
+protected_install step-certificates
 
 # ifupdown is superceded by NetworkManager
 apt-get -y purge ifupdown
