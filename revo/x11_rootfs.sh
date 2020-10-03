@@ -10,7 +10,7 @@ make_debian_x11_rootfs ()
     pr_info "Make debian(${DEB_RELEASE}) rootfs start..."
 
     # umount previus mounts (if fail)
-    umount ${ROOTFS_BASE}/{sys,proc,dev/pts,dev} 2>/dev/null || true
+    umount -f ${ROOTFS_BASE}/{sys,proc,dev/pts,dev} 2>/dev/null || true
 
     # clear rootfs dir
     rm -rf ${ROOTFS_BASE}/*
@@ -33,10 +33,14 @@ make_debian_x11_rootfs ()
     trap 'umount_rootfs' RETURN
     trap 'umount_rootfs; exit' 0 1 2 15
 
-    mount -t proc /proc ${ROOTFS_BASE}/proc
-    mount -o bind /sys ${ROOTFS_BASE}/sys
-    mount -o bind /dev ${ROOTFS_BASE}/dev
-    mount -o bind /dev/pts ${ROOTFS_BASE}/dev/pts
+    if ! findmnt ${ROOTFS_BASE}/proc >/dev/null; then
+        mount -t proc /proc ${ROOTFS_BASE}/proc
+    fi
+    for fs in sys dev dev/pts; do
+        if ! findmnt "${ROOTFS_BASE}/${fs}" >/dev/null; then
+            mount -o bind "$fs" "${ROOTFS_BASE}/${fs}"
+        fi
+    done
 
     chroot $ROOTFS_BASE /debootstrap/debootstrap --second-stage
 
@@ -333,8 +337,9 @@ EOF
     # Generate unique hostname on first boot
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/hostname-commit.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
+    install -d -m 0755 "${ROOTFS_BASE}/etc/systemd/system/network.target.wants"
     ln -s '/lib/systemd/system/hostname-commit.service' \
-       "${ROOTFS_BASE}/etc/systemd/system/network.target.wants/hostname-commit.service"
+       "${ROOTFS_BASE}/etc/systemd/system/network.target.wants"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/commit-hostname" "${ROOTFS_BASE}/usr/sbin"
 
     # Remove machine ID and hostname to force generation of unique ones.
@@ -386,7 +391,7 @@ EOF
     # Install flash-emmc service.
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/flash-emmc.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
-    mkdir -p "${ROOTFS_BASE}/lib/systemd/system/system-update.target.wants"
+    install -d -m 0755 "${ROOTFS_BASE}/lib/systemd/system/system-update.target.wants"
     ln -s '../flash-emmc.service' \
        "${ROOTFS_BASE}/lib/systemd/system/system-update.target.wants"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/flash-emmc" "${ROOTFS_BASE}/usr/sbin"
@@ -601,6 +606,10 @@ EOF
     mv "${ROOTFS_BASE}/var/log"{,~}
     install -d -m 755 "${ROOTFS_BASE}/var/log"
     # END -- REVO i.MX7D cleanup
+
+    umount_rootfs
+    trap - 0 1 2 15
+    trap - RETURN
 }
 
 # Must be called after make_debian_x11_rootfs in main script

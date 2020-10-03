@@ -14,9 +14,13 @@ umount_rootfs ()
 
 trap 'umount_rootfs; exit' 0 1 2 15
 
-$SUDO mount -t proc /proc "${ROOTFS_BASE}/proc"
-$SUDO mount -o bind /sys "${ROOTFS_BASE}/sys"
-$SUDO mount -o bind /dev "${ROOTFS_BASE}/dev"
-$SUDO mount -o bind /dev/pts "${ROOTFS_BASE}/dev/pts"
+if ! findmnt ${ROOTFS_BASE}/proc >/dev/null; then
+    $SUDO mount -t proc /proc ${ROOTFS_BASE}/proc
+fi
+for fs in sys dev dev/pts; do
+    if ! findmnt "${ROOTFS_BASE}/${fs}" >/dev/null; then
+        $SUDO mount -o bind "$fs" "${ROOTFS_BASE}/${fs}"
+    fi
+done
 
 $SUDO chroot "$ROOTFS_BASE" /bin/bash

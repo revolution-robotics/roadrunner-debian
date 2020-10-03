@@ -10,7 +10,7 @@ make_debian_recoveryfs ()
     pr_info "Make debian(${DEB_RELEASE}) recoveryfs start..."
 
     # umount previus mounts (if fail)
-    umount "${RECOVERYFS_BASE}/"{sys,proc,dev/pts,dev} 2>/dev/null || true
+    umount -f "${RECOVERYFS_BASE}/"{sys,proc,dev/pts,dev} 2>/dev/null || true
 
     # clear recoveryfs dir
     rm -rf "${RECOVERYFS_BASE}/"*
@@ -33,10 +33,14 @@ make_debian_recoveryfs ()
     trap 'umount_recoveryfs' RETURN
     trap 'umount_recoveryfs; exit' 0 1 2 15
 
-    mount -t proc /proc ${RECOVERYFS_BASE}/proc
-    mount -o bind /sys ${RECOVERYFS_BASE}/sys
-    mount -o bind /dev ${RECOVERYFS_BASE}/dev
-    mount -o bind /dev/pts ${RECOVERYFS_BASE}/dev/pts
+    if ! findmnt "${RECOVERYFS_BASE}/proc" >/dev/null; then
+        mount -t proc /proc "${RECOVERYFS_BASE}/proc"
+    fi
+    for fs in sys dev dev/pts; do
+        if ! findmnt "${RECOVERYFS_BASE}/${fs}" >/dev/null; then
+            mount -o bind "$fs" "${RECOVERYFS_BASE}/${fs}"
+        fi
+    done
 
     chroot $RECOVERYFS_BASE /debootstrap/debootstrap --second-stage
 
@@ -338,8 +342,9 @@ EOF
     # Generate unique hostname on first boot
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/hostname-commit.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
+    install -d -m 0755 "${RECOVERYFS_BASE}/etc/systemd/system/network.target.wants"
     ln -s '/lib/systemd/system/hostname-commit.service' \
-       "${RECOVERYFS_BASE}/etc/systemd/system/network.target.wants/hostname-commit.service"
+       "${RECOVERYFS_BASE}/etc/systemd/system/network.target.wants"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/commit-hostname" "${RECOVERYFS_BASE}/usr/sbin"
 
     # Remove machine ID and hostname to force generation of unique ones.
@@ -389,7 +394,7 @@ EOF
     # Install recover-emmc service.
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
-    mkdir -p "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
+    install -d -m 0755 "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
     ln -s '../recover-emmc.service' \
        "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
     ln -s "$G_IMAGES_DIR" "${RECOVERYFS_BASE}/system-update"
@@ -609,6 +614,10 @@ EOF
     mv "${RECOVERYFS_BASE}/var/log"{,~}
     install -d -m 755 "${RECOVERYFS_BASE}/var/log"
     # END -- REVO i.MX7D cleanup
+
+    umount_recoveryfs
+    trap - 0 1 2 15
+    trap - RETURN
 }
 
 # Must be called after make_debian_recoveryfs in main script
