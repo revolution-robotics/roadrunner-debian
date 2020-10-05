@@ -2,8 +2,9 @@
 #
 # @(#) install-step-ca
 #
-# This script installs Debian packages `step-cli' and `step-certificates'
-# to Ubuntu running on x86_64 architecture.
+# This script installs Debian packages `step-cli' and
+# `step-certificates' on Ubuntu x86_64. On both x86_64 and Arm
+# architectures, step-ca is initialized.
 #
 declare script_name=${0##*/}
 
@@ -13,9 +14,9 @@ declare certificates_uri=https://github.com/smallstep/certificates
 declare -A param=(
     [username]=step
     [groupname]=step
-    [name]=RevoEdge
     [provisioner]=step
-    [fqdn]=ca.revotics.slewsys.org
+    [name]=RevoEdge
+    [fqdn]=$(hostname).local
     [address]=:14727
     [template]=init-step-ca.in
     [logdir]=/var/log/step
@@ -35,6 +36,8 @@ if getent passwd "${param[username]}" >/dev/null; then
 else
     : ${STEPPATH:="/home/${param[username]}/.step"}
 fi
+
+source /usr/lib/NetworkManager/ip-funcs
 
 usage ()
 {
@@ -118,6 +121,47 @@ fetch-and-install-dpkg ()
     trap - 0 1 2 15
 }
 
+resolve-fqdn ()
+{
+    local -n argv=$1
+
+    # Try DNS lookup of our IP ...
+    local ip=$(dig "${argv[fqdn]}" +short)
+
+    # If DNS unavailable ...
+    if test ."$ip" = .''; then
+
+        # Try mDNS ...
+        ip=$(dig  -p 5353 @224.0.0.251 "${argv[fqdn]}" +short)
+
+        # If mDNS available ...
+        if test ."$ip" != '' && is_dotted_quad "$ip"; then
+
+            # Update /etc/hosts with link-local record
+            sudo sed -i -e "\$a #\n# local hosts\n$ip\t${argv[fqdn]}" /etc/hosts
+            set +x
+        else
+
+            # Try mDNS lookup of link-local hostname ...
+            local ll_hostname=$(hostname).local
+
+            ip=$(dig  -p 5353 @224.0.0.251 "$ll_hostname" +short)
+
+            # If mDNS available ...
+            if test ."$ip" != '' && is_dotted_quad "$ip"; then
+
+                # Update /etc/hosts with link-local record
+                argv[fqdn]=$ll_hostname
+                sudo sed -i -e "\$a #\n# local hosts\n$ip\t$ll_hostname" /etc/hosts
+            else
+
+                # Use IP 127.0.1.1 (cf. /etc/hosts)
+                argv[fqdn]=$(hostname)
+            fi
+        fi
+    fi
+}
+
 initialize-step-ca ()
 {
     local -n argv=$1
@@ -131,11 +175,6 @@ initialize-step-ca ()
              -s /bin/bash "${argv[username]}"
     fi
 
-    # Update /etc/hosts with IPv4LL hostname.
-    local gw_ip=$(hostname -I | awk '{ print $1 }')
-    local ipv4ll=$(hostname).local
-
-    sudo sed -i -e "\$a $gw_ip\t$ipv4ll" /etc/hosts
 
     local tmpfile=$(mktemp "/tmp/${FUNCNAME[0]}.XXXXX")
 
@@ -305,6 +344,7 @@ if test ! -x "$STEP_CA"; then
     fetch-and-install-dpkg "$certificates_uri"
 fi
 
+resolve-fqdn 'param'
 initialize-step-ca 'param'
 deploy-step-ca-service 'param'
 sudo systemctl enable step-ca
