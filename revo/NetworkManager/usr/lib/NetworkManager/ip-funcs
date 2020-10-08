@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# @(#) ip-funcs.sh
+# @(#) ip-funcs
 #
 # Copyright © 2020, Revolution Robotics, Inc.
 #
@@ -12,22 +12,22 @@ declare -i TWO_BYTE_MASK=$(( ( 1 << 16 ) - 1 ))
 declare -i THREE_BYTE_MASK=$(( ( 1 << 24 ) - 1 ))
 declare -i FOUR_BYTE_MASK=$(( ( 1 << 32 ) - 1 ))
 
-# is_ipv4_addr: Sanity check IPv4 address. Expected format:
+# is-ipv4-addr: Sanity check IPv4 address. Expected format:
 #     dotted-quad/netmask, e.g., 192.168.0.1/24
-is_ipv4_addr ()
+is-ipv4-addr ()
 {
     local ipv4_addr=$1
 
     local quad=${ipv4_addr%/*}
     local mask=${ipv4_addr#*/}
 
-    is_dotted_quad "$quad" &&
+    is-dotted-quad "$quad" &&
         [[ ."$mask" =~ ^\.(0|[1-9]|[12][0-9]|3[0-2])$ ]]
 }
 
-# is_dotted_quad: Sanity check given dotted quad,
+# is-dotted-quad: Sanity check given dotted quad,
 #     e.g., 255.255.255.0
-is_dotted_quad ()
+is-dotted-quad ()
 {
     local quad=$1
     local num
@@ -43,9 +43,9 @@ is_dotted_quad ()
     done
 }
 
-# inet_aton: Convert quad-dotted to 32-bit number,
+# inet-aton: Convert quad-dotted to 32-bit number,
 #     e.g., 10.0.0.1 => 167772161
-inet_aton ()
+inet-aton ()
 {
     local quad=$1
 
@@ -60,9 +60,9 @@ inet_aton ()
     echo "$ip_no"
 }
 
-# inet_mask_ntoa: Convert netmask size to dotted-quad,
+# inet-mask-ntoa: Convert netmask size to dotted-quad,
 #     e.g., 24 => 255.255.255.0
-inet_mask_ntoa ()
+inet-mask-ntoa ()
 {
     local -i mask=$1
 
@@ -74,9 +74,9 @@ inet_mask_ntoa ()
     echo "$b4.$b3.$b2.$b1"
 }
 
-# inet_ntoa: Convert 32-bit number to dotted-quad,
+# inet-ntoa: Convert 32-bit number to dotted-quad,
 #     e.g., 167772161 => 10.0.0.1
-inet_ntoa ()
+inet-ntoa ()
 {
     local -i ip_no=$1
 
@@ -89,10 +89,10 @@ inet_ntoa ()
     echo "${quad[3]:=0}.${quad[2]:=0}.${quad[1]:=0}.${quad[0]:=0}"
 }
 
-# network_exclusive: Given two IPv4 addresses, check if either is in the
+# network-exclusive: Given two IPv4 addresses, check if either is in the
 #     other's network. Expected format: dotted-quad/netmask,
 #     e.g., 10.0.0.1/24
-network_exclusive ()
+network-exclusive ()
 {
     local ipv4_addr1=$1
     local ipv4_addr2=$2
@@ -102,13 +102,13 @@ network_exclusive ()
     quad2=${ipv4_addr2%/*}
     mask2=${ipv4_addr2##*/}
 
-    nq1=$(inet_aton "$quad1")
-    qm1=$(inet_mask_ntoa "$mask1")
-    nm1=$(inet_aton "$qm1")
+    nq1=$(inet-aton "$quad1")
+    qm1=$(inet-mask-ntoa "$mask1")
+    nm1=$(inet-aton "$qm1")
 
-    nq2=$(inet_aton "$quad2")
-    qm2=$(inet_mask_ntoa "$mask2")
-    nm2=$(inet_aton "$qm2")
+    nq2=$(inet-aton "$quad2")
+    qm2=$(inet-mask-ntoa "$mask2")
+    nm2=$(inet-aton "$qm2")
 
     # addr2 in network1 and addr1 in network2
     if (( (nq1 & nm1) == (nq2 & nm1) )) && (( (nq1 & nm2) == (nq2 & nm2) )); then

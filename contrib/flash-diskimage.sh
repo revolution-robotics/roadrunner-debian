@@ -33,17 +33,17 @@ Example:
 EOF
 }
 
-pr_error ()
+pr-error ()
 {
     echo "E: $@"
 }
 
-pr_info ()
+pr-info ()
 {
     echo "I: $@"
 }
 
-get_range ()
+get-range ()
 {
     size=$1
 
@@ -54,7 +54,7 @@ get_range ()
     fi
 }
 
-select_from_list ()
+select-from-list ()
 {
     local -n choices=$1
     local prompt=$2
@@ -64,7 +64,7 @@ select_from_list ()
 
     case "$count" in
         0)
-            pr_error "Nothing to choose"
+            pr-error "Nothing to choose"
             return 1
             ;;
         1)
@@ -72,7 +72,7 @@ select_from_list ()
             ;;
         *)
             echo "$prompt" >&2
-            PS3="Selection [$(get_range $count)]? "
+            PS3="Selection [$(get-range $count)]? "
             select choice in "${choices[@]}"; do
                 case "$choice" in
                     '')
@@ -87,7 +87,7 @@ select_from_list ()
     echo "$choice"
 }
 
-get_disk_images ()
+get-disk-images ()
 {
     local -a archives
     local archive
@@ -103,7 +103,7 @@ get_disk_images ()
     done
 }
 
-get_removable_devices ()
+get-removable-devices ()
 {
     local -a devices
     local device
@@ -126,23 +126,23 @@ get_removable_devices ()
     done
 }
 
-select_disk_image ()
+select-disk-image ()
 {
     declare -a disk_images
 
-    mapfile -t disk_images < <(get_disk_images)
-    select_from_list disk_images 'Please choose an image to flash from:'
+    mapfile -t disk_images < <(get-disk-images)
+    select-from-list disk_images 'Please choose an image to flash from:'
 }
 
-select_removable_device ()
+select-removable-device ()
 {
     declare -a removable_devices
 
-    mapfile -t removable_devices < <(get_removable_devices)
-    select_from_list removable_devices 'Please choose a device to flash to:'
+    mapfile -t removable_devices < <(get-removable-devices)
+    select-from-list removable_devices 'Please choose a device to flash to:'
 }
 
-is_removable_device ()
+is-removable-device ()
 {
     local device=${1#/dev/}
 
@@ -152,13 +152,13 @@ is_removable_device ()
 
     # Check that parameter is a valid block device
     if test ! -b "/dev/$device"; then
-        pr_error "/dev/$device: Not a valid block device"
+        pr-error "/dev/$device: Not a valid block device"
         return 1
     fi
 
     # Check that /sys/block/$dev exists
     if test ! -d "/sys/block/$device"; then
-        pr_error "/sys/block/$device: No such directory"
+        pr-error "/sys/block/$device: No such directory"
         return 1
     fi
 
@@ -182,12 +182,12 @@ is_removable_device ()
 
     # Device not removable
     if test ."$removable" != .'1'; then
-        pr_error "/dev/$device: Not a removable device"
+        pr-error "/dev/$device: Not a removable device"
         return 1
     fi
 }
 
-select_media ()
+select-media ()
 {
     local total_size
     local total_size_bytes
@@ -198,18 +198,18 @@ select_media ()
         if test -f "${PARAM_OUTPUT_DIR}/${PARAM_DISK_IMAGE}"; then
             PARAM_DISK_IMAGE=${PARAM_OUTPUT_DIR}/${PARAM_DISK_IMAGE}
         else
-            PARAM_DISK_IMAGE=$(select_disk_image)
+            PARAM_DISK_IMAGE=$(select-disk-image)
         fi
         if test ! -f "$PARAM_DISK_IMAGE"; then
-            pr_error "Image not available"
+            pr-error "Image not available"
             exit 1
         fi
     fi
 
-    if ! is_removable_device "$PARAM_BLOCK_DEVICE" >/dev/null 2>&1; then
-        PARAM_BLOCK_DEVICE=$(select_removable_device | awk '{ print $1 }')
+    if ! is-removable-device "$PARAM_BLOCK_DEVICE" >/dev/null 2>&1; then
+        PARAM_BLOCK_DEVICE=$(select-removable-device | awk '{ print $1 }')
         if test ! -b "$PARAM_BLOCK_DEVICE"; then
-            pr_error "Device not available"
+            pr-error "Device not available"
             exit 1
         fi
     fi
@@ -219,13 +219,13 @@ select_media ()
     total_size_gib=$(perl -e "printf '%.1f', $total_size_bytes / 1024 ** 3")
 
     echo '============================================='
-    pr_info "Image: ${PARAM_DISK_IMAGE##*/}"
-    pr_info "Device: $PARAM_BLOCK_DEVICE, $total_size_gib GiB"
+    pr-info "Image: ${PARAM_DISK_IMAGE##*/}"
+    pr-info "Device: $PARAM_BLOCK_DEVICE, $total_size_gib GiB"
     echo '============================================='
     read -p "Press Enter to continue"
 }
 
-get_compression_format ()
+get-decompressor ()
 {
     case $(file "$PARAM_DISK_IMAGE") in
         *bzip2*)
@@ -252,9 +252,9 @@ get_compression_format ()
     esac
 }
 
-flash_diskimage ()
+flash-diskimage ()
 {
-    pr_info "Flashing image to device..."
+    pr-info "Flashing image to device..."
 
     for (( i=0; i < 10; i++ )); do
         if test -n "$(findmnt -n "${PARAM_BLOCK_DEVICE}${i}")"; then
@@ -267,7 +267,7 @@ flash_diskimage ()
 
     if ! $ZCAT "$PARAM_DISK_IMAGE" |
             sudo dd of="$PARAM_BLOCK_DEVICE" bs=1M 2>"$errfile"; then
-        pr_error "Flash did not complete successfully."
+        pr-error "Flash did not complete successfully."
         echo "*** Please check media and try again! ***"
     fi
 
@@ -278,9 +278,9 @@ flash_diskimage ()
     trap - 0 1 2 15 RETURN
 }
 
-verify_diskimage ()
+verify-diskimage ()
 {
-    pr_info "Verifying device against image..."
+    pr-info "Verifying device against image..."
 
     errfile=$(mktemp "/tmp/${SCRIPT_NAME}.XXXXX")
     trap 'rm "$errfile"; exit' 0 1 2 15 RETURN
@@ -290,10 +290,10 @@ verify_diskimage ()
 
     BYTES_VERIFIED=$(sed -nE -e 's/.*differ: byte +([0-9]+).*$/\1/p' "$errfile")
     if test ! -s "$errfile"; then
-        pr_info "Compared: $BYTES_WRITTEN bytes"
-        pr_info 'Device successfully verified'
+        pr-info "Compared: $BYTES_WRITTEN bytes"
+        pr-info 'Device successfully verified'
     else
-        pr_error "Device and image differ at byte: $BYTES_VERIFIED"
+        pr-error "Device and image differ at byte: $BYTES_VERIFIED"
     fi
 
     rm -f "$errfile"
@@ -354,7 +354,7 @@ if test ."$PARAM_DEBUG" = .'1'; then
     set -x
 fi
 
-select_media
-get_compression_format
-flash_diskimage
-verify_diskimage
+select-media
+get-decompressor
+flash-diskimage
+verify-diskimage

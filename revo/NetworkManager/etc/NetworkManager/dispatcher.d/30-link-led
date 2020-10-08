@@ -31,10 +31,10 @@ declare device
 declare -a devices
 declare device_active=false
 
-if internet_accessible; then
+if internet-accessible; then
     echo 1 >/sys/class/leds/link-blue-led/brightness
     echo 0 >/sys/class/leds/link-red-led/brightness
-elif network_accessible; then
+elif network-accessible; then
 
     # Filter devices on queuing discipline - `mq' and `pfifo' hopefully
     # correspond to ethernet and WiFi interfaces.
@@ -46,7 +46,7 @@ elif network_accessible; then
     for device in "${devices[@]}"; do
 
         # device has active connection
-        if interface_profiles "$device" >/dev/null 2>&1; then
+        if interface-profiles "$device" >/dev/null 2>&1; then
             device_active=true
             break
         fi

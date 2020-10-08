@@ -135,7 +135,7 @@ resolve-fqdn ()
         ip=$(dig  -p 5353 @224.0.0.251 "${argv[fqdn]}" +short)
 
         # If mDNS available ...
-        if test ."$ip" != '' && is_dotted_quad "$ip"; then
+        if test ."$ip" != '' && is-dotted-quad "$ip"; then
 
             # Update /etc/hosts with link-local record
             sudo sed -i -e "\$a #\n# local hosts\n$ip\t${argv[fqdn]}" /etc/hosts
@@ -148,7 +148,7 @@ resolve-fqdn ()
             ip=$(dig  -p 5353 @224.0.0.251 "$ll_hostname" +short)
 
             # If mDNS available ...
-            if test ."$ip" != '' && is_dotted_quad "$ip"; then
+            if test ."$ip" != '' && is-dotted-quad "$ip"; then
 
                 # Update /etc/hosts with link-local record
                 argv[fqdn]=$ll_hostname

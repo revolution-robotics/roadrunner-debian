@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# @(#) nm-funcs.sh
+# @(#) nm-funcs
 #
 # Copyright © 2020, Revolution Robotics, Inc.
 #
@@ -14,22 +14,22 @@
 declare -ri WIFI_CLASS_B=100
 declare -ri ETHERNET_CLASS_B=200
 
-# activate_profile: Activate given NetworkManager profile.
-activate_profile ()
+# activate-profile: Activate given NetworkManager profile.
+activate-profile ()
 {
     local profile=$1
     local toggle=${2:-'false'}
 
-    if is_shared_profile "$profile" && ! internet_accessible; then
+    if is-shared-profile "$profile" && ! internet-accessible; then
         echo "${FUNCNAME[0]}: Warning: No Internet access" >&2
     fi
 
     # Toggling a connection down and back up provides a workaround for
     # a NetworkManager issue where creating a new profile results in
     # the diagnostic 'no proxy object exists'.
-    if ! is_active_profile "$profile" || test ."$toggle" != .'false'; then
+    if ! is-active-profile "$profile" || test ."$toggle" != .'false'; then
         echo "${FUNCNAME[0]}: $profile: Bring up profile" >&2
-        if is_wifi_profile "$profile"; then
+        if is-wifi-profile "$profile"; then
             $NMCLI radio wifi on
         fi
         $NMCLI connection down "$profile" >/dev/null 2>&1
@@ -37,20 +37,10 @@ activate_profile ()
     fi
 }
 
-# connection_state: Return NetworkManager numeric connection status of
-#     given interface (where 100 == connected).
-connection_state ()
-{
-    local interface=$1
-
-    $NMCLI --terse --fields GENERAL.STATE device show "$interface" |
-        $SED -E 's/.*:([0-9]+).*/\1/'
-}
-
-# create_ethernet_profile: Create NetworkManager Ethernet profile.
+# create-ethernet-profile: Create NetworkManager Ethernet profile.
 #     $argv[mode] is one of `ap' for access point, `gw' for gateway or 'll'
 #     for link-local.
-create_ethernet_profile ()
+create-ethernet-profile ()
 {
     local -n argv=$1
 
@@ -92,10 +82,10 @@ create_ethernet_profile ()
     esac
 }
 
-# create_wifi_profile: Create NetworkManager WiFi profile.
+# create-wifi-profile: Create NetworkManager WiFi profile.
 #     $argv[mode] is one of `ap' for access point, `gw' for gateway or 'll'
 #     for link-local.
-create_wifi_profile ()
+create-wifi-profile ()
 {
     local -n argv=$1
 
@@ -146,8 +136,8 @@ create_wifi_profile ()
     esac
 }
 
-# disconnect_interface: Bring down any connection on the given interface.
-disconnect_interface ()
+# disconnect-interface: Bring down any connection on the given interface.
+disconnect-interface ()
 {
     local interface=$1
 
@@ -162,8 +152,8 @@ disconnect_interface ()
     fi
 }
 
-# get_active_profiles: Return list of active NetworkManager profiles.
-get_active_profiles ()
+# get-active-profiles: Return list of active NetworkManager profiles.
+get-active-profiles ()
 {
     local interface_type=$1
 
@@ -171,15 +161,15 @@ get_active_profiles ()
         $AWK -F : '$2 ~ /'"$interface_type"'/ { print $1 }'
 }
 
-# get_all_interfaces: Return list of interfaces known to NetworkManager.
-get_all_interfaces ()
+# get-all-interfaces: Return list of interfaces known to NetworkManager.
+get-all-interfaces ()
 {
     $NMCLI --terse --fields GENERAL.DEVICE device show |
         $SED -e '/^$/d' -e 's/.*://'
 }
 
-# get_managed_interfaces: Return list of interfaces managed by NetworkManager.
-get_managed_interfaces ()
+# get-managed-interfaces: Return list of interfaces managed by NetworkManager.
+get-managed-interfaces ()
 {
     local interface_type=$1
 
@@ -190,7 +180,7 @@ get_managed_interfaces ()
     local device
     local status
 
-    mapfile -t devices < <(get_all_interfaces)
+    mapfile -t devices < <(get-all-interfaces)
 
     for device in "${devices[@]}"; do
         device_type=$(
@@ -217,8 +207,8 @@ get_managed_interfaces ()
     done
 }
 
-# interface_profiles: Return profile(s) for given interface.
-interface_profiles ()
+# interface-profiles: Return profile(s) for given interface.
+interface-profiles ()
 {
     local interface=$1
 
@@ -227,7 +217,7 @@ interface_profiles ()
     local profile
     local profiles
 
-    mapfile -t profiles < <(get_active_profiles ethernet)
+    mapfile -t profiles < <(get-active-profiles ethernet)
 
     for profile in "${profiles[@]}"; do
         device=$(
@@ -244,16 +234,16 @@ interface_profiles ()
     fi
 }
 
-# internet_accessible: Return true if internet accessible, otherwise false.
-internet_accessible ()
+# internet-accessible: Return true if internet accessible, otherwise false.
+internet-accessible ()
 {
     local status=$($NMCLI networking connectivity check)
 
     test ."$status" = .'full'
 }
 
-# ipv4_addresses: Return IPv4 address(es) bound to given interface.
-ipv4_addresses ()
+# ipv4-addresses: Return IPv4 address(es) bound to given interface.
+ipv4-addresses ()
 {
     local interface=$1
 
@@ -261,8 +251,8 @@ ipv4_addresses ()
         $AWK -F: '{ print $2 }'
 }
 
-# is_active_profile: Return true if given profile is active, otherwise false.
-is_active_profile ()
+# is-active-profile: Return true if given profile is active, otherwise false.
+is-active-profile ()
 {
     local profile=$1
 
@@ -273,9 +263,9 @@ is_active_profile ()
     fi
 }
 
-# is_connected_interface: Return true if given interface is connected,
+# is-connected-interface: Return true if given interface is connected,
 #     otherwise false.
-is_connected_interface ()
+is-connected-interface ()
 {
     local interface=$1
 
@@ -286,9 +276,9 @@ is_connected_interface ()
     test ."$profile" != .''
 }
 
-# is_ethernet_interface: Return true if given interface is ethernet,
+# is-ethernet-interface: Return true if given interface is ethernet,
 #     otherwise false.
-is_ethernet_interface ()
+is-ethernet-interface ()
 {
     local interface=$1
 
@@ -299,8 +289,8 @@ is_ethernet_interface ()
     test ."$status" = .'ethernet'
 }
 
-# is_share_profile: Return true if given profile is shared, otherwise false.
-is_shared_profile ()
+# is-share-profile: Return true if given profile is shared, otherwise false.
+is-shared-profile ()
 {
     local profile=$1
 
@@ -311,8 +301,8 @@ is_shared_profile ()
     test ."$status" = .'shared'
 }
 
-# is_wifi_profile: Return true if given profile is wifi, otherwise false.
-is_wifi_profile ()
+# is-wifi-profile: Return true if given profile is wifi, otherwise false.
+is-wifi-profile ()
 {
     local profile=$1
 
@@ -323,16 +313,16 @@ is_wifi_profile ()
     test ."$status" = .'802-11-wireless'
 }
 
-# network_accessible: Return true if network accessible, otherwise false.
-network_accessible ()
+# network-accessible: Return true if network accessible, otherwise false.
+network-accessible ()
 {
     local status=$($NMCLI networking connectivity check)
 
     test ."$status" != .'none' && test ."$status" != .'unknown'
 }
 
-# remove_previous_profile: Remove given profile if it already exists.
-remove_previous_profile ()
+# remove-previous-profile: Remove given profile if it already exists.
+remove-previous-profile ()
 {
     local con_name=$1
 
@@ -348,7 +338,7 @@ remove_previous_profile ()
         if test ."$profile" = ."$con_name"; then
 
             # and profile is currently active...
-            if is_active_profile "$profile"; then
+            if is-active-profile "$profile"; then
                 echo "${FUNCNAME[0]}: $profile: Shutting down profile" >&2
                 $NMCLI connection down "$profile"
             fi
@@ -360,9 +350,9 @@ remove_previous_profile ()
     done
 }
 
-# validate_interface: Verify that given interface exists and is
+# validate-interface: Verify that given interface exists and is
 #     managed by NetworkManager.
-validate_interface ()
+validate-interface ()
 {
     local interface=$1
 
@@ -378,31 +368,31 @@ validate_interface ()
     fi
 }
 
-# validate_ipv4_address: Verify format of given IPv4 address.
-validate_ipv4_address ()
+# validate-ipv4-address: Verify format of given IPv4 address.
+validate-ipv4-address ()
 {
     local ipv4_addr=$1
 
-    if ! is_ipv4_addr "$ipv4_addr"; then
+    if ! is-ipv4-addr "$ipv4_addr"; then
         echo "${FUNCNAME[0]}: $ipv4_addr: Invalid IPv4 address - expecting dotted-quad/netmask" >&2
         return 1
     fi
 }
 
-# validate_ipv4_gateway: Verify format of given dotted quad.
-validate_ipv4_gateway ()
+# validate-ipv4-gateway: Verify format of given dotted quad.
+validate-ipv4-gateway ()
 {
     local dotted_quad=$1
 
-    if ! is_dotted_quad "$dotted_quad"; then
+    if ! is-dotted-quad "$dotted_quad"; then
         echo "${FUNCNAME[0]}: $dotted_quad: Invalid IPv4 address - expecting dotted-quad" >&2
         return 1
     fi
 }
 
-# validate_ipv4_network: Verify that network of given IPv4 address doesn't
+# validate-ipv4-network: Verify that network of given IPv4 address doesn't
 #     overlap with another interface.
-validate_ipv4_network ()
+validate-ipv4-network ()
 {
     local interface=$1
     local ipv4_addr=$2
@@ -411,12 +401,12 @@ validate_ipv4_network ()
     local device_addr
     local device
 
-    if ! is_ipv4_addr "$ipv4_addr"; then
+    if ! is-ipv4-addr "$ipv4_addr"; then
         echo "${FUNCNAME[0]}: $ipv4_addr: Invalid IPv4 address - expecting dotted-quad/netmask" >&2
         return 1
     fi
 
-    mapfile -t devices < <(get_all_interfaces)
+    mapfile -t devices < <(get-all-interfaces)
 
     for device in "${devices[@]}"; do
         test ."$device" != ."$interface" || continue
@@ -426,17 +416,17 @@ validate_ipv4_network ()
                 $SED -e 's/.*://'
                    )
 
-        is_ipv4_addr "$device_addr" || continue
+        is-ipv4-addr "$device_addr" || continue
 
-        if ! network_exclusive "$ipv4_addr" "$device_addr"; then
+        if ! network-exclusive "$ipv4_addr" "$device_addr"; then
             echo "${FUNCNAME[0]}: $ipv4_addr: Address already owned by interface $device" >&2
             return 2
         fi
     done
 }
 
-# validate_wifi_band: Verify that band is recognized.
-validate_wifi_band ()
+# validate-wifi-band: Verify that band is recognized.
+validate-wifi-band ()
 {
     local wifi_band=$1
 

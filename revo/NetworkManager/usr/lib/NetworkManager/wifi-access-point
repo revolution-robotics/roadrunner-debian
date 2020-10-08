@@ -20,7 +20,7 @@ declare -r DEFAULT_IPV4_ADDR=10.${WIFI_CLASS_B}.0.1/24
 
 declare -A param=(
     [mode]=ap
-    [interface]=$(get_managed_interfaces wifi | head -1)
+    [interface]=$(get-managed-interfaces wifi | head -1)
     [ssid]=$(hostname)-${interface}
     [password]=$(hostname)
     [wifi_band]=a
@@ -111,11 +111,11 @@ if test ."${param[profile]}" = .''; then
     exit 1
 fi
 
-validate_interface "${param[interface]}" || exit $?
-validate_wifi_band "${param[wifi_band]}" || exit $?
-validate_ipv4_network "${param[interface]}" "${param[ipv4_addr]}" || exit $?
+validate-interface "${param[interface]}" || exit $?
+validate-wifi-band "${param[wifi_band]}" || exit $?
+validate-ipv4-network "${param[interface]}" "${param[ipv4_addr]}" || exit $?
 
-disconnect_interface "${param[interface]}"
-remove_previous_profile "${param[profile]}"
-create_wifi_profile 'param'
-activate_profile "${param[profile]}"
+disconnect-interface "${param[interface]}"
+remove-previous-profile "${param[profile]}"
+create-wifi-profile 'param'
+activate-profile "${param[profile]}"

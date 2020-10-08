@@ -93,10 +93,10 @@ if test ."${param[profile]}" = .''; then
     exit 1
 fi
 
-validate_interface "${param[interface]}" || exit $?
-validate_ipv4_network "${param[interface]}" "${param[ipv4_addr]}" || exit $?
+validate-interface "${param[interface]}" || exit $?
+validate-ipv4-network "${param[interface]}" "${param[ipv4_addr]}" || exit $?
 
-disconnect_interface "${param[interface]}"
-remove_previous_profile "${param[profile]}"
-create_ethernet_profile 'param'
-activate_profile "${param[profile]}"
+disconnect-interface "${param[interface]}"
+remove-previous-profile "${param[profile]}"
+create-ethernet-profile 'param'
+activate-profile "${param[profile]}"

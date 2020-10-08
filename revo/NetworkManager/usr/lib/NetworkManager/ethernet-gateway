@@ -94,17 +94,17 @@ if test ."${param[profile]}" = .''; then
     exit 1
 fi
 
-validate_interface "${param[interface]}" || exit $?
+validate-interface "${param[interface]}" || exit $?
 
 if test ."${param[ipv4_addr]}" != .''; then
-    validate_ipv4_address "${param[ipv4_addr]}" || exit $?
+    validate-ipv4-address "${param[ipv4_addr]}" || exit $?
 fi
 
 if test ."${param[ipv4_gateway]}" != .''; then
-    validate_ipv4_gateway "${param[ipv4_gateway]}" || exit $?
+    validate-ipv4-gateway "${param[ipv4_gateway]}" || exit $?
 fi
 
-disconnect_interface "${param[interface]}"
-remove_previous_profile "${param[profile]}"
-create_ethernet_profile 'param'
-activate_profile "${param[profile]}"
+disconnect-interface "${param[interface]}"
+remove-previous-profile "${param[profile]}"
+create-ethernet-profile 'param'
+activate-profile "${param[profile]}"
