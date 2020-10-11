@@ -1,2 +1,0 @@
-#!/usr/bin/env bash
-exec curl.dist --cacert /etc/ssl/certs/ca-certificates.crt "$@"

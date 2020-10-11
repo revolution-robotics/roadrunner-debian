@@ -427,59 +427,59 @@ EOF
     # END -- REVO i.MX7D update
 
     # install variscite-bt service
-    install -m 0755 ${G_VENDOR_PATH}/x11_resources/brcm_patchram_plus \
+    install -m 0755 ${G_VENDOR_PATH}/resources/brcm_patchram_plus \
             ${ROOTFS_BASE}/usr/bin
     install -d ${ROOTFS_BASE}/etc/bluetooth
     install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/variscite-bt.conf \
             ${ROOTFS_BASE}/etc/bluetooth
-    install -m 0755 ${G_VENDOR_PATH}/x11_resources/variscite-bt \
+    install -m 0755 ${G_VENDOR_PATH}/resources/variscite-bt \
             ${ROOTFS_BASE}/etc/bluetooth
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/variscite-bt.service \
+    install -m 0644 ${G_VENDOR_PATH}/resources/variscite-bt.service \
             ${ROOTFS_BASE}/lib/systemd/system
     ln -s /lib/systemd/system/variscite-bt.service \
        ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-bt.service
 
     # install BT audio and main config
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/bluez5/files/audio.conf \
+    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/audio.conf \
             ${ROOTFS_BASE}/etc/bluetooth/
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/bluez5/files/main.conf \
+    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/main.conf \
             ${ROOTFS_BASE}/etc/bluetooth/
 
     # install obexd configuration
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/bluez5/files/obexd.conf \
+    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/obexd.conf \
             ${ROOTFS_BASE}/etc/dbus-1/system.d
 
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/bluez5/files/obex.service \
+    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/obex.service \
             ${ROOTFS_BASE}/lib/systemd/system
     ln -s /lib/systemd/system/obex.service \
        ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service
 
     # install pulse audio configuration
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/pulseaudio/pulseaudio.service \
+    install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service \
             ${ROOTFS_BASE}/lib/systemd/system
     ln -s /lib/systemd/system/pulseaudio.service \
        ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/pulseaudio/pulseaudio-bluetooth.conf \
+    install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf \
             ${ROOTFS_BASE}/etc/dbus-1/system.d
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/pulseaudio/system.pa \
+    install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/system.pa \
             ${ROOTFS_BASE}/etc/pulse/
 
     # Add alsa default configs
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/asound.state \
+    install -m 0644 ${G_VENDOR_PATH}/resources/asound.state \
             ${ROOTFS_BASE}/var/lib/alsa/
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/asound.conf ${ROOTFS_BASE}/etc/
+    install -m 0644 ${G_VENDOR_PATH}/resources/asound.conf ${ROOTFS_BASE}/etc/
 
     # install variscite-wifi service
     install -d ${ROOTFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/blacklist.conf \
+    install -m 0644 ${G_VENDOR_PATH}/resources/blacklist.conf \
             ${ROOTFS_BASE}/etc/wifi
     install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/variscite-wifi.conf \
             ${ROOTFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/variscite-wifi-common.sh \
+    install -m 0644 ${G_VENDOR_PATH}/resources/variscite-wifi-common.sh \
             ${ROOTFS_BASE}/etc/wifi
-    install -m 0755 ${G_VENDOR_PATH}/x11_resources/variscite-wifi \
+    install -m 0755 ${G_VENDOR_PATH}/resources/variscite-wifi \
             ${ROOTFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/variscite-wifi.service \
+    install -m 0644 ${G_VENDOR_PATH}/resources/variscite-wifi.service \
             ${ROOTFS_BASE}/lib/systemd/system
     ln -s /lib/systemd/system/variscite-wifi.service \
        ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-wifi.service
@@ -520,17 +520,17 @@ EOF
     # binaries rootfs patching
     install -m 0644 ${G_VENDOR_PATH}/issue ${ROOTFS_BASE}/etc/
     install -m 0644 ${G_VENDOR_PATH}/issue.net ${ROOTFS_BASE}/etc/
-    install -m 0755 ${G_VENDOR_PATH}/x11_resources/rc.local ${ROOTFS_BASE}/etc/
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/hostapd.conf ${ROOTFS_BASE}/etc/
+    install -m 0755 ${G_VENDOR_PATH}/resources/rc.local ${ROOTFS_BASE}/etc/
+    install -m 0644 ${G_VENDOR_PATH}/resources/hostapd.conf ${ROOTFS_BASE}/etc/
     install -d ${ROOTFS_BASE}/boot/
     install -m 0644 ${G_VENDOR_PATH}/splash.bmp ${ROOTFS_BASE}/boot/
     install -m 0644 ${G_VENDOR_PATH}/wallpaper.png \
             ${ROOTFS_BASE}/usr/share/images/desktop-base/default
 
     # disable light-locker
-    install -m 0755 ${G_VENDOR_PATH}/x11_resources/disable-lightlocker \
+    install -m 0755 ${G_VENDOR_PATH}/resources/disable-lightlocker \
             ${ROOTFS_BASE}/usr/local/bin/
-    install -m 0644 ${G_VENDOR_PATH}/x11_resources/disable-lightlocker.desktop \
+    install -m 0644 ${G_VENDOR_PATH}/resources/disable-lightlocker.desktop \
             ${ROOTFS_BASE}/etc/xdg/autostart/
 
     # Revert regular booting
@@ -583,7 +583,7 @@ EOF
     # BEGIN -- REVO i.MX7D cleanup
     # Run curl with system root certificates file.
     mv "${ROOTFS_BASE}/usr/bin/curl"{,.dist}
-    install -m 755 "${G_VENDOR_PATH}/x11_resources/curl/curl" \
+    install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
             "${ROOTFS_BASE}/usr/bin/curl"
 
     # Restore APT source list to default Debian mirror.

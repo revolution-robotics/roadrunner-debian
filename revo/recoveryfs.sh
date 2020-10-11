@@ -362,7 +362,7 @@ EOF
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Support resizing a serial console - taken from Debian xterm package.
-    install -m 0755 ${G_VENDOR_PATH}/recovery_resources/resize \
+    install -m 0755 ${G_VENDOR_PATH}/resources/resize \
             ${RECOVERYFS_BASE}/usr/bin
 
     # Set PATH and resize serial console window.
@@ -425,59 +425,59 @@ EOF
     # END -- REVO i.MX7D update
 
     # install variscite-bt service
-    install -m 0755 ${G_VENDOR_PATH}/recovery_resources/brcm_patchram_plus \
+    install -m 0755 ${G_VENDOR_PATH}/resources/brcm_patchram_plus \
             ${RECOVERYFS_BASE}/usr/bin
     install -d ${RECOVERYFS_BASE}/etc/bluetooth
     install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/variscite-bt.conf \
             ${RECOVERYFS_BASE}/etc/bluetooth
-    install -m 0755 ${G_VENDOR_PATH}/recovery_resources/variscite-bt \
+    install -m 0755 ${G_VENDOR_PATH}/resources/variscite-bt \
             ${RECOVERYFS_BASE}/etc/bluetooth
-    install -m 0644 ${G_VENDOR_PATH}/recovery_resources/variscite-bt.service \
+    install -m 0644 ${G_VENDOR_PATH}/resources/variscite-bt.service \
             ${RECOVERYFS_BASE}/lib/systemd/system
     ln -s /lib/systemd/system/variscite-bt.service \
        ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-bt.service
 
     # install BT audio and main config
-    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/bluez5/files/audio.conf \
+    # install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/audio.conf \
     #         ${RECOVERYFS_BASE}/etc/bluetooth/
-    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/bluez5/files/main.conf \
+    # install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/main.conf \
     #         ${RECOVERYFS_BASE}/etc/bluetooth/
 
     # install obexd configuration
-    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/bluez5/files/obexd.conf \
+    # install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/obexd.conf \
     #         ${RECOVERYFS_BASE}/etc/dbus-1/system.d
 
-    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/bluez5/files/obex.service \
+    # install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/obex.service \
     #         ${RECOVERYFS_BASE}/lib/systemd/system
     # ln -s /lib/systemd/system/obex.service \
     #    ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service
 
     # install pulse audio configuration
-    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/pulseaudio/pulseaudio.service \
+    # install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service \
     #         ${RECOVERYFS_BASE}/lib/systemd/system
     # ln -s /lib/systemd/system/pulseaudio.service \
     #    ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service
-    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/pulseaudio/pulseaudio-bluetooth.conf \
+    # install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf \
     #         ${RECOVERYFS_BASE}/etc/dbus-1/system.d
-    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/pulseaudio/system.pa \
+    # install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/system.pa \
     #         ${RECOVERYFS_BASE}/etc/pulse/
 
     # Add alsa default configs
-    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/asound.state \
+    # install -m 0644 ${G_VENDOR_PATH}/resources/asound.state \
     #         ${RECOVERYFS_BASE}/var/lib/alsa/
-    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/asound.conf ${RECOVERYFS_BASE}/etc/
+    # install -m 0644 ${G_VENDOR_PATH}/resources/asound.conf ${RECOVERYFS_BASE}/etc/
 
     # install variscite-wifi service
     install -d ${RECOVERYFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/recovery_resources/blacklist.conf \
+    install -m 0644 ${G_VENDOR_PATH}/resources/blacklist.conf \
             ${RECOVERYFS_BASE}/etc/wifi
     install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/variscite-wifi.conf \
             ${RECOVERYFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/recovery_resources/variscite-wifi-common.sh \
+    install -m 0644 ${G_VENDOR_PATH}/resources/variscite-wifi-common.sh \
             ${RECOVERYFS_BASE}/etc/wifi
-    install -m 0755 ${G_VENDOR_PATH}/recovery_resources/variscite-wifi \
+    install -m 0755 ${G_VENDOR_PATH}/resources/variscite-wifi \
             ${RECOVERYFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/recovery_resources/variscite-wifi.service \
+    install -m 0644 ${G_VENDOR_PATH}/resources/variscite-wifi.service \
             ${RECOVERYFS_BASE}/lib/systemd/system
     ln -s /lib/systemd/system/variscite-wifi.service \
        ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-wifi.service
@@ -527,8 +527,8 @@ EOF
     # binaries recoveryfs patching
     install -m 0644 ${G_VENDOR_PATH}/issue ${RECOVERYFS_BASE}/etc/
     install -m 0644 ${G_VENDOR_PATH}/issue.net ${RECOVERYFS_BASE}/etc/
-    install -m 0755 ${G_VENDOR_PATH}/recovery_resources/rc.local ${RECOVERYFS_BASE}/etc/
-    install -m 0644 ${G_VENDOR_PATH}/recovery_resources/hostapd.conf ${RECOVERYFS_BASE}/etc/
+    install -m 0755 ${G_VENDOR_PATH}/resources/rc.local ${RECOVERYFS_BASE}/etc/
+    install -m 0644 ${G_VENDOR_PATH}/resources/hostapd.conf ${RECOVERYFS_BASE}/etc/
     install -d -m 0755 ${RECOVERYFS_BASE}/boot
     install -m 0644 ${G_VENDOR_PATH}/splash.bmp ${RECOVERYFS_BASE}/boot/
     install -d -m 0755 ${RECOVERYFS_BASE}/usr/share/images/desktop-base
@@ -536,9 +536,9 @@ EOF
             ${RECOVERYFS_BASE}/usr/share/images/desktop-base/default
 
     # disable light-locker
-    # install -m 0755 ${G_VENDOR_PATH}/recovery_resources/disable-lightlocker \
+    # install -m 0755 ${G_VENDOR_PATH}/resources/disable-lightlocker \
     #         ${RECOVERYFS_BASE}/usr/local/bin/
-    # install -m 0644 ${G_VENDOR_PATH}/recovery_resources/disable-lightlocker.desktop \
+    # install -m 0644 ${G_VENDOR_PATH}/resources/disable-lightlocker.desktop \
     #         ${RECOVERYFS_BASE}/etc/xdg/autostart/
 
     # Revert regular booting
@@ -591,7 +591,7 @@ EOF
     # BEGIN -- REVO i.MX7D cleanup
     # Run curl with system root certificates file.
     mv "${RECOVERYFS_BASE}/usr/bin/curl"{,.dist}
-    install -m 755 "${G_VENDOR_PATH}/recovery_resources/curl/curl" \
+    install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
             "${RECOVERYFS_BASE}/usr/bin/curl"
 
     # Restore APT source list to default Debian mirror.
