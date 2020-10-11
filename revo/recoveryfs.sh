@@ -170,11 +170,18 @@ protected_install ()
     return \${RET_CODE}
 }
 
+# BEGIN -- REVO i.MX7D: additions
 # silence some apt warnings
 protected_install dialog
 
+# Replace mawk with gawk
+protected_install gawk
+apt-get purge -y mawk
+# END -- REVO i.MX7D: additions
+
 # update packages and install base
-apt-get update || apt-get upgrade
+apt-get update
+apt-get upgrade -y
 
 # local-apt-repository support
 protected_install local-apt-repository
@@ -182,7 +189,7 @@ protected_install reprepro
 reprepro rereference
 
 # update packages and install base
-apt-get update || apt-get upgrade
+apt-get update
 
 protected_install locales
 protected_install ntp
@@ -278,7 +285,7 @@ protected_install step-cli
 protected_install step-certificates
 
 # ifupdown is superceded by NetworkManager
-apt-get -y purge ifupdown
+apt-get purge -y ifupdown
 rm -f /etc/network/interfaces
 
 # iptables is superceded by nftables, but NetworkManager still depends
