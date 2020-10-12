@@ -566,17 +566,34 @@ EOF
     ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_setenv
     install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/fw_env.config ${ROOTFS_BASE}/etc
 
-    ## cleanup command
-    cat > cleanup << EOF
+    # BEGIN -- REVO i.MX7D post-packages stage
+    # Run curl with system root certificates file.
+    mv "${ROOTFS_BASE}/usr/bin/curl"{,.dist}
+    install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
+            "${ROOTFS_BASE}/usr/bin/curl"
+
+    # Install node installation script.
+    install -m 0755 ${G_VENDOR_PATH}/resources/nodejs/install-node-lts \
+            ${ROOTFS_BASE}/usr/bin
+    sed -i -e "s;@NODE_BASE@;${NODE_BASE};" \
+        -e "s;@NODE_GROUP@;${NODE_GROUP};" \
+        -e "s;@NODE_USER@;${NODE_USER};" \
+        ${ROOTFS_BASE}/usr/bin/install-node-lts
+
+    ## post-packages command
+    cat > post-packages << EOF
 #!/bin/bash
 apt-get clean
-rm -f cleanup
+
+# Install node via nvm
+install-node-lts
+
+rm -f post-packages
 EOF
 
-    # clean all packages
-    pr_info "rootfs: clean"
-    chmod +x cleanup
-    chroot "${ROOTFS_BASE}" /cleanup
+    pr_info "rootfs: post-packages stage"
+    chmod +x post-packages
+    chroot "${ROOTFS_BASE}" /post-packages
 
     # kill latest dbus-daemon instance due to qemu-arm-static
     QEMU_PROC_ID=$(ps axf | grep dbus-daemon | grep qemu-arm-static | awk '{print $1}')
@@ -585,14 +602,10 @@ EOF
     fi
 
     rm "${ROOTFS_BASE}/usr/bin/qemu-arm-static"
+    # END -- REVO i.MX7D post-packages stage
 
 
     # BEGIN -- REVO i.MX7D cleanup
-    # Run curl with system root certificates file.
-    mv "${ROOTFS_BASE}/usr/bin/curl"{,.dist}
-    install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
-            "${ROOTFS_BASE}/usr/bin/curl"
-
     # Restore APT source list to default Debian mirror.
     cat >"${ROOTFS_BASE}/etc/apt/sources.list" <<EOF
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free

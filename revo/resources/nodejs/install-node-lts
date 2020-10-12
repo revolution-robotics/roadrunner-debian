@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+#
+# @(#) install-node-lts
+#
+# This script installs node version manager and then the latest node
+# version of the $node_base series.
+#
+
+# Edit these ...
+: ${NODE_BASE:='@NODE_BASE@'}
+: ${NODE_GROUP:='@NODE_GROUP@'}
+: ${NODE_USER:='@NODE_USER@'}
+
+# Command paths
+: ${AWK:='/usr/bin/awk'}
+: ${BASH:='/bin/bash'}
+: ${CAT:='/bin/cat'}
+: ${CURL:='/usr/bin/curl'}
+: ${GETENT:='/usr/bin/getent'}
+: ${GIT:='/usr/bin/git'}
+: ${GREP:='/bin/grep'}
+: ${GROUPADD:='/usr/sbin/groupadd'}
+: ${SED:='/bin/sed'}
+: ${SORT:='/usr/bin/sort'}
+: ${SUDO:='/usr/bin/sudo'}
+: ${TAIL:='/usr/bin/tail'}
+: ${USERADD:='/usr/sbin/useradd'}
+
+if ! $GETENT passwd "$NODE_USER" >/dev/null 2>&1; then
+    $SUDO $GROUPADD "$NODE_GROUP"
+    $SUDO $USERADD -m -g "$NODE_GROUP" -s "$BASH" -c "Node User" "$NODE_USER"
+fi
+
+$CAT <<EOF | $SUDO  -u "$NODE_USER" $BASH -s
+if test ! -f "\${HOME}/.nvm/nvm.sh"; then
+
+    # Install latest nvm release.
+    tag=\$(
+        $GIT ls-remote --tags https://github.com/nvm-sh/nvm |
+            $GREP -v '{}' |
+            $SED 's;.*refs/tags/;;' |
+            $SORT -V -k1.2 |
+            $TAIL -1
+       )
+
+    $CURL -C - -L https://raw.githubusercontent.com/nvm-sh/nvm/\${tag}/install.sh | $BASH -s
+fi
+
+export NVM_DIR="\${HOME}/.nvm"
+
+if test -f "\${NVM_DIR}/nvm.sh"; then
+    source "\${NVM_DIR}/nvm.sh"
+fi
+
+if test -f "\${NVM_DIR}/bash_completion"; then
+    source "\${NVM_DIR}/bash_completion"
+fi
+
+current_version=\$(nvm current)
+
+latest_version_in_series=\$(
+    nvm ls-remote "$NODE_BASE" --no-colors |
+        $SED -e 's/->//' |
+        $AWK '{ print \$1 }' |
+        $SORT -V -k1.2 |
+        $TAIL -1
+   )
+
+if test ."\$current_version" != ."\$latest_version_in_series"; then
+   nvm install "\$latest_version_in_series" --latest-npm --alias=default
+   nvm use default
+   npm install -g yarn
+fi
+EOF

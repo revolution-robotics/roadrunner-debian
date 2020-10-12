@@ -43,3 +43,8 @@ readonly G_BCM_FW_GIT_REV="7bce9b69b51ffd967176c1597feed79305927370"
 
 # ubi
 readonly G_UBI_FILE_NAME='rootfs.ubi.img'
+
+# Node version and user
+NODE_BASE=v14
+NODE_GROUP=revo
+NODE_USER=revo
