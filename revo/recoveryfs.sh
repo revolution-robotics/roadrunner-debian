@@ -369,14 +369,20 @@ EOF
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Support resizing a serial console - taken from Debian xterm package.
-    install -m 0755 ${G_VENDOR_PATH}/resources/resize \
-            ${RECOVERYFS_BASE}/usr/bin
+    if test ! -f "${RECOVERYFS_BASE}/usr/bin/resize"; then
+        install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/resize \
+                ${RECOVERYFS_BASE}/usr/bin
+    fi
 
     # Set PATH and resize serial console window.
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/bash.bashrc" \
             "${RECOVERYFS_BASE}/etc"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/profile" \
             "${RECOVERYFS_BASE}/etc"
+
+    # Add RS485 mode configuration utility.
+    install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/rs485 \
+            ${RECOVERYFS_BASE}/usr/bin
 
     # Mount /tmp, /var/tmp and /var/log on tmpfs.
     install -m 0644 "${RECOVERYFS_BASE}/usr/share/systemd/tmp.mount" \

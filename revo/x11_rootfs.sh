@@ -365,7 +365,7 @@ EOF
 
     # Support resizing a serial console - taken from Debian xterm package.
     if test ! -f "${ROOTFS_BASE}/usr/bin/resize"; then
-        install -m 0755 ${G_VENDOR_PATH}/recovery_resources/resize \
+        install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/resize \
                 ${ROOTFS_BASE}/usr/bin
     fi
 
@@ -374,6 +374,10 @@ EOF
             "${ROOTFS_BASE}/etc"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/profile" \
             "${ROOTFS_BASE}/etc"
+
+    # Add RS485 mode configuration utility.
+    install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/rs485 \
+            ${ROOTFS_BASE}/usr/bin
 
     # Mount /tmp, /var/tmp and /var/log on tmpfs.
     install -m 0644 "${ROOTFS_BASE}/usr/share/systemd/tmp.mount" \
