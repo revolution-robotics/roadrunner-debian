@@ -246,7 +246,7 @@ get-decompressor ()
         *XZ*)
             ZCAT='xz -dc'
             ;;
-        *'ISO 9660'*)
+        *'ISO 9660'*|*'DOS/MBR boot sector'*)
             ZCAT=cat
             ;;
     esac
