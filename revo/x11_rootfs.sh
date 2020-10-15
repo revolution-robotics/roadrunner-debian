@@ -49,7 +49,7 @@ make_debian_x11_rootfs ()
 
     pr_info "rootfs: generate default configs"
     mkdir -p ${ROOTFS_BASE}/etc/sudoers.d/
-    echo "user ALL=(root) /usr/bin/apt-get, /usr/bin/dpkg, /usr/bin/vi, /sbin/reboot" > ${ROOTFS_BASE}/etc/sudoers.d/user
+    echo "user ALL=(root) /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > ${ROOTFS_BASE}/etc/sudoers.d/user
     chmod 0440 ${ROOTFS_BASE}/etc/sudoers.d/user
     mkdir -p ${ROOTFS_BASE}/srv/local-apt-repository
 
@@ -63,10 +63,14 @@ make_debian_x11_rootfs ()
     # cp -r ${G_VENDOR_PATH}/deb/shared-mime-info/* \
     #    ${ROOTFS_BASE}/srv/local-apt-repository
 
-    # BEGIN -- REVO i.MX7D smallstep
+    # BEGIN -- REVO i.MX7D security
+    mkdir -p ${ROOTFS_BASE}/etc/sudoers.d/
+    echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${ROOTFS_BASE}/etc/sudoers.d/revo
+    chmod 0440 ${ROOTFS_BASE}/etc/sudoers.d/revo
+
     cp -r ${G_VENDOR_PATH}/deb/smallstep/* \
        ${ROOTFS_BASE}/srv/local-apt-repository
-    # END -- REVO i.MX7D smallstep
+    # END -- REVO i.MX7D security
 
     # add mirror to source list
     cat >etc/apt/sources.list <<EOF
@@ -303,26 +307,16 @@ apt-get -y autoremove
 apt-get install -y --reinstall libgdk-pixbuf2.0-0
 
 # create users and set password
-useradd -m -G audio -s /bin/bash user
-useradd -m -G audio -s /bin/bash x_user
-usermod -a -G video user
-usermod -a -G video x_user
-echo "user:user" | chpasswd
 echo "root:root" | chpasswd
-passwd -d x_user
+
+useradd -m -G audio,video -s /bin/bash user
+useradd -m -G audio,video -s /bin/bash x_user
+# echo "user:user" | chpasswd
+# passwd -d x_user
 
 # BEGIN -- REVO i.MX7D users
-# groupadd revo
-# useradd -m -G revo -s /bin/bash revo
-# usermod -aG audio revo
-# usermod -aG bluetooth revo
-# usermod -aG lp revo
-# usermod -aG pulse revo
-# usermod -aG pulse-access revo
-# usermod -aG sudo revo
-# usermod -aG video revo
-
-# echo "revo:revo" | chpasswd
+useradd -m -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
+useradd -m -s /bin/bash -c "Smallstep PKI" step
 # END -- REVO i.MX7D users
 
 # sado kill

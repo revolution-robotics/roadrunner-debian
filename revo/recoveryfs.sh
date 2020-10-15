@@ -49,7 +49,7 @@ make_debian_recoveryfs ()
 
     # pr_info "recoveryfs: generate default configs"
     # mkdir -p ${RECOVERYFS_BASE}/etc/sudoers.d/
-    # echo "user ALL=(root) /usr/bin/apt-get, /usr/bin/dpkg, /usr/bin/vi, /sbin/reboot" > ${RECOVERYFS_BASE}/etc/sudoers.d/user
+    # echo "user ALL=(root) /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > ${RECOVERYFS_BASE}/etc/sudoers.d/user
     # chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/user
 
     # install local Debian packages
@@ -67,10 +67,14 @@ make_debian_recoveryfs ()
     # cp -r ${G_VENDOR_PATH}/deb/shared-mime-info/* \
     #    ${RECOVERYFS_BASE}/srv/local-apt-repository
 
-    # BEGIN -- REVO i.MX7D smallstep
+    # BEGIN -- REVO i.MX7D security
+    mkdir -p ${RECOVERYFS_BASE}/etc/sudoers.d/
+    echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${RECOVERYFS_BASE}/etc/sudoers.d/revo
+    chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/revo
+
     cp -r ${G_VENDOR_PATH}/deb/smallstep/* \
        ${RECOVERYFS_BASE}/srv/local-apt-repository
-    # END -- REVO i.MX7D smallstep
+    # END -- REVO i.MX7D security
 
     # add mirror to source list
     cat >etc/apt/sources.list <<EOF
@@ -308,26 +312,16 @@ rm -f /etc/iptables/rules.v[46]
 # apt-get install -y --reinstall libgdk-pixbuf2.0-0
 
 # create users and set password
-# useradd -m -G audio -s /bin/bash user
-# useradd -m -G audio -s /bin/bash x_user
-# usermod -a -G video user
-# usermod -a -G video x_user
-# echo "user:user" | chpasswd
 echo "root:root" | chpasswd
+
+useradd -m -G audio,video -s /bin/bash user
+useradd -m -G audio,video -s /bin/bash x_user
+# echo "user:user" | chpasswd
 # passwd -d x_user
 
 # BEGIN -- REVO i.MX7D users
-# groupadd revo
-# useradd -m -G revo -s /bin/bash revo
-# usermod -aG audio revo
-# usermod -aG bluetooth revo
-# usermod -aG lp revo
-# usermod -aG pulse revo
-# usermod -aG pulse-access revo
-# usermod -aG sudo revo
-# usermod -aG video revo
-
-# echo "revo:revo" | chpasswd
+useradd -m -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
+useradd -m -s /bin/bash -c "Smallstep PKI" step
 # END -- REVO i.MX7D users
 
 # sado kill
