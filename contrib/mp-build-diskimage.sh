@@ -276,9 +276,9 @@ $SUDO $APT install -qy --no-install-recommends autoconf automake autopoint \\
     binfmt-support binutils bison build-essential chrpath cmake \\
     coreutils debootstrap device-tree-compiler diffstat docbook-utils \\
     flex g++ gcc gcc-multilib git-core golang gpart groff help2man \\
-    lib32ncurses5-dev libarchive-dev libgl1-mesa-dev libglib2.0-dev \\
-    libglu1-mesa-dev libsdl1.2-dev libssl-dev libtool lzop m4 make \\
-    mtd-utils python3-git python3-m2crypto qemu qemu-user-static socat \\
+    lib32ncurses5-dev libarchive-dev libelf-dev libgl1-mesa-dev \\
+    libglib2.0-dev libglu1-mesa-dev libsdl1.2-dev libssl-dev libtool lzop \\
+    m4 make python3-git python3-m2crypto qemu qemu-user-static socat \\
     texi2html texinfo u-boot-tools unzip |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
 $SUDO $APT install -qy binutils-arm-linux-gnueabihf |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
 $SUDO $APT install -qy cpp-arm-linux-gnueabihf |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
