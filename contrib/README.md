@@ -4,6 +4,7 @@ described in following sections:
 
 - [chrootfs.sh](#chrootfssh)
 - [flash-diskimage.sh](#flash-diskimagesh)
+- [markov-pwgen](#markov-pwgen)
 - [mp-build-diskimage.sh](#mp-build-diskimagesh)
 - [mp-cloud-init.yaml](#mp-cloud-inityaml)
 
@@ -49,6 +50,11 @@ By default, it looks for image files to flash in the directory _${HOME}/output_.
 
 The script leverages features of GNU Bash version 5, so no attempt has
 been made to port it, e.g., to MacOS.
+
+## markov-pwgen
+`markov-pwgen` is a JavaScript command-line utility that leverages
+the [Foswig.js](https://github.com/mrsharpoblunto/foswig.js/) library
+to generate memorable passwords.
 
 ## mp-build-diskimage.sh
 The Roadrunner disk images can be built on either Linux or MacOS

@@ -833,6 +833,7 @@ $part1_start,$part1_size,c
 $part2_start,-,L
 EOF
 
+    # blockdev --rereadpt "$LPARAM_BLOCK_DEVICE"
     partprobe "$LPARAM_BLOCK_DEVICE"
     sleep 2
     sync
