@@ -596,6 +596,11 @@ EOF
     ln -s "${RECOVERYFS_BASE}/lib/systemd/system/zramswap.service" \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/"
 
+    # Mask e2scrub_{all,reap} services.
+    ln -s /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_all.timer"
+    ln -s /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_all.service"
+    ln -s /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_reap.service"
+
     ## post-packages command
     cat > post-packages << EOF
 #!/bin/bash
