@@ -578,6 +578,14 @@ EOF
         -e "s;@NODE_USER@;${NODE_USER};" \
         ${ROOTFS_BASE}/usr/bin/install-node-lts
 
+    # Configure /etc/default/zramswap
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/zramswap" \
+            "${ROOTFS_BASE}/etc/default"
+
+    # Enable zramswap service
+    ln -s "${ROOTFS_BASE}/lib/systemd/system/zramswap.service" \
+       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/"
+
     ## post-packages command
     cat > post-packages << EOF
 #!/bin/bash
@@ -828,7 +836,7 @@ make_x11_image ()
     sleep 2
     sync
 
-    flock "$LPARAM_BLOCK_DEVICE" sfdisk "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1 <<EOF
+    flock "$LPARAM_BLOCK_DEVICE" sfdisk --wipe=always "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1 <<EOF
 $part1_start,$part1_size,c
 $part2_start,-,L
 EOF

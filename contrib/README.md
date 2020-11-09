@@ -5,6 +5,7 @@ described in following sections:
 - [chrootfs.sh](#chrootfssh)
 - [flash-diskimage.sh](#flash-diskimagesh)
 - [markov-pwgen](#markov-pwgen)
+- [memalloc](#memalloc)
 - [mp-build-diskimage.sh](#mp-build-diskimagesh)
 - [mp-cloud-init.yaml](#mp-cloud-inityaml)
 
@@ -55,6 +56,11 @@ been made to port it, e.g., to MacOS.
 `markov-pwgen` is a JavaScript command-line utility that leverages
 the [Foswig.js](https://github.com/mrsharpoblunto/foswig.js/) library
 to generate memorable passwords.
+
+## memalloc
+`memalloc` is a C program that allocates memory in units of 25 MB per
+second up to 925 MB to test zramswap. Without zramswap enabled (and
+using 25% of available RAM), at most 725 MB can be allocated.
 
 ## mp-build-diskimage.sh
 The Roadrunner disk images can be built on either Linux or MacOS
