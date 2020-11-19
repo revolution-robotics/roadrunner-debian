@@ -24,7 +24,8 @@
 declare script_name=${0##*/}
 
 # Exit immediately on errors
-set -e
+set -eE -o pipefail
+shopt -s extglob
 
 # Edit these ...
 : ${VMNAME:='roadrunner'}
@@ -35,9 +36,11 @@ set -e
 : ${BUILD_DIR:='roadrunner_debian'}
 : ${OUTPUT_DIR:="${BUILD_DIR}/output"}
 : ${DEST_DIR:="${HOME}/output"}
+: ${ACNG_PROXY_URL:="http://${HOSTNAME}:3142/deb.debian.org/debian/"}
 
 # Command paths
 : ${APT:='/usr/bin/apt'}
+: ${APT_KEY:='/usr/bin/apt-key'}
 : ${AWK:='/usr/bin/awk'}
 : ${BASH:='/bin/bash'}
 : ${CAT:='/bin/cat'}
@@ -48,9 +51,6 @@ set -e
 : ${GPG:='/usr/bin/gpg'}
 : ${GREP:='/usr/bin/grep'}
 : ${HEAD:='/usr/bin/head'}
-
-# Environment defines variable HOSTNAME, so use _HOSTNAME here.
-: ${_HOSTNAME:='/bin/hostname'}
 : ${LN:='/bin/ln'}
 : ${LS:='/bin/ls'}
 : ${LSOF:='/usr/bin/lsof'}
@@ -67,6 +67,7 @@ set -e
 : ${UNAME:='/usr/bin/uname'}
 
 : ${TTY:="$(tty)"}
+: ${LOCKED:=''}
 
 # Script not piped to bash ...
 if test -t 0; then
@@ -81,8 +82,8 @@ else
 
     # TTY not exported ...
     if [[ ! ."$TTY" =~ \./dev/ ]]; then
-        echo "$script_name: TTY must be exported before running this script"
-        echo "Use: export TTY=\$(tty);"
+        echo "$script_name: TTY must be exported before running this script:"
+        echo "export TTY=\$(tty);"
         exit 1
     fi
 fi
@@ -110,6 +111,7 @@ get-current-tag ()
         $TAIL -1
 }
 
+declare acng_proxy=''
 declare prompt
 declare system=$($UNAME -s)
 
@@ -179,7 +181,7 @@ if test -x "$PGREP" -a -x "$LSOF"; then
 
     # If `apt-cacher-ng' is listening on localhost:3142
     if  $PGREP apt-cacher-ng >/dev/null && $SUDO $LSOF -ti :3142 >/dev/null; then
-        declare acng_proxy="-p http://$($_HOSTNAME):3142/deb.debian.org/debian/"
+        acng_proxy="-p $ACNG_PROXY_URL"
     fi
 fi
 
@@ -224,7 +226,7 @@ $MKDIR -p "$DEST_DIR" &&
 #
 if test ! -f "$SSH_PUBKEY"; then
     echo "Generating SSH certificate"
-    $SSH_KEYGEN -t rsa -b 4096 -C "${USER}@$($_HOSTNAME)" -P '' \
+    $SSH_KEYGEN -t rsa -b 4096 -C "${USER}@${HOSTNAME}" -P '' \
         -f "${SSH_PUBKEY%.pub}"
 fi
 
@@ -254,13 +256,13 @@ case "$system" in
 esac
 $CAT <<EOF | "$MULTIPASS" exec "$VMNAME" -- $SUDO $BASH -c "$CAT >>/etc/hosts"
 # localhosts
-${host_gw_ipv4%/*} $($_HOSTNAME)
+${host_gw_ipv4%/*} $HOSTNAME
 EOF
 
 # If apt-cacher-ng proxy available, add it to the VM's apt configuration.
 if [[ ."$DEBIAN_PROXY" =~ \..*3142 ]]; then
     $CAT <<EOF | "$MULTIPASS" exec "$VMNAME" -- $SUDO $BASH -c "$CAT >>/etc/apt/apt.conf.d/10acng-proxy"
-Acquire::http::Proxy "http://$($_HOSTNAME):3142";
+Acquire::http::Proxy "http://${HOSTNAME}:3142";
 EOF
 fi
 
@@ -284,9 +286,7 @@ $SUDO $APT install -qy binutils-arm-linux-gnueabihf |& $TEE -a "/home/ubuntu/${O
 $SUDO $APT install -qy cpp-arm-linux-gnueabihf |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
 $SUDO $APT install -qy gcc-arm-linux-gnueabihf |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
 $SUDO $APT install -qy g++-arm-linux-gnueabihf |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
-$CURL -sL https://ftp-master.debian.org/keys/release-10.asc |
-    $SUDO $GPG --quiet --import --no-default-keyring \\
-    --keyring /usr/share/keyrings/debian-buster-release.gpg
+$CURL -sL https://ftp-master.debian.org/keys/release-10.asc | $SUDO $APT_KEY add
 echo "Cloning build suite..."
 $GIT init |& $TEE "/home/ubuntu/${OUTPUT_DIR}/git.log"
 $GIT remote add origin https://github.com/revolution-robotics/roadrunner-debian.git |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/git.log"

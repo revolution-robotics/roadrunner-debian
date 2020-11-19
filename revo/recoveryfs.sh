@@ -17,7 +17,7 @@ make_debian_recoveryfs ()
 
     pr_info "recoveryfs: debootstrap"
     debootstrap --variant=minbase --verbose  --foreign --arch armhf \
-                --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
+                --keyring='/etc/apt/trusted.gpg' \
                 "${DEB_RELEASE}" "${RECOVERYFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
 
     # prepare qemu
@@ -36,7 +36,8 @@ make_debian_recoveryfs ()
     if ! findmnt "${RECOVERYFS_BASE}/proc" >/dev/null; then
         mount -t proc /proc "${RECOVERYFS_BASE}/proc"
     fi
-    for fs in sys dev dev/pts; do
+
+    for fs in /sys /dev /dev/pts; do
         if ! findmnt "${RECOVERYFS_BASE}/${fs}" >/dev/null; then
             mount -o bind "$fs" "${RECOVERYFS_BASE}/${fs}"
         fi
@@ -77,7 +78,7 @@ make_debian_recoveryfs ()
     # END -- REVO i.MX7D security
 
     # add mirror to source list
-    cat >etc/apt/sources.list <<EOF
+    cat >${RECOVERYFS_BASE}/etc/apt/sources.list <<EOF
 deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
 #deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
 deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
@@ -85,20 +86,20 @@ deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
     # raise backports priority
-    cat >etc/apt/preferences.d/backports <<EOF
+    cat >${RECOVERYFS_BASE}/etc/apt/preferences.d/backports <<EOF
 Package: *
 Pin: release n=${DEB_RELEASE}-backports
 Pin-Priority: 500
 EOF
 
     # maximize local repo priority
-    cat >etc/apt/preferences.d/local <<EOF
+    cat >${RECOVERYFS_BASE}/etc/apt/preferences.d/local <<EOF
 Package: *
 Pin: origin ""
 Pin-Priority: 1000
 EOF
 
-    cat >etc/fstab <<EOF
+    cat >${RECOVERYFS_BASE}/etc/fstab <<EOF
 
 # /dev/mmcblk0p1  /boot           vfat    defaults        0       0
 EOF
@@ -107,7 +108,7 @@ EOF
     # echo "$MACHINE" > etc/hostname
 
     # "127.0.1.1 $hostname"  added when hostname generated on boot
-    cat >etc/hosts <<EOF
+    cat >${RECOVERYFS_BASE}/etc/hosts <<EOF
 127.0.0.1	localhost
 
 # The following lines are desirable for IPv6 capable hosts
@@ -122,7 +123,7 @@ EOF
 # iface lo inet loopback
 # " > etc/network/interfaces
 
-    cat >debconf.set <<EOF
+    cat >${RECOVERYFS_BASE}/debconf.set <<EOF
 locales locales/locales_to_be_generated multiselect en_US.UTF-8 UTF-8
 locales locales/default_environment_locale select en_US.UTF-8
 console-common	console-data/keymap/policy	select	Select keymap from full list
@@ -131,7 +132,8 @@ openssh-server openssh-server/permit-root-login select true
 EOF
 
     pr_info "recoveryfs: prepare install packages in recoveryfs"
-    # apt-get install without starting
+
+    # Run apt-get install without invoking daemons.
     cat > ${RECOVERYFS_BASE}/usr/sbin/policy-rc.d << EOF
 #!/bin/sh
 exit 101
@@ -140,7 +142,7 @@ EOF
     chmod +x ${RECOVERYFS_BASE}/usr/sbin/policy-rc.d
 
     # third packages stage
-    cat > third-stage << EOF
+    cat > ${RECOVERYFS_BASE}/third-stage << EOF
 #!/bin/bash
 # apply debconfig options
 debconf-set-selections /debconf.set
@@ -185,7 +187,7 @@ apt-get purge -y mawk
 
 # update packages and install base
 apt-get update
-apt-get upgrade -y
+apt-get full-upgrade -y
 
 # local-apt-repository support
 protected_install local-apt-repository
@@ -329,7 +331,7 @@ rm -f third-stage
 EOF
 
     pr_info "recoveryfs: install selected debian packages (third-stage)"
-    chmod +x third-stage
+    chmod +x ${RECOVERYFS_BASE}/third-stage
     LANG=C chroot ${RECOVERYFS_BASE} /third-stage
     # fourth-stage
 
@@ -505,7 +507,7 @@ EOF
         pr_info "recoveryfs: install user defined packages (user-stage)"
         pr_info "recoveryfs: G_USER_PACKAGES \"${G_USER_PACKAGES}\" "
 
-        cat > user-stage << EOF
+        cat > ${RECOVERYFS_BASE}/user-stage << EOF
 #!/bin/bash
 # update packages
 apt-get update
@@ -516,17 +518,10 @@ pip3 install minimalmodbus
 pip3 install pystemd
 pip3 install pytz
 
-# BEGIN -- REVO i.MX7D purge
-apt-get -y purge build-essential gcc-8 libx11-6 manpages{,-dev}
-apt-get --purge -y autoremove
-apt-get clean
-rm -r /var/lib/apt/lists/*
-# END -- REVO i.MX7D purge
-
 rm -f user-stage
 EOF
 
-        chmod +x user-stage
+        chmod +x ${RECOVERYFS_BASE}/user-stage
         LANG=C chroot ${RECOVERYFS_BASE} /user-stage
 
     fi
@@ -602,18 +597,22 @@ EOF
     ln -s /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_reap.service"
 
     ## post-packages command
-    cat > post-packages << EOF
+    cat > ${RECOVERYFS_BASE}/post-packages << EOF
 #!/bin/bash
-apt-get clean
 
 # Install node via nvm
 install-node-lts
+
+apt-get -y purge build-essential gcc-8 libx11-6 manpages{,-dev}
+apt-get -y autoremove --purge
+apt-get clean
+rm -r /var/lib/apt/lists/*
 
 rm -f post-packages
 EOF
 
     pr_info "recoveryfs: post-packages stage"
-    chmod +x post-packages
+    chmod +x ${RECOVERYFS_BASE}/post-packages
     chroot "${RECOVERYFS_BASE}" /post-packages
 
     # kill latest dbus-daemon instance due to qemu-arm-static
@@ -643,7 +642,7 @@ EOF
 
     # Prepare /var/log to be mounted as tmpfs.
     # NB: *~ is excluded from recoveryfs tarball.
-    mv "${RECOVERYFS_BASE}/var/log"{,~}
+    rm -rf "${RECOVERYFS_BASE}/var/log"
     install -d -m 755 "${RECOVERYFS_BASE}/var/log"
     # END -- REVO i.MX7D cleanup
 

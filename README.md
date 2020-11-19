@@ -38,8 +38,7 @@ sudo apt install -y g++-arm-linux-gnueabihf
 Import a Debian GPG-signing key to verify repository integrity:
 
 ```shell
-curl -L https://ftp-master.debian.org/keys/release-10.asc |
-sudo gpg --import --no-default-keyring --keyring /usr/share/keyrings/debian-buster-release.gpg
+curl -L https://ftp-master.debian.org/keys/release-10.asc | sudo apt-key add
 ```
 
 ## Fetch build suite and kernel sources

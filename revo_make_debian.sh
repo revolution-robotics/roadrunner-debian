@@ -22,7 +22,7 @@ declare ZIP=gzip
 declare ZCAT='gzip -dc'
 
 # default mirror
-declare -r DEF_DEBIAN_MIRROR=https://deb.debian.org/debian/
+declare -r DEF_DEBIAN_MIRROR=http://deb.debian.org/debian/
 declare -r DEB_RELEASE=buster
 declare -r DEF_ROOTFS_TARBALL_NAME=rootfs.tar.gz
 declare -r DEF_RECOVERYFS_TARBALL_NAME=recoveryfs.tar.gz
