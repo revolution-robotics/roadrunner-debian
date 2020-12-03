@@ -109,7 +109,7 @@ make_debian_recoveryfs ()
 
     # pr_info "recoveryfs: generate default configs"
     # mkdir -p ${RECOVERYFS_BASE}/etc/sudoers.d/
-    # echo "user ALL=(root) /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > ${RECOVERYFS_BASE}/etc/sudoers.d/user
+    # echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > ${ROOTFS_BASE}/etc/sudoers.d/user
     # chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/user
 
     # install local Debian packages
@@ -192,7 +192,7 @@ EOF
 
     pr_info "recoveryfs: prepare install packages in recoveryfs"
 
-    # Run apt-get install without invoking daemons.
+    # Run apt install without invoking daemons.
     cat > ${RECOVERYFS_BASE}/usr/sbin/policy-rc.d << EOF
 #!/bin/sh
 exit 101
@@ -216,7 +216,7 @@ protected_install ()
     local RET_CODE=1
 
     for (( c=0; c < \${repeated_cnt}; c++ )); do
-        apt-get install -y \${_name} && {
+        apt -y install \${_name} && {
             RET_CODE=0
             break
         }
@@ -228,7 +228,7 @@ protected_install ()
         echo ""
 
         sleep 2
-        apt --fix-broken install -y && {
+        apt -y --fix-broken install && {
                 RET_CODE=0
                 break
         }
@@ -243,12 +243,12 @@ protected_install dialog
 
 # Replace mawk with gawk
 protected_install gawk
-apt-get purge -y mawk
+apt -y purge mawk
 # END -- REVO i.MX7D: additions
 
 # update packages and install base
-apt-get update
-apt-get full-upgrade -y
+apt update
+apt -y full-upgrade
 
 # local-apt-repository support
 protected_install local-apt-repository
@@ -256,7 +256,7 @@ protected_install reprepro
 reprepro rereference
 
 # update packages and install base
-apt-get update
+apt update
 
 protected_install locales
 protected_install ntp
@@ -352,15 +352,15 @@ protected_install step-cli
 protected_install step-certificates
 
 # ifupdown is superceded by NetworkManager
-apt-get purge -y ifupdown
+apt -y purge ifupdown
 rm -f /etc/network/interfaces
 
 # iptables is superceded by nftables, but NetworkManager still depends
 # on compatibility interface, iptables-nft, provided by iptables.
 # See https://www.redhat.com/en/blog/using-iptables-nft-hybrid-linux-firewall.
-# apt-get -y purge iptables
-printf "\n\n" | DEBIAN_FRONTEND=noninteractive apt-get -y install network-manager
-DEBIAN_FRONTEND=noninteractive apt-get -y install iptables-persistent
+# apt -y purge iptables
+printf "\n\n" | DEBIAN_FRONTEND=noninteractive apt -y install network-manager
+DEBIAN_FRONTEND=noninteractive apt -y install iptables-persistent
 rm -f /etc/iptables/rules.v[46]
 
 # Defaults, starting with Debian buster:
@@ -370,9 +370,9 @@ rm -f /etc/iptables/rules.v[46]
 # update-alternatives --set ebtables /usr/sbin/ebtables-nft
 # END -- REVO i.MX7D networking
 
-# apt-get -y autoremove
+# apt -y autoremove
 
-# apt-get install -y --reinstall libgdk-pixbuf2.0-0
+# apt -y install --reinstall libgdk-pixbuf2.0-0
 
 # create users and set password
 echo "root:root" | chpasswd
@@ -570,10 +570,10 @@ EOF
         cat > ${RECOVERYFS_BASE}/user-stage << EOF
 #!/bin/bash
 # update packages
-apt-get update
+apt update
 
 # install all user packages from backports
-DEBIAN_FRONTEND=noninteractive apt-get -yq -t ${DEB_RELEASE}-backports install ${G_USER_PACKAGES}
+DEBIAN_FRONTEND=noninteractive apt -yq -t ${DEB_RELEASE}-backports install ${G_USER_PACKAGES}
 pip3 install minimalmodbus
 pip3 install pystemd
 pip3 install pytz
@@ -668,9 +668,11 @@ DEBIAN_FRONTEND=noninteractive apt -y install localepurge
 sed -i -e 's/^USE_DPKG/#USE_DPKG/' /etc/locale.nopurge
 localepurge
 
-apt-get -y purge build-essential gcc-8 libx11-6 manpages{,-dev}
-apt-get -y autoremove --purge
-apt-get clean
+# XXX: Why is linux-image-rt-armmp installed???
+apt -y purge linux-image-rt-armmp
+apt -y purge build-essential gcc-8 libx11-6 manpages{,-dev}
+apt -y autoremove --purge
+apt clean
 
 rm -f /post-packages
 EOF

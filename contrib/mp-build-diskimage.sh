@@ -30,7 +30,7 @@ shopt -s extglob
 # Edit these ...
 : ${VMNAME:='roadrunner'}
 : ${NCPUS:='2'}
-: ${DISK_SIZE:='20G'}
+: ${DISK_SIZE:='30G'}
 : ${MEMORY_SIZE:='2G'}
 : ${SSH_PUBKEY:="${HOME}/.ssh/id_rsa.pub"}
 : ${BUILD_DIR:='roadrunner_debian'}
