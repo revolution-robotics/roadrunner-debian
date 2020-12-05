@@ -128,11 +128,13 @@ make_debian_recoveryfs ()
     #    ${RECOVERYFS_BASE}/srv/local-apt-repository
 
     # BEGIN -- REVO i.MX7D security
-    mkdir -p ${RECOVERYFS_BASE}/etc/sudoers.d/
-    echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${RECOVERYFS_BASE}/etc/sudoers.d/revo
-    chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/revo
+    # mkdir -p ${RECOVERYFS_BASE}/etc/sudoers.d/
+    # echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${RECOVERYFS_BASE}/etc/sudoers.d/revo
+    # chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/revo
 
-    cp -r ${G_VENDOR_PATH}/deb/smallstep/* \
+    # cp -r ${G_VENDOR_PATH}/deb/smallstep/* \
+    #    ${RECOVERYFS_BASE}/srv/local-apt-repository
+
        ${RECOVERYFS_BASE}/srv/local-apt-repository
     # END -- REVO i.MX7D security
 
@@ -348,8 +350,8 @@ protected_install can-utils
 # protected_install pm-utils
 
 # BEGIN -- REVO i.MX7D networking
-protected_install step-cli
-protected_install step-certificates
+# protected_install step-cli
+# protected_install step-certificates
 
 # ifupdown is superceded by NetworkManager
 apt -y purge ifupdown
@@ -387,8 +389,8 @@ useradd -m -G audio,video -s /bin/bash x_user
 # passwd -d x_user
 
 # BEGIN -- REVO i.MX7D users
-useradd -m -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
-useradd -m -s /bin/bash -c "Smallstep PKI" step
+# useradd -m -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
+# useradd -m -s /bin/bash -c "Smallstep PKI" step
 # END -- REVO i.MX7D users
 
 rm -f /third-stage
@@ -665,7 +667,7 @@ EOF
 #!/bin/bash
 
 # Install node via nvm
-install-node-lts
+# install-node-lts
 
 # Remove non-default locales.
 DEBIAN_FRONTEND=noninteractive apt -y install localepurge
