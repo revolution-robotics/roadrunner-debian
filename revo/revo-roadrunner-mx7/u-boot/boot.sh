@@ -41,6 +41,9 @@ sw_reset=$recovery_request
 setenv recovery_request
 saveenv
 
+# Enable cgroup v2 and run-time security via apparmor.
+setenv kernelargs $kernelargs apparmor=1 security=apparmor systemd.unified_cgroup_hierarchy=1
+
 reset_pin=83
 usbdev=0
 usbbootpart=1

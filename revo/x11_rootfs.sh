@@ -363,6 +363,10 @@ rm -f /etc/iptables/rules.v[46]
 # update-alternatives --set ip6tables /usr/sbin/ip6tables-nft
 # update-alternatives --set arptables /usr/sbin/arptables-nft
 # update-alternatives --set ebtables /usr/sbin/ebtables-nft
+
+# Install firewalld with nftables backend.
+apt -y install firewalld nftables
+sed -i -e 's/^\(FirewallBackend=\).*/\1nftables/' /etc/firewalld/firewalld.conf
 # END -- REVO i.MX7D networking
 
 apt -y autoremove
@@ -668,6 +672,15 @@ localepurge
 # XXX: Why is linux-image-rt-armmp installed???
 apt -y purge linux-image-rt-armmp
 apt -y autoremove --purge
+
+# apt -y install apparmor-profiles-extra
+apt -y install apparmor{,-utils,-profiles}
+
+# Set apparamor profiles to complain mode by default.
+for f in $(find /etc/apparmor.d -maxdepth 1 -type f); do
+  aa-complain "$f"
+done
+
 apt clean
 
 rm -f /post-packages
