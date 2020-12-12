@@ -576,10 +576,11 @@ EOF
 apt update
 
 # install all user packages from backports
-apt -y -t ${DEB_RELEASE}-backports install ${G_USER_PACKAGES}
+DEBIAN_FRONTEND=noninteractive apt -yq -t ${DEB_RELEASE}-backports install ${G_USER_PACKAGES}
 pip3 install minimalmodbus
 pip3 install pystemd
 pip3 install pytz
+
 rm -f /user-stage
 EOF
 
@@ -669,8 +670,12 @@ DEBIAN_FRONTEND=noninteractive apt -y install localepurge
 sed -i -e 's/^USE_DPKG/#USE_DPKG/' /etc/locale.nopurge
 localepurge
 
-# XXX: Why is linux-image-rt-armmp installed???
-apt -y purge linux-image-rt-armmp
+# XXX: Why is 'linux-image*' installed???
+apt -y purge 'linux-image*' initramfs-tools{,-core} \
+    cryptsetup cryptsetup-bin cryptsetup-initramfs cryptsetup-run \
+    dmeventd dmraid dracut dracut-core lvm2 \
+    thin-provisioning-tools
+
 apt -y autoremove --purge
 
 # apt -y install apparmor-profiles-extra

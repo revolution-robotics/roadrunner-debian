@@ -672,8 +672,12 @@ DEBIAN_FRONTEND=noninteractive apt -y install localepurge
 sed -i -e 's/^USE_DPKG/#USE_DPKG/' /etc/locale.nopurge
 localepurge
 
-# XXX: Why is linux-image-rt-armmp installed???
-apt -y purge linux-image-rt-armmp
+# XXX: Why is 'linux-image*' installed???
+apt -y purge 'linux-image*' initramfs-tools{,-core} \
+    cryptsetup cryptsetup-bin cryptsetup-initramfs cryptsetup-run \
+    dmeventd dmraid dracut dracut-core lvm2 \
+    thin-provisioning-tools
+
 apt -y purge build-essential gcc-8 libx11-6 manpages{,-dev}
 apt -y autoremove --purge
 
