@@ -58,12 +58,16 @@ declare -r G_CROSS_COMPILER_64BIT_PREFIX=aarch64-buildroot-linux-gnu-
 # declare -r G_CROSS_COMPILER_32BIT_PREFIX=arm-buildroot-linux-gnueabihf-
 declare -r G_CROSS_COMPILER_32BIT_PREFIX=arm-linux-gnueabihf-
 
-declare G_CROSS_COMPILER_JOPTION="-j 6"
+declare G_CROSS_COMPILER_JOPTION="-j 2"
 
 #### user rootfs/recoveryfs packages ####
 declare -r G_USER_PACKAGES="avahi-daemon bash-completion bc binutils cockpit cockpit-networkmanager curl dnsutils ed git jq libsystemd-dev openvpn network-manager-openvpn pciutils python3-asteval python3-cryptography python3-dateutil python3-lxml python3-pip python3-psutil python3-serial python3-websocket python3-websockets python3-zmq sudo traceroute wireguard-tools zram-tools"
 
-export LC_ALL=C
+
+# Space-separated list of locales, with default locale first.
+declare -r LOCALES='en_US.UTF-8 UTF-8'
+
+export LC_ALL=${LOCALES%% *}
 
 #### Input params ####
 declare PARAM_DEB_LOCAL_MIRROR=$DEF_DEBIAN_MIRROR

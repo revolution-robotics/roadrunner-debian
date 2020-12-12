@@ -1,5 +1,64 @@
 #!/usr/bin/env bash
 #
+
+remove-charmaps ()
+{
+    # Remove non-essential charmaps from /usr/share/i18n/charmaps
+    local charmap quoted
+    local -a find_args=()
+    local -a charmaps=(
+        $(tr -s ' ' '\n' <<<"$LOCALES UTF-8 ISO-8859-1" |
+              sed -e 's/.*\.//' |
+              sort -u)
+    )
+    for charmap in "${charmaps[@]}"; do
+        printf -v quoted "%q.gz" "$charmap";
+
+        if (( ${#find_args[*]} == 0 )); then
+            find_args=( -name "$quoted" )
+        else
+            find_args+=( -or -name "$quoted" )
+        fi
+    done
+    eval find "${ROOTFS_BASE}/usr/share/i18n/charmaps" -type f \
+          ${find_args[0]:+"-not \\( ${find_args[@]} \\)"} -delete
+}
+
+remove-locales ()
+{
+    # Remove non-essential charmaps from /usr/share/i18n/locales
+    local charmap quoted
+    local -a find_args=()
+    local -a locales=(
+        $(tr -s ' ' '\n' <<<"$LOCALES" |
+            sed -n -e 's/\..*//' -e '/_/p' -e 's/_.*//p')
+    )
+    local locale
+
+    locales+=( C POSIX )
+    for locale in "${locales[@]}"; do
+        printf -v quoted "%q" "$locale";
+
+        if (( ${#find_args[*]} == 0 )); then
+            find_args=( -name "$quoted" )
+
+            # If keeping, e.g., `en_IE', also keep `en_IE@euro'.
+            if [[ ."$quoted" =~ \.[^_]+_[^@]+$ ]]; then
+                find_args+=( -or -name "${quoted}@*" )
+            fi
+        else
+            find_args+=( -or -name "$quoted" )
+
+            # If keeping, e.g., `en_IE', also keep `en_IE@euro'.
+            if [[ ."$quoted" =~ \.[^_]+_[^@]+$ ]]; then
+                find_args+=( -or -name "${quoted}@*" )
+            fi
+        fi
+    done
+    eval find "${ROOTFS_BASE}/usr/share/i18n/locales" -type f \
+          ${find_args[0]:+"-not \\( ${find_args[@]} \\)"} -delete
+}
+
 # Must be called after make_prepare in main script
 # function generate rootfs in input dir
 # $1 - rootfs base dir
@@ -120,8 +179,8 @@ EOF
 # " > etc/network/interfaces
 
     cat >${ROOTFS_BASE}/debconf.set <<EOF
-locales locales/locales_to_be_generated multiselect en_US.UTF-8 UTF-8
-locales locales/default_environment_locale select en_US.UTF-8
+locales locales/locales_to_be_generated multiselect $LOCALES
+locales locales/default_environment_locale select ${LOCALES%% *}
 console-common	console-data/keymap/policy	select	Select keymap from full list
 keyboard-configuration keyboard-configuration/variant select 'English (US)'
 openssh-server openssh-server/permit-root-login select true
@@ -141,6 +200,8 @@ EOF
     cat > ${ROOTFS_BASE}/third-stage << EOF
 #!/bin/bash
 # apply debconfig options
+echo 'LANG="${LOCALES%% *}"' >/etc/default/locale
+dpkg-reconfigure --frontend=noninteractive locales
 debconf-set-selections /debconf.set
 rm -f /debconf.set
 
@@ -321,8 +382,7 @@ useradd -m -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO 
 useradd -m -s /bin/bash -c "Smallstep PKI" step
 # END -- REVO i.MX7D users
 
-# sado kill
-rm -f third-stage
+rm -f /third-stage
 EOF
 
     pr_info "rootfs: install selected debian packages (third-stage)"
@@ -516,7 +576,7 @@ apt-get -y -t ${DEB_RELEASE}-backports install ${G_USER_PACKAGES}
 pip3 install minimalmodbus
 pip3 install pystemd
 pip3 install pytz
-rm -f user-stage
+rm -f /user-stage
 EOF
 
         chmod +x ${ROOTFS_BASE}/user-stage
@@ -600,11 +660,15 @@ EOF
 # Install node via nvm
 install-node-lts
 
+# Remove non-default locales.
+DEBIAN_FRONTEND=noninteractive apt -y install localepurge
+sed -i -e 's/^USE_DPKG/#USE_DPKG/' /etc/locale.nopurge
+localepurge
+
 apt-get -y autoremove --purge
 apt-get clean
-rm -r /var/lib/apt/lists/*
 
-rm -f post-packages
+rm -f /post-packages
 EOF
 
     pr_info "rootfs: post-packages stage"
@@ -622,6 +686,11 @@ EOF
 
 
     # BEGIN -- REVO i.MX7D cleanup
+    remove-charmaps
+    remove-locales
+    rm -rf "${RECOVERYFS_BASE}/usr/share/doc/"*
+    rm -rf "${RECOVERYFS_BASE}/var/lib/apt/lists/"*
+
     # Restore APT source list to default Debian mirror.
     cat >"${ROOTFS_BASE}/etc/apt/sources.list" <<EOF
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
