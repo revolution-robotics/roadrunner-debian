@@ -744,6 +744,9 @@ EOF
     ln -s /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_all.service"
     ln -s /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_reap.service"
 
+    # Enable sysstat data collection
+    sed -i 's;^\(ENABLED=\).*;\1"true";' "${ROOTFS_BASE}/etc/default/sysstat"
+
     ## post-packages command
     cat > ${RECOVERYFS_BASE}/post-packages <<EOF
 #!/bin/bash
