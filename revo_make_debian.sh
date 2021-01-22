@@ -17,9 +17,10 @@ declare -r SCRIPT_NAME=${0##*/}
 declare -r ABSOLUTE_FILENAME=$(readlink -e "$0")
 declare -r ABSOLUTE_DIRECTORY=$(dirname "$ABSOLUTE_FILENAME")
 declare -r LOOP_MAJOR=7
-declare COMPRESSION_SUFFIX=gz
-declare ZIP=gzip
+declare COMPRESSION_SUFFIX='{bz2,gz,img,lz,lzma,lzo,xz,zip}'
 declare ZCAT='gzip -dc'
+declare -r ZIP=gzip
+declare -r ZIP_SUFFIX=gz
 
 # default mirror
 declare -r DEF_DEBIAN_MIRROR=http://deb.debian.org/debian/
@@ -346,6 +347,10 @@ make_prepare ()
 
     # create out dir
     mkdir -p "$PARAM_OUTPUT_DIR"
+
+    if test -d "$G_TMP_DIR"; then
+        rm -rf "$G_TMP_DIR"
+    fi
 
     # create tmp dir
     mkdir -p "$G_TMP_DIR"
@@ -736,6 +741,38 @@ select_from_list ()
     echo "$choice"
 }
 
+get-decompressor ()
+{
+    local archive=$1
+
+    case $(file "$archive") in
+        *bzip2*)
+            ZCAT='bzip2 -dc'
+            ;;
+        *lzip*)
+            ZCAT='lzip -dc'
+            ;;
+        *LZMA*)
+            ZCAT='lzma -dc'
+            ;;
+        *lzop*)
+            ZCAT='lzop -dc'
+            ;;
+        *gzip*)
+            ZCAT='gzip -dc'
+            ;;
+        *XZ*)
+            ZCAT='xz -dc'
+            ;;
+        *Zip*)
+            ZCAT='unzip -p'
+            ;;
+        *'ISO 9660'*|*'DOS/MBR boot sector'*)
+            ZCAT=cat
+            ;;
+    esac
+}
+
 get_disk_images ()
 {
     local -a archives
@@ -744,6 +781,7 @@ get_disk_images ()
 
     mapfile -t archives < <(ls "${PARAM_OUTPUT_DIR}/"*.$COMPRESSION_SUFFIX 2>/dev/null)
     for archive in "${archives[@]}"; do
+        get-decompressor "$archive"
         case $($ZCAT "$archive" | file -) in
             *DOS/MBR*)
                 echo "$archive"
@@ -1121,11 +1159,11 @@ cmd_make_diskimage ()
 
     pr_info "Compressing image file \"$(basename $IMAGE_FILE)\"..."
     $ZIP "$IMAGE_FILE"
-    mv "${IMAGE_FILE}.${COMPRESSION_SUFFIX}" "$PARAM_OUTPUT_DIR"
+    mv "${IMAGE_FILE}.${ZIP_SUFFIX}" "$PARAM_OUTPUT_DIR"
     (
         cd "$PARAM_OUTPUT_DIR" &&
-            openssl dgst -sha512 "${IMAGE_FILE##*/}.${COMPRESSION_SUFFIX}" \
-                    >"${IMAGE_FILE##*/}.${COMPRESSION_SUFFIX}.asc"
+            openssl dgst -sha512 "${IMAGE_FILE##*/}.${ZIP_SUFFIX}" \
+                    >"${IMAGE_FILE##*/}.${ZIP_SUFFIX}.asc"
     )
 }
 

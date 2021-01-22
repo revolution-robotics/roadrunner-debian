@@ -863,7 +863,7 @@ make_x11_image ()
     local P2_MOUNT_DIR=${G_TMP_DIR}/p2
 
     local BOOTLOAD_RESERVE_SIZE=4
-    local SPARE_SIZE=8
+    local SPARE_SIZE=12
     local part=''
 
     format_device ()

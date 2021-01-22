@@ -192,7 +192,7 @@ partition_emmc ()
     # local RECOVERYFS_SIZE=1792
     local RECOVERYFS_SIZE=1400
     local BOOTLOAD_RESERVE_SIZE=4
-    local SPARE_SIZE=8
+    local SPARE_SIZE=12
 
     # Get total device size in blocks
     local total_size=$(blockdev --getsz "$device")
@@ -382,7 +382,6 @@ do
             interactive=false
 
             # Log all stdout and stderr to SYSTEM_UPDATE_LOG
-            rm -f "$SYSTEM_UPDATE_LOG"
             exec >"$SYSTEM_UPDATE_LOG" 2>&1
             ;;
     esac

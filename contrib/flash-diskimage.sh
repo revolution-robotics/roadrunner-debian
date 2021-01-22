@@ -87,6 +87,38 @@ select-from-list ()
     echo "$choice"
 }
 
+get-decompressor ()
+{
+    local archive=$1
+
+    case $(file "$archive") in
+        *bzip2*)
+            ZCAT='bzip2 -dc'
+            ;;
+        *lzip*)
+            ZCAT='lzip -dc'
+            ;;
+        *LZMA*)
+            ZCAT='lzma -dc'
+            ;;
+        *lzop*)
+            ZCAT='lzop -dc'
+            ;;
+        *gzip*)
+            ZCAT='gzip -dc'
+            ;;
+        *XZ*)
+            ZCAT='xz -dc'
+            ;;
+        *Zip*)
+            ZCAT='unzip -p'
+            ;;
+        *'ISO 9660'*|*'DOS/MBR boot sector'*)
+            ZCAT=cat
+            ;;
+    esac
+}
+
 get-disk-images ()
 {
     local -a archives
@@ -224,38 +256,6 @@ select-media ()
     pr-info "Device: $PARAM_BLOCK_DEVICE, $total_size_gib GiB"
     echo '============================================='
     read -p "Press Enter to continue"
-}
-
-get-decompressor ()
-{
-    local archive=$1
-
-    case $(file "$archive") in
-        *bzip2*)
-            ZCAT='bzip2 -dc'
-            ;;
-        *lzip*)
-            ZCAT='lzip -dc'
-            ;;
-        *LZMA*)
-            ZCAT='lzma -dc'
-            ;;
-        *lzop*)
-            ZCAT='lzop -dc'
-            ;;
-        *gzip*)
-            ZCAT='gzip -dc'
-            ;;
-        *XZ*)
-            ZCAT='xz -dc'
-            ;;
-        *Zip*)
-            ZCAT='unzip -p'
-            ;;
-        *'ISO 9660'*|*'DOS/MBR boot sector'*)
-            ZCAT=cat
-            ;;
-    esac
 }
 
 flash-diskimage ()
