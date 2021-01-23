@@ -109,7 +109,7 @@ make_debian_recoveryfs ()
 
     # pr_info "recoveryfs: generate default configs"
     # mkdir -p ${RECOVERYFS_BASE}/etc/sudoers.d/
-    # echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > ${ROOTFS_BASE}/etc/sudoers.d/user
+    # echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > ${RECOVERYFS_BASE}/etc/sudoers.d/user
     # chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/user
 
     # install local Debian packages
@@ -326,7 +326,7 @@ protected_install ed
 
 ## lightdm-gtk-greeter wants to launch at-spi-bus-launcher via an old path
 # mkdir -p /usr/lib/at-spi2-core/
-# ln -s /usr/libexec/at-spi-bus-launcher /usr/lib/at-spi2-core/
+# ln -sf /usr/libexec/at-spi-bus-launcher /usr/lib/at-spi2-core/
 
 ## Add ALSA & ALSA utilites.
 # protected_install alsa-utils
@@ -448,7 +448,7 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/hostname-commit.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
     install -d -m 0755 "${RECOVERYFS_BASE}/etc/systemd/system/network.target.wants"
-    ln -s '/lib/systemd/system/hostname-commit.service' \
+    ln -sf '/lib/systemd/system/hostname-commit.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/network.target.wants"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/commit-hostname" "${RECOVERYFS_BASE}/usr/sbin"
 
@@ -463,7 +463,7 @@ EOF
     # Regenerate SSH keys on first boot
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/regenerate-ssh-host-keys.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
-    ln -s '/lib/systemd/system/regenerate-ssh-host-keys.service' \
+    ln -sf '/lib/systemd/system/regenerate-ssh-host-keys.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Support resizing a serial console - taken from Debian xterm package.
@@ -523,16 +523,16 @@ EOF
             "${RECOVERYFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/kernel-cmdline".{path,service} \
             "${RECOVERYFS_BASE}/lib/systemd/system"
-    ln -s '/lib/systemd/system/kernel-cmdline.path' \
+    ln -sf '/lib/systemd/system/kernel-cmdline.path' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Install recover-emmc service.
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
     install -d -m 0755 "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
-    ln -s '../recover-emmc.service' \
+    ln -sf '../recover-emmc.service' \
        "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
-    ln -s "$G_IMAGES_DIR" "${RECOVERYFS_BASE}/system-update"
+    ln -sf "$G_IMAGES_DIR" "${RECOVERYFS_BASE}/system-update"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc" "${RECOVERYFS_BASE}/usr/sbin"
 
     # Install recover-emmc-monitor service
@@ -540,7 +540,7 @@ EOF
             "${RECOVERYFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
-    ln -s '/lib/systemd/system/recover-emmc-monitor.service' \
+    ln -sf '/lib/systemd/system/recover-emmc-monitor.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Enable NetworkManager dispatcher
@@ -568,13 +568,13 @@ EOF
     # Add Random Number Generator daemon (rngd) service
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/rngd.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
-    ln -s '/lib/systemd/system/rngd.service' \
+    ln -sf '/lib/systemd/system/rngd.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Add Exim4 service
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/exim4.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
-    ln -s '/lib/systemd/system/exim4.service' \
+    ln -sf '/lib/systemd/system/exim4.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Update systemd dbus socket
@@ -600,7 +600,7 @@ EOF
             ${RECOVERYFS_BASE}/etc/bluetooth
     install -m 0644 ${G_VENDOR_PATH}/resources/variscite-bt.service \
             ${RECOVERYFS_BASE}/lib/systemd/system
-    ln -s /lib/systemd/system/variscite-bt.service \
+    ln -sf /lib/systemd/system/variscite-bt.service \
        ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-bt.service
 
     # install BT audio and main config
@@ -615,13 +615,13 @@ EOF
 
     # install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/obex.service \
     #         ${RECOVERYFS_BASE}/lib/systemd/system
-    # ln -s /lib/systemd/system/obex.service \
+    # ln -sf /lib/systemd/system/obex.service \
     #    ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service
 
     # install pulse audio configuration
     # install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service \
     #         ${RECOVERYFS_BASE}/lib/systemd/system
-    # ln -s /lib/systemd/system/pulseaudio.service \
+    # ln -sf /lib/systemd/system/pulseaudio.service \
     #    ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service
     # install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf \
     #         ${RECOVERYFS_BASE}/etc/dbus-1/system.d
@@ -645,7 +645,7 @@ EOF
             ${RECOVERYFS_BASE}/etc/wifi
     install -m 0644 ${G_VENDOR_PATH}/resources/variscite-wifi.service \
             ${RECOVERYFS_BASE}/lib/systemd/system
-    ln -s /lib/systemd/system/variscite-wifi.service \
+    ln -sf /lib/systemd/system/variscite-wifi.service \
        ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-wifi.service
 
     # remove pm-utils default scripts and install wifi / bt pm-utils script
@@ -751,16 +751,16 @@ EOF
             "${RECOVERYFS_BASE}/etc/default"
 
     # Enable zramswap service
-    ln -s "${RECOVERYFS_BASE}/lib/systemd/system/zramswap.service" \
+    ln -sf "${RECOVERYFS_BASE}/lib/systemd/system/zramswap.service" \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/"
 
     # Mask e2scrub_{all,reap} services.
-    ln -s /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_all.timer"
-    ln -s /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_all.service"
-    ln -s /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_reap.service"
+    ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_all.timer"
+    ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_all.service"
+    ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_reap.service"
 
     # Enable sysstat data collection
-    sed -i 's;^\(ENABLED=\).*;\1"true";' "${ROOTFS_BASE}/etc/default/sysstat"
+    sed -i 's;^\(ENABLED=\).*;\1"true";' "${RECOVERYFS_BASE}/etc/default/sysstat"
 
     ## post-packages command
     cat > ${RECOVERYFS_BASE}/post-packages <<EOF

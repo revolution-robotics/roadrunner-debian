@@ -268,6 +268,10 @@ Acquire::http::Proxy "http://${HOSTNAME}:3142";
 EOF
 fi
 
+# Add bash aliases...
+echo "alias h='history 50'" |
+        "$MULTIPASS" exec "$VMNAME" -- $BASH -c "$CAT >>.bashrc"
+
 # Install build script.
 $CAT <<EOF | "$MULTIPASS" exec "${VMNAME}" -- $BASH -c "$CAT >build_script"
 #!/bin/bash

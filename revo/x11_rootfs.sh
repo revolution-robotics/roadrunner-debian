@@ -446,7 +446,7 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/hostname-commit.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
     install -d -m 0755 "${ROOTFS_BASE}/etc/systemd/system/network.target.wants"
-    ln -s '/lib/systemd/system/hostname-commit.service' \
+    ln -sf '/lib/systemd/system/hostname-commit.service' \
        "${ROOTFS_BASE}/etc/systemd/system/network.target.wants"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/commit-hostname" "${ROOTFS_BASE}/usr/sbin"
 
@@ -461,7 +461,7 @@ EOF
     # Regenerate SSH keys on first boot
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/regenerate-ssh-host-keys.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
-    ln -s '/lib/systemd/system/regenerate-ssh-host-keys.service' \
+    ln -sf '/lib/systemd/system/regenerate-ssh-host-keys.service' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Support resizing a serial console - taken from Debian xterm package.
@@ -521,14 +521,14 @@ EOF
             "${ROOTFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/kernel-cmdline".{path,service} \
             "${ROOTFS_BASE}/lib/systemd/system"
-    ln -s '/lib/systemd/system/kernel-cmdline.path' \
+    ln -sf '/lib/systemd/system/kernel-cmdline.path' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Install flash-emmc service.
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/flash-emmc.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
     install -d -m 0755 "${ROOTFS_BASE}/lib/systemd/system/system-update.target.wants"
-    ln -s '../flash-emmc.service' \
+    ln -sf '../flash-emmc.service' \
        "${ROOTFS_BASE}/lib/systemd/system/system-update.target.wants"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/flash-emmc" "${ROOTFS_BASE}/usr/sbin"
 
@@ -537,13 +537,13 @@ EOF
             "${ROOTFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
-    ln -s '/lib/systemd/system/recover-emmc-monitor.service' \
+    ln -sf '/lib/systemd/system/recover-emmc-monitor.service' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Install reset-usbboot service.
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/reset-usbboot.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
-    ln -s '/lib/systemd/system/reset-usbboot.service' \
+    ln -sf '/lib/systemd/system/reset-usbboot.service' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Enable NetworkManager dispatcher
@@ -571,13 +571,13 @@ EOF
     # Add Random Number Generator daemon (rngd) service
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/rngd.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
-    ln -s '/lib/systemd/system/rngd.service' \
+    ln -sf '/lib/systemd/system/rngd.service' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Add Exim4 service
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/exim4.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
-    ln -s '/lib/systemd/system/exim4.service' \
+    ln -sf '/lib/systemd/system/exim4.service' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Update systemd dbus socket
@@ -603,7 +603,7 @@ EOF
             ${ROOTFS_BASE}/etc/bluetooth
     install -m 0644 ${G_VENDOR_PATH}/resources/variscite-bt.service \
             ${ROOTFS_BASE}/lib/systemd/system
-    ln -s /lib/systemd/system/variscite-bt.service \
+    ln -sf /lib/systemd/system/variscite-bt.service \
        ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-bt.service
 
     # install BT audio and main config
@@ -618,13 +618,13 @@ EOF
 
     install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/obex.service \
             ${ROOTFS_BASE}/lib/systemd/system
-    ln -s /lib/systemd/system/obex.service \
+    ln -sf /lib/systemd/system/obex.service \
        ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service
 
     # install pulse audio configuration
     install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service \
             ${ROOTFS_BASE}/lib/systemd/system
-    ln -s /lib/systemd/system/pulseaudio.service \
+    ln -sf /lib/systemd/system/pulseaudio.service \
        ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service
     install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf \
             ${ROOTFS_BASE}/etc/dbus-1/system.d
@@ -648,7 +648,7 @@ EOF
             ${ROOTFS_BASE}/etc/wifi
     install -m 0644 ${G_VENDOR_PATH}/resources/variscite-wifi.service \
             ${ROOTFS_BASE}/lib/systemd/system
-    ln -s /lib/systemd/system/variscite-wifi.service \
+    ln -sf /lib/systemd/system/variscite-wifi.service \
        ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-wifi.service
 
     # remove pm-utils default scripts and install wifi / bt pm-utils script
@@ -752,13 +752,13 @@ EOF
             "${ROOTFS_BASE}/etc/default"
 
     # Enable zramswap service
-    ln -s "${ROOTFS_BASE}/lib/systemd/system/zramswap.service" \
+    ln -sf "${ROOTFS_BASE}/lib/systemd/system/zramswap.service" \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/"
 
     # Mask e2scrub_{all,reap} services.
-    ln -s /dev/null "${ROOTFS_BASE}/etc/systemd/system/e2scrub_all.timer"
-    ln -s /dev/null "${ROOTFS_BASE}/etc/systemd/system/e2scrub_all.service"
-    ln -s /dev/null "${ROOTFS_BASE}/etc/systemd/system/e2scrub_reap.service"
+    ln -sf /dev/null "${ROOTFS_BASE}/etc/systemd/system/e2scrub_all.timer"
+    ln -sf /dev/null "${ROOTFS_BASE}/etc/systemd/system/e2scrub_all.service"
+    ln -sf /dev/null "${ROOTFS_BASE}/etc/systemd/system/e2scrub_reap.service"
 
     # Enable sysstat data collection
     sed -i 's;^\(ENABLED=\).*;\1"true";' "${ROOTFS_BASE}/etc/default/sysstat"
