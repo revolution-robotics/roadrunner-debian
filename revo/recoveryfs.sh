@@ -307,22 +307,26 @@ protected_install ed
 # sed -i -e 's/\#autologin-user=/autologin-user=x_user/g' /etc/lightdm/lightdm.conf
 # sed -i -e 's/\#autologin-user-timeout=0/autologin-user-timeout=0/g' /etc/lightdm/lightdm.conf
 
-## Fix lightdm config (disable default seat).
-sed -i -e 's/^#start-default-seat=.*/start-default-seat=false/' \\
-    -e 's/^#greeter-user=.*/greeter-user=lightdm/' \\
-    /etc/lightdm/lightdm.conf
+## Disable default lightdm seat.
+# sed -i -e 's/^#start-default-seat=.*/start-default-seat=false/' \\
+#     -e 's/^#greeter-user=.*/greeter-user=lightdm/' \\
+#     /etc/lightdm/lightdm.conf
 
-## Fix lightdm config (enable XDMCP).
-# ed -s /etc/lightdm/lightdm.conf <<EOT
-# /^#start-default-seat=.*/s//start-default-seat=false/
-# /^#greeter-user=.*/s//greeter-user=lightdm/
-# /^#xserver-allow-tcp=.*/s//xserver-allow-tcp=true/
+## Enable remote login to via XDMCP.
+# ed -s /etc/lightdm/lightdm.conf <<'EOT'
+# /^#*\\(start-default-seat=\\).*/s//\\1false/
+# /^#*\\(greeter-user=\\).*/s//\\1lightdm/
+# /^#*\\(xserver-allow-tcp=\\).*/s//\\1true/
 # /^\\[XDMCPServer\\]/;+1,+2c
 # enabled=true
 # port=177
 # .
 # wq
 # EOT
+
+## lightdm-gtk-greeter wants to launch at-spi-bus-launcher via an old path
+# mkdir -p /usr/lib/at-spi2-core/
+# ln -s /usr/libexec/at-spi-bus-launcher /usr/lib/at-spi2-core/
 
 ## Add ALSA & ALSA utilites.
 # protected_install alsa-utils
@@ -408,7 +412,11 @@ printf "\n\n" | DEBIAN_FRONTEND=noninteractive apt -y install network-manager
 
 # apt -y install --reinstall libgdk-pixbuf2.0-0
 
-# create users and set password
+## Register GdkPixbuf loaders
+/usr/lib/arm-linux-gnueabihf/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders \\
+    --update-cache
+
+## Create users and set password
 echo "root:root" | chpasswd
 
 useradd -m -G audio,video -s /bin/bash user
@@ -572,6 +580,13 @@ EOF
     # Update systemd dbus socket
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/dbus.socket" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
+
+    # Add headless Xorg config
+    install -m 0644 "${G_VENDOR_PATH}/resources/10-headless.conf" \
+            "${RECOVERYFS_BASE}/usr/share/X11/xorg.conf.d"
+
+    # Install MIME databases
+    tar -C "$RECOVERYFS_BASE" -Jxf "${G_VENDOR_PATH}/resources/mime.txz"
 
     # END -- REVO i.MX7D update
 
