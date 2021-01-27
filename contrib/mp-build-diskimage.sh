@@ -30,6 +30,7 @@ shopt -s extglob
 
 # Edit these ...
 : ${VMNAME:='roadrunner'}
+: ${CODENAME:='groovy'}
 : ${NPROC:='2'}
 : ${DISK_SIZE:='30G'}
 : ${MEMORY_SIZE:='2G'}
@@ -199,13 +200,13 @@ if "$MULTIPASS" list  | $AWK 'NR > 1 { print $1 }' | $GREP -q "$VMNAME"; then
         "$MULTIPASS" stop "$VMNAME"
         "$MULTIPASS" delete --purge "$VMNAME"
         "$MULTIPASS" launch --cpus "$NPROC" --disk "$DISK_SIZE" \
-                     --mem "$MEMORY_SIZE" --name "$VMNAME" focal
+                     --mem "$MEMORY_SIZE" --name "$VMNAME" "$CODENAME"
     fi
 
 # Launch VM and mount local $DEST_DIR on VM's $OUTPUT_DIR via SSHFS.
 else
     "$MULTIPASS" launch --cpus "$NPROC" --disk "$DISK_SIZE" \
-                 --mem "$MEMORY_SIZE" --name "$VMNAME" focal
+                 --mem "$MEMORY_SIZE" --name "$VMNAME" "$CODENAME"
 fi
 
 # Multipass evidently consumes/flushes stdin here, so redirect $TTY as

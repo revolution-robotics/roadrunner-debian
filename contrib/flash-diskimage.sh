@@ -289,7 +289,7 @@ verify-diskimage ()
     pr-info "Verifying device against image..."
 
     errfile=$(mktemp "/tmp/${SCRIPT_NAME}.XXXXX")
-    trap 'rm "$errfile"; exit' 0 1 2 15 RETURN
+    trap 'rm -f "$errfile"; exit' 0 1 2 15 RETURN
 
     $ZCAT "$PARAM_DISK_IMAGE" |
         sudo cmp -n "$BYTES_WRITTEN" "$PARAM_BLOCK_DEVICE" - >"$errfile" 2>&1
