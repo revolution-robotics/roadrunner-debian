@@ -142,9 +142,13 @@ make_debian_recoveryfs ()
     # add mirror to source list
     cat >${RECOVERYFS_BASE}/etc/apt/sources.list <<EOF
 deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
-#deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
+deb ${PARAM_DEB_LOCAL_MIRROR%/}-security/ ${DEB_RELEASE}/updates main contrib non-free
+deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
 deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
-#deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
+# deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
+# deb-src ${PARAM_DEB_LOCAL_MIRROR%/}-security/ ${DEB_RELEASE}/updates main contrib non-free
+# deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
+# deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
     # raise backports priority
@@ -816,9 +820,13 @@ EOF
     # Restore APT source list to default Debian mirror.
     cat >"${RECOVERYFS_BASE}/etc/apt/sources.list" <<EOF
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
-#deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
+deb ${DEF_DEBIAN_MIRROR}-security/ ${DEB_RELEASE}/updates main contrib non-free
+deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
-#deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
+# deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
+# deb-src ${DEF_DEBIAN_MIRROR}-security/ ${DEB_RELEASE}/updates main contrib non-free
+# deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
+# deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
     # Limit kernel messages to the console.
