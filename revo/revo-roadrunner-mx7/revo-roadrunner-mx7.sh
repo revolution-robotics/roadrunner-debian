@@ -18,7 +18,7 @@ declare -r G_SPL_NAME_FOR_NAND='SPL.nand'
 declare -r G_LINUX_KERNEL_SRC_DIR="${DEF_SRC_DIR}/kernel"
 declare -r G_LINUX_KERNEL_GIT="https://github.com/revolution-robotics/roadrunner-linux-imx.git"
 declare -r G_LINUX_KERNEL_BRANCH="imx_4.14.78_1.0.0_ga_var01_rr01"
-declare -r G_LINUX_KERNEL_REV="6e693682eff46a4c16b7f31e869e3e92aaf8b36b"
+declare -r G_LINUX_KERNEL_REV="daf76a1e505009a7d791208348ae7fb885e3ab81"
 declare -r G_LINUX_KERNEL_DEF_CONFIG='imx_v7_roadrunner_defconfig'
 declare -r G_LINUX_DTB="imx7d-roadrunner-mixio.dtb
         imx7d-roadrunner-dio.dtb"
