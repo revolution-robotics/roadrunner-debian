@@ -687,9 +687,8 @@ EOF
 
     fi
 
-    # binaries recoveryfs patching
+    # recoveryfs startup patches
     install -m 0644 ${G_VENDOR_PATH}/issue ${RECOVERYFS_BASE}/etc/
-    install -m 0644 ${G_VENDOR_PATH}/issue.net ${RECOVERYFS_BASE}/etc/
     install -m 0755 ${G_VENDOR_PATH}/resources/rc.local ${RECOVERYFS_BASE}/etc/
     install -m 0644 ${G_VENDOR_PATH}/resources/hostapd.conf ${RECOVERYFS_BASE}/etc/
     install -d -m 0755 ${RECOVERYFS_BASE}/boot
@@ -698,7 +697,7 @@ EOF
     install -m 0644 ${G_VENDOR_PATH}/wallpaper.png \
             ${RECOVERYFS_BASE}/usr/share/images/desktop-base/default
 
-    # disable light-locker
+    # Disable LightDM session locking
     # install -m 0755 ${G_VENDOR_PATH}/resources/disable-lightlocker \
     #         ${RECOVERYFS_BASE}/usr/local/bin/
     # install -m 0644 ${G_VENDOR_PATH}/resources/disable-lightlocker.desktop \
@@ -707,28 +706,29 @@ EOF
     # Revert regular booting
     rm -f ${RECOVERYFS_BASE}/usr/sbin/policy-rc.d
 
-    # install kernel modules in recoveryfs
+    # Install kernel modules to recoveryfs
     install_kernel_modules \
         ${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
         ${G_LINUX_KERNEL_DEF_CONFIG} ${G_LINUX_KERNEL_SRC_DIR} \
         ${RECOVERYFS_BASE}
 
-    # copy all kernel headers for development
-    install -d -m 0755 ${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
-    cp ${G_LINUX_KERNEL_SRC_DIR}/drivers/staging/android/uapi/* \
-       ${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
-    cp -r ${G_LINUX_KERNEL_SRC_DIR}/include \
-       ${RECOVERYFS_BASE}/usr/local/src/linux-imx/
+    # Install kernel headers to recoveryfs
+    # install -d -m 0755 ${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
+    # cp ${G_LINUX_KERNEL_SRC_DIR}/drivers/staging/android/uapi/* \
+    #    ${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
+    # cp -r ${G_LINUX_KERNEL_SRC_DIR}/include \
+    #    ${RECOVERYFS_BASE}/usr/local/src/linux-imx/
 
-    # copy custom files
-    install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/kobs-ng ${RECOVERYFS_BASE}/usr/bin
-    install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-mmc ${RECOVERYFS_BASE}/usr/bin
-    # install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-nand ${RECOVERYFS_BASE}/usr/bin
-    # ln -sf fw_printenv ${RECOVERYFS_BASE}/usr/bin/fw_printenv-nand
-    # ln -sf fw_printenv ${RECOVERYFS_BASE}/usr/bin/fw_setenv
+    # Install U-Boot environment editor
+    install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-mmc \
+            ${RECOVERYFS_BASE}/usr/bin
     ln -sf fw_printenv-mmc ${RECOVERYFS_BASE}/usr/bin/fw_printenv
     ln -sf fw_printenv ${RECOVERYFS_BASE}/usr/bin/fw_setenv
-    install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/fw_env.config ${RECOVERYFS_BASE}/etc
+    install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/fw_env.config \
+            ${RECOVERYFS_BASE}/etc
+    # install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/kobs-ng ${RECOVERYFS_BASE}/usr/bin
+    # install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-nand ${RECOVERYFS_BASE}/usr/bin
+    # ln -sf fw_printenv ${RECOVERYFS_BASE}/usr/bin/fw_printenv-nand
 
     # BEGIN -- REVO i.MX7D post-packages stage
     # Run curl with system root certificates file.

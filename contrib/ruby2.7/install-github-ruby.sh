@@ -17,26 +17,56 @@
 # To begin, the Debian build system needs a tarball of the upstream
 # sources. This is created with the command `git archive` as follows:
 
-PACKAGE=ruby2.7
-BRANCH=ruby_2_7
-git clone -b "$BRANCH" https://github.com/ruby/ruby.git
-cd ./ruby
-VERSION=2.7.3-1~g$(git rev-parse --short=7 HEAD)
-PREFIX=${PACKAGE}_${VERSION}
-git archive --format=tar --prefix=${PREFIX}/ $BRANCH |
-    xz - > ../$PREFIX.orig.tar.xz
+declare -r PACKAGE=ruby2.7
+declare -r BRANCH=ruby_2_7
+declare -r BASE_VERSION=2.7.3
+declare -r GIT_URI=https://github.com/ruby/ruby.git
+declare -r USER_EMAIL=slewsys@gmail.com
+declare -r FULL_NAME='Andrew L. Moore'
 
+init-git ()
+{
+    local email=$1
+    local full_name=$2
+
+    if ! get config --global --get user.email >/dev/null; then
+        git config --global user.email "$email"
+    fi
+    if ! get config --global --get user.name >/dev/null; then
+        git config --global user.name "$full_name"
+    fi
+}
+
+archive-repository ()
+{
+    local package=$1
+    local branch=$2
+    local base_version=$3
+    local uri=$4
+
+    local version=${base_version}-1~g$(git rev-parse --short=7 HEAD)
+    local archive=${package}_${version}
+
+    git archive --format=tar --prefix="${archive}/" "$branch" |
+        xz - > "../${archive}.orig.tar.xz"
+
+    cd "$OLDPWD"
+    trap '' 0 1 2 15 RETURN
+
+    echo "$archive"
+}
 
 # Next, the command `git-buildpackage` operates on orphan branches
 # *upstream* and *debian*, which are created as follows:
 
-git checkout --orphan upstream
-git rm -r --cached .
-git clean -fdx
-git config --global user.email 'slewsys@gmail.com'
-git config --global user.name 'Andrew L. Moore'
-git commit --allow-empty -m 'Initial commit: Debian git-buildpackage.'
-git checkout -b debian
+init-orphan-branches ()
+{
+    git checkout --orphan upstream
+    git rm -r --cached .
+    git clean -fdx
+    git commit --allow-empty -m 'Initial commit: Debian git-buildpackage.'
+    git checkout -b debian
+}
 
 # Then initialize the debian branch from Debian Ruby package for the
 # current release (i.e., Debian *buster*). We're only interested in
@@ -47,20 +77,42 @@ git checkout -b debian
 
 # Extract and apply patch at the end of this script to create
 # Debian subdirectory.
-sed -n '/BEGIN debian patch/,$s/^# //p' $0 |
-    patch -p0
-chmod +x $(find debian -type f | xargs -n30 egrep -l '^#!')
-git add .
-git commit -m 'Import updated debian directory.'
-
+commit-debian-directory ()
+{
+    sed -n '/BEGIN debian patch/,$s/^# //p' $0 |
+        patch -p0
+    chmod +x $(find debian -type f | xargs -n30 egrep -l '^#!')
+    git add .
+    git commit -m 'Import updated debian directory.'
+}
 
 # Finally, import the upstream source to *debian* and *upstream* branches
 # and build the package:
 
-gbp import-orig ../${PREFIX}.orig.tar.xz
-git checkout upstream
-git tag upstream/${VERSION%%-*}
-git checkout debian
+commit-upstream-source ()
+{
+    local archive=$1
+    local base_version=$2
+
+    gbp import-orig "../${archive}.orig.tar.xz"
+    git checkout upstream
+    git tag "upstream/${base_version}"
+    git checkout debian
+}
+
+
+declare oldpwd=$PWD
+
+git clone -b "$branch" "$uri"
+cd ./ruby
+
+trap 'cd "$oldpwd"; exit' 0 1 2 15
+
+init-git  "$USER_EMAIL" "$FULL_NAME"
+archive=$(archive-repository "$PACKAGE" "$BRANCH" "$BASE_VERSION" "$GIT_URI")
+init-orphan-branches
+commit-debian-directory
+commit-upstream-source "$archive" "$BASE_VERSION"
 gbp buildpackage -uc -us --git-tag
 
 ## **** BEGIN debian patch ****

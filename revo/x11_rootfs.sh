@@ -689,9 +689,8 @@ EOF
 
     fi
 
-    # binaries rootfs patching
+    # rootfs startup patches
     install -m 0644 ${G_VENDOR_PATH}/issue ${ROOTFS_BASE}/etc/
-    install -m 0644 ${G_VENDOR_PATH}/issue.net ${ROOTFS_BASE}/etc/
     install -m 0755 ${G_VENDOR_PATH}/resources/rc.local ${ROOTFS_BASE}/etc/
     install -m 0644 ${G_VENDOR_PATH}/resources/hostapd.conf ${ROOTFS_BASE}/etc/
     install -d ${ROOTFS_BASE}/boot/
@@ -699,7 +698,7 @@ EOF
     install -m 0644 ${G_VENDOR_PATH}/wallpaper.png \
             ${ROOTFS_BASE}/usr/share/images/desktop-base/default
 
-    # disable light-locker
+    # Disable LightDM session locking
     install -m 0755 ${G_VENDOR_PATH}/resources/disable-lightlocker \
             ${ROOTFS_BASE}/usr/local/bin/
     install -m 0644 ${G_VENDOR_PATH}/resources/disable-lightlocker.desktop \
@@ -708,28 +707,28 @@ EOF
     # Revert regular booting
     rm -f ${ROOTFS_BASE}/usr/sbin/policy-rc.d
 
-    # install kernel modules in rootfs
+    # Install kernel modules to rootfs
     install_kernel_modules \
         ${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
         ${G_LINUX_KERNEL_DEF_CONFIG} ${G_LINUX_KERNEL_SRC_DIR} \
         ${ROOTFS_BASE}
 
-    # copy all kernel headers for development
-    mkdir -p ${ROOTFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
-    cp ${G_LINUX_KERNEL_SRC_DIR}/drivers/staging/android/uapi/* \
-       ${ROOTFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
-    cp -r ${G_LINUX_KERNEL_SRC_DIR}/include \
-       ${ROOTFS_BASE}/usr/local/src/linux-imx/
 
-    # copy custom files
-    install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/kobs-ng ${ROOTFS_BASE}/usr/bin
+    # Install kernel headers to rootfs
+    # mkdir -p ${ROOTFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
+    # cp ${G_LINUX_KERNEL_SRC_DIR}/drivers/staging/android/uapi/* \
+    #    ${ROOTFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
+    # cp -r ${G_LINUX_KERNEL_SRC_DIR}/include \
+    #    ${ROOTFS_BASE}/usr/local/src/linux-imx/
+
+    # Install U-Boot environment editor
     install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-mmc ${ROOTFS_BASE}/usr/bin
-    # cp ${PARAM_OUTPUT_DIR}/fw_printenv-nand ${ROOTFS_BASE}/usr/bin
-    # ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_printenv-nand
-    # ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_setenv
     ln -sf fw_printenv-mmc ${ROOTFS_BASE}/usr/bin/fw_printenv
     ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_setenv
     install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/fw_env.config ${ROOTFS_BASE}/etc
+    # install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/kobs-ng ${ROOTFS_BASE}/usr/bin
+    # install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-nand ${ROOTFS_BASE}/usr/bin
+    # ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_printenv-nand
 
     # BEGIN -- REVO i.MX7D post-packages stage
     # Run curl with system root certificates file.
