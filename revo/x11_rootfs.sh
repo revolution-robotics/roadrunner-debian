@@ -387,6 +387,11 @@ protected_install nftables
 echo '#!/usr/sbin/nft -f' >/etc/nftables.conf
 
 protected_install firewalld
+
+# Switch firewalld backend to nftables.
+sed -i -e '/^\(FirewallBackend=\).*$/s//\1nftables/' \\
+    /etc/firewalld/firewalld.conf
+
 protected_install step-cli
 protected_install step-certificates
 
