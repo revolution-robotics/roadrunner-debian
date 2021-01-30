@@ -128,15 +128,17 @@ make_debian_recoveryfs ()
     #    ${RECOVERYFS_BASE}/srv/local-apt-repository
 
     # BEGIN -- REVO i.MX7D security
-    # mkdir -p ${RECOVERYFS_BASE}/etc/sudoers.d/
-    # echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${RECOVERYFS_BASE}/etc/sudoers.d/revo
-    # chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/revo
+    mkdir -p ${RECOVERYFS_BASE}/etc/sudoers.d/
+    echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${RECOVERYFS_BASE}/etc/sudoers.d/revo
+    chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/revo
 
-    # cp -r ${G_VENDOR_PATH}/deb/smallstep/* \
-    #    ${RECOVERYFS_BASE}/srv/local-apt-repository
-
-    cp -r ${G_VENDOR_PATH}/deb/firewalld/* \
+    cp -r ${G_VENDOR_PATH}/deb/smallstep/* \
        ${RECOVERYFS_BASE}/srv/local-apt-repository
+
+    for pkg in smallstep firewalld iptables libedit libnftnl nftables; do
+        install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
+           "${ROOTFS_BASE}/srv/local-apt-repository"
+    done
     # END -- REVO i.MX7D security
 
     # add mirror to source list

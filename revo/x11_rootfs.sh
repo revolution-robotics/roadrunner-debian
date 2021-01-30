@@ -128,11 +128,11 @@ make_debian_x11_rootfs ()
     echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${ROOTFS_BASE}/etc/sudoers.d/revo
     chmod 0440 ${ROOTFS_BASE}/etc/sudoers.d/revo
 
-    cp -r ${G_VENDOR_PATH}/deb/smallstep/* \
-       ${ROOTFS_BASE}/srv/local-apt-repository
+    for pkg in smallstep firewalld iptables libedit libnftnl nftables; do
+        install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
+           "${ROOTFS_BASE}/srv/local-apt-repository"
+    done
 
-    cp -r ${G_VENDOR_PATH}/deb/firewalld/* \
-       ${ROOTFS_BASE}/srv/local-apt-repository
     # END -- REVO i.MX7D security
 
     # add mirror to source list
