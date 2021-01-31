@@ -492,11 +492,12 @@ EOF
     install -m 0755 "${G_VENDOR_PATH}/resources/redirect-web-ports" \
             "${ROOTFS_BASE}/usr/sbin"
 
-    # Add RS485 mode configuration utility.
-    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/rs485" \
+    # Build and install RS-485 mode configuration utility.
+    make -C "${G_VENDOR_PATH}/resources/rs485" clean all
+    install -m 0755 "${G_VENDOR_PATH}/resources/rs485/rs485" \
             "${ROOTFS_BASE}/usr/bin"
 
-    # Add utitlity to download Yandex shares.
+    # Install utitlity to download Yandex shares.
     install -m 0755 "${G_VENDOR_PATH}/resources/fetch-yandex" \
             "${ROOTFS_BASE}/usr/bin"
 

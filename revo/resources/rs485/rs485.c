@@ -1,6 +1,6 @@
-/* rs485.c: Get and set RS485 device parameters.
+/* rs485.c: Get and set RS-485 device parameters.
  *
- * Copyright © 2020 Revolution Robotics, Inc.
+ * Copyright © 2021 Revolution Robotics, Inc.
  *
  */
 #include <errno.h>
@@ -17,28 +17,25 @@
 
 #include "getopt.h"
 
-/* Maximum length of device, e.g., /dev/ttymxc1 */
-#define DEVICE_MAX 13
+/* Maximum length of device + null byte (\0), e.g., /dev/ttymxc1 */
+#define DEVICE_MAX 15
 #define PATH_MAX 4096
 
-struct bool_option {
-  int set;
-  bool value;
-};
-
-struct int_option {
-  int set;
+typedef struct rs485_option {
+  bool set;
   int value;
-};
+} rs485_option;
 
-struct options {
-  struct bool_option mode;
-  struct bool_option rts_on_send;
-  struct bool_option rts_after_send;
-  struct bool_option receive_while_send;
-  struct int_option rts_delay_before_send;
-  struct int_option rts_delay_after_send;
-} opts;
+typedef struct rs485_options {
+  rs485_option mode;
+  rs485_option rts_on_send;
+  rs485_option rts_after_send;
+  rs485_option receive_while_send;
+  rs485_option rts_delay_before_send;
+  rs485_option rts_delay_after_send;
+} rs485_options;
+
+rs485_options opts;
 
 void
 usage (char *pgm)
@@ -49,7 +46,7 @@ usage (char *pgm)
              "    -a, --rts-after-send=0|1\n"
              "                    Set RTS high (1) or low (0) after send.\n"
              "    -h              Show this help, then exit.\n"
-             "    -m, --mode=0|1  Enable (1) or disable (0) RS485 mode.\n"
+             "    -m, --mode=0|1  Enable (1) or disable (0) RS-485 mode.\n"
              "    -o, --rts-on-send=0|1\n"
              "                    Set RTS high (1) or low (0) on send.\n"
              "    -r, --receive-while-send=0|1\n"
@@ -66,11 +63,9 @@ usage (char *pgm)
 void
 rs485_status (int fd, struct serial_rs485 *scp)
   {
-    bool rs485_enabled;
+    bool rs485_enabled = (scp->flags & SER_RS485_ENABLED) ? true : false;
 
-    rs485_enabled = (scp->flags & SER_RS485_ENABLED) ? true : false;
-
-    printf ("RS485 mode is %s\n", rs485_enabled ? "enabled" : "disabled");
+    printf ("RS-485 mode is %s\n", rs485_enabled ? "enabled" : "disabled");
 
     if (rs485_enabled)
       {
@@ -89,22 +84,22 @@ rs485_status (int fd, struct serial_rs485 *scp)
   }
 
 void
-rs485_mode (int fd, bool enable, struct serial_rs485 *scp)
+rs485_mode (int fd, int enable, struct serial_rs485 *scp)
   {
-    printf ("%s RS485 mode\n", enable ? "Enabling" : "Disabling");
+    printf ("%s RS-485 mode\n", enable ? "Enabling" : "Disabling");
 
     if (enable)
 
-      /* Enable RS485 mode. */
+      /* Enable RS-485 mode. */
       scp->flags |= SER_RS485_ENABLED;
     else
 
-      /* Disable RS485 mode. */
+      /* Disable RS-485 mode. */
       scp->flags &= ~(SER_RS485_ENABLED);
   }
 
 void
-rts_on_send (int fd, bool high_on_send, struct serial_rs485 *scp)
+rts_on_send (int fd, int high_on_send, struct serial_rs485 *scp)
   {
     printf ("%s RTS on send\n", high_on_send ? "Raising" : "Lowering");
 
@@ -119,7 +114,7 @@ rts_on_send (int fd, bool high_on_send, struct serial_rs485 *scp)
   }
 
 void
-rts_after_send (int fd, bool high_after_send, struct serial_rs485 *scp)
+rts_after_send (int fd, int high_after_send, struct serial_rs485 *scp)
   {
     printf ("%s RTS after send\n", high_after_send ? "Raising" : "Lowering");
 
@@ -135,7 +130,7 @@ rts_after_send (int fd, bool high_after_send, struct serial_rs485 *scp)
 
 
 void
-receive_while_send (int fd, bool receive, struct serial_rs485 *scp)
+receive_while_send (int fd, int receive, struct serial_rs485 *scp)
   {
     printf ("%s receive while sending\n", receive ? "Enabling" : "Disabling");
 
@@ -157,7 +152,7 @@ rts_delay_before_send (int fd, int delay, struct serial_rs485 *scp)
     scp->delay_rts_before_send = delay;
   }
 
-int
+void
 rts_delay_after_send (int fd, int delay, struct serial_rs485 *scp)
   {
     printf ("Delaying RTS after send by %d ms\n", delay);
@@ -193,36 +188,40 @@ main(int argc, char *argv[])
     case 0:
       break;
     case 'a':                   /* Set RTS after send (1 == high, 0 == low). */
-      opts.rts_after_send.set = 1;
-      opts.rts_after_send.value = atoi (optarg) == 0 ? false : true;
+      opts.rts_after_send.set = true;
+      opts.rts_after_send.value = atoi (optarg);
       break;
-    case 'd':                   /* Set RS485 device. */
+    case 'd':                   /* Set RS-485 device. */
       device = strndup (optarg, DEVICE_MAX);
+
+      /* Silently exit if device cannot be accessed. */
+      if (access(device, F_OK | R_OK | W_OK) != 0)
+        exit(0);
       break;
     case 'h':                   /* Show help, then exit. */
       usage (pgm);
-    case 'm':                   /* Set RS485 mode (1 == enable, 0 == disable) */
-      opts.mode.set = 1;
-      opts.mode.value = atoi (optarg) == 0 ? false : true;
+    case 'm':                   /* Set RS-485 mode (1 == enable, 0 == disable) */
+      opts.mode.set = true;
+      opts.mode.value = atoi (optarg);
       break;
     case 'o':                   /* Set RTS on send (1 == high, 0 == low). */
-      opts.rts_on_send.set = 1;
-      opts.rts_on_send.value = atoi (optarg) == 0 ? false : true;
+      opts.rts_on_send.set = true;
+      opts.rts_on_send.value = atoi (optarg);
       break;
     case 'r':                   /* Set receive while sending (1 == enable,
                                    0 == disable). */
-      opts.receive_while_send.set = 1;
-      opts.receive_while_send.value = atoi (optarg) == 0 ? false : true;
+      opts.receive_while_send.set = true;
+      opts.receive_while_send.value = atoi (optarg);
       break;
-    case 's':                   /* Get RS485 settings. */
+    case 's':                   /* Get RS-485 settings. */
       status = true;
       break;
     case 'x':                   /* Set RTS delay before send (in ms). */
-      opts.rts_delay_before_send.set = 1;
+      opts.rts_delay_before_send.set = true;
       opts.rts_delay_before_send.value = atoi (optarg);
       break;
     case 'y':                   /* Set RTS delay after send (in ms). */
-      opts.rts_delay_after_send.set = 1;
+      opts.rts_delay_after_send.set = true;
       opts.rts_delay_after_send.value = atoi (optarg);
       break;
     default:
@@ -245,10 +244,10 @@ main(int argc, char *argv[])
 
   printf ("Serial device: %s\n", device);
 
-    if (ioctl (fd, TIOCGRS485, &sc) < 0) {
-      fprintf (stderr, "TIOCGRS485: %s\n", strerror(errno));
-      goto error;
-    }
+  if (ioctl (fd, TIOCGRS485, &sc) < 0) {
+    fprintf (stderr, "TIOCGRS485: %s\n", strerror(errno));
+    goto error;
+  }
 
   if (status)
     {

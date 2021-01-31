@@ -137,7 +137,7 @@ make_debian_recoveryfs ()
 
     for pkg in smallstep firewalld iptables libedit libnftnl nftables; do
         install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
-           "${ROOTFS_BASE}/srv/local-apt-repository"
+           "${RECOVERYFS_BASE}/srv/local-apt-repository"
     done
     # END -- REVO i.MX7D security
 
@@ -496,13 +496,14 @@ EOF
     install -m 0755 "${G_VENDOR_PATH}/resources/redirect-web-ports" \
             "${RECOVERYFS_BASE}/usr/sbin"
 
-    # Add RS485 mode configuration utility.
-    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/rs485" \
+    # Build and install RS-485 mode configuration utility.
+    make -C "${G_VENDOR_PATH}/resources/rs485" clean all
+    install -m 0755 "${G_VENDOR_PATH}/resources/rs485/rs485" \
             "${RECOVERYFS_BASE}/usr/bin"
 
-    # Add utitlity to download Yandex shares.
+    # Install utitlity to download Yandex shares.
     install -m 0755 "${G_VENDOR_PATH}/resources/fetch-yandex" \
-            "${ROOTFS_BASE}/usr/bin"
+            "${RECOVERYFS_BASE}/usr/bin"
 
     # Mount /tmp, /var/tmp and /var/log on tmpfs.
     install -m 0644 "${RECOVERYFS_BASE}/usr/share/systemd/tmp.mount" \
