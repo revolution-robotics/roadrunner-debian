@@ -496,6 +496,10 @@ EOF
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/rs485" \
             "${ROOTFS_BASE}/usr/bin"
 
+    # Add utitlity to download Yandex shares.
+    install -m 0755 "${G_VENDOR_PATH}/resources/fetch-yandex" \
+            "${ROOTFS_BASE}/usr/bin"
+
     # Mount /tmp, /var/tmp and /var/log on tmpfs.
     install -m 0644 "${ROOTFS_BASE}/usr/share/systemd/tmp.mount" \
             "${ROOTFS_BASE}/lib/systemd/system"

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+#
+# Copyright © 2021 Revolution Robotics, Inc.
+#
+# @(#) fetch-yandex.sh
+#
+# This script takes Yandex share links and downloads the associated files.
+#
+declare yandex_cloud_api='https://cloud-api.yandex.net:443/v1/disk/public/resources/download?public_key='
+
+fetch-yandex-share ()
+{
+    local share_uri=$1
+
+    local cloud_uri=$(curl -sL "${yandex_cloud_api}${share_uri}" | jq -r .href)
+    local filename=$(sed 's/.*&filename=\([^&]*\)&.*/\1/' <<<"$cloud_uri")
+
+    echo "=> $filename"
+    curl -sLC - -o "$filename" "$cloud_uri"
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare link
+
+    for link; do
+        { fetch-yandex-share "$link" & } 2>/dev/null
+    done
+    wait
+fi
