@@ -116,6 +116,7 @@ get-current-tag ()
 
 declare acng_proxy=''
 declare prompt
+declare status
 declare system=$($UNAME -s)
 
 case "$system" in
@@ -195,12 +196,23 @@ if "$MULTIPASS" list  | $AWK 'NR > 1 { print $1 }' | $GREP -q "$VMNAME"; then
 
     # Prompt whether to overwrite.
     prompt="$VMNAME: Virtual machine instance already exists. Overwrite [y/N]? "
-    if read -t 10 -n 1 -p "$prompt" <"$TTY" || [[ ! ."$REPLY" =~ \.[yY] ]]; then
+    read -t 10 -n 1 -p "$prompt" <"$TTY"
+    status=$?
+    if (( status == 0 )) && [[  ."$REPLY" =~ \.[yY] ]]; then
         "$MULTIPASS" umount "$VMNAME"
         "$MULTIPASS" stop "$VMNAME"
         "$MULTIPASS" delete --purge "$VMNAME"
         "$MULTIPASS" launch --cpus "$NPROC" --disk "$DISK_SIZE" \
                      --mem "$MEMORY_SIZE" --name "$VMNAME" "$CODENAME"
+    else
+        echo
+        prompt="$VMNAME will not be overwritten. Proceed with build [y/N]? "
+        read -t 10 -n 1 -p "$prompt" <"$TTY"
+        status=$?
+        if (( status != 0 )) || [[  ! ."$REPLY" =~ \.[yY] ]]; then
+             printf "\nTerminating build.\n" >&2
+            exit
+        fi
     fi
 
 # Launch VM and mount local $DEST_DIR on VM's $OUTPUT_DIR via SSHFS.
