@@ -517,7 +517,7 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
             "${RECOVERYFS_BASE}/etc/systemd"
 
-    # Install U-Boot boot script.
+    # Install REVO U-Boot boot script.
     install -d -m 0755 "${RECOVERYFS_BASE}/usr/share/boot"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/u-boot/boot.sh" \
                 "${RECOVERYFS_BASE}/usr/share/boot"
@@ -542,7 +542,7 @@ EOF
     ln -sf '/lib/systemd/system/kernel-cmdline.path' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    # Install recover-emmc service.
+    # Install REVO recover eMMC service.
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
     install -d -m 0755 "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
@@ -551,7 +551,7 @@ EOF
     ln -sf "$G_IMAGES_DIR" "${RECOVERYFS_BASE}/system-update"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc" "${RECOVERYFS_BASE}/usr/sbin"
 
-    # Install recover-emmc-monitor service
+    # Install REVO eMMC-recovery monitor service
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor" \
             "${RECOVERYFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor.service" \
@@ -567,7 +567,7 @@ EOF
     chmod -R g-w "${G_VENDOR_PATH}/resources/NetworkManager/"*
     chmod 750 "${G_VENDOR_PATH}/resources/NetworkManager/etc/NetworkManager/dispatcher.d/30-link-led"
 
-    # Install NetworkManager scripts
+    # Install REVO NetworkManager scripts
     tar -C "${G_VENDOR_PATH}/resources/NetworkManager" -cf - . |
         tar -C "${RECOVERYFS_BASE}" -oxf -
 
@@ -577,7 +577,9 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/resources/udev/84-nm-drivers.rules" \
             "${RECOVERYFS_BASE}/usr/lib/udev/rules.d"
 
-    # Add default firewalld configuration.
+    # Add REVO default firewalld configuration.
+    install -m 0644 "${G_VENDOR_PATH}/resources/firewalld/revo-web-ui.xml" \
+            "${RECOVERYFS_BASE}/etc/firewalld/services"
     install -m 0644 "${G_VENDOR_PATH}/resources/firewalld/public.xml" \
             "${RECOVERYFS_BASE}/etc/firewalld/zones"
 
@@ -603,6 +605,21 @@ EOF
 
     # Install MIME databases
     tar -C "$RECOVERYFS_BASE" -Jxf "${G_VENDOR_PATH}/resources/mime.txz"
+
+    # Link /var/www/html
+    install -d -m 0755 "${RECOVERYFS_BASE}/var/www"
+    rm -f "${RECOVERYFS_BASE}/var/www/html"
+    ln -sf /opt/revoedge/web-ui "${RECOVERYFS_BASE}/var/www/html"
+
+    # Install REVO web dispatch
+    install -m 0755 "${G_VENDOR_PATH}/resources/revo-web-dispatch/revo-web-dispatch" \
+            "${RECOVERYFS_BASE}/usr/sbin"
+
+    # Install REVO web dispatch service
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-web-dispatch.service" \
+            "${RECOVERYFS_BASE}/lib/systemd/system"
+    ln -sf '/lib/systemd/system/revo-web-dispatch.service' \
+       "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # END -- REVO i.MX7D update
 

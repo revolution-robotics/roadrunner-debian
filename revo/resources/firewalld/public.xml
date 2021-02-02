@@ -6,4 +6,7 @@
   <service name="dhcpv6-client"/>
   <service name="mdns"/>
   <service name="cockpit"/>
+  <service name="revo-web-ui"/>
+  <service name="http"/>
+  <service name="https"/>
 </zone>
