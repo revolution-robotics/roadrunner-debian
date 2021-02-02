@@ -497,6 +497,16 @@ EOF
     install -m 0755 "${G_VENDOR_PATH}/resources/rs485/rs485" \
             "${ROOTFS_BASE}/usr/bin"
 
+    # Install and enable serial initialization systemd service
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/serial-init.service" \
+            "${ROOTFS_BASE}/lib/systemd/system"
+    ln -sf '/lib/systemd/system/serial-init.service' \
+       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
+
+    # Install serial initialization default
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/etc/default/serial" \
+            "${ROOTFS_BASE}/etc/default"
+
     # Install utitlity to download Yandex shares.
     install -m 0755 "${G_VENDOR_PATH}/resources/fetch-yandex" \
             "${ROOTFS_BASE}/usr/bin"
