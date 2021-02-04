@@ -7,7 +7,7 @@
 # This script builds a REVO i.MX7D SD disk image in a multipass VM.
 # The resulting image is written to $DEST_DIR on the local host.
 #
-# NB: Inside the VM, be careful not to overwrite user ubuntu's
+# NB: Inside a VM, be careful not to overwrite user ubuntu's
 #     authorized_keys (i.e., ~ubuntu/.ssh/authorized_keys). Multipass
 #     is unable to accesses the VM without it.
 #

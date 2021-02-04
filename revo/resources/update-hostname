@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+#
+# Copyright © 2021 Revolution Robotics, Inc.
+#
+# @(#) update-hostname
+#
+# This script attempts to update the system hostname across various
+# files/certs. The system should be immediately reboot thereafter to
+# eliminate transients. Assumptions are made that won't be valid on
+# most systems.
+#
+# In general, changing the system hostname is a bad idea, so use this
+# script only as a last resort!
+#
+confirm-update ()
+{
+    local hn=$1
+    local msg=$2
+
+    echo "$msg"
+    read -n 1 -p "Continue? [y/N]? "
+    echo
+    if [[ ."$REPLY" = .'' || ."$REPLY" == .[nN] ]]; then
+        return 1
+    fi
+}
+
+update-hostname ()
+{
+    local hn=$1
+
+    hostnamectl --static --transient --pretty set-hostname "$hn"
+}
+
+update-hosts ()
+{
+    local hn=$1
+
+    sed -i -e '/^127.0.0.1/s;\([[:space:]]\{1,\}\)[^[:space:]].*;\1localhost;' \
+        -e '/^127.0.1.1/s;\([[:space:]]\{1,\}\)[^[:space:]].*;\1'"$hn"';' \
+        /etc/hosts
+}
+
+update-mailname ()
+{
+    local hn=$1
+
+    echo "$hn" >/etc/mailname
+}
+
+update-ssh-certificates ()
+{
+    systemctl enable --now regenerate-ssh-host-keys
+}
+
+update-tls-certificates ()
+{
+    : TODO
+}
+
+update-zeroconf ()
+{
+    systemctl restart avahi-daemon
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+
+    # Don't use FQDN - that's what DNS is for.
+    declare hn=${1%%.*}
+    declare msg=''
+
+    if test ."$hn" = .'' -o ."${hn:0:1}" = .'-'; then
+        echo "Usage: ${0##*/} hostname"
+        exit
+    elif test ! ."$1" = ."$hn"; then
+        msg="NB: Only short name (i.e., $hn) will be updated.
+    Domain name records must be updated separately."
+        confirm-update "$hn" "$msg" || exit
+    fi
+
+    if test ."$hn" = ."$HOSTNAME" -a ."$hn" = .$(< /etc/hostname); then
+        msg="$hn: Hostname appears set already."
+        confirm-update "$hn" "$msg" || exit
+    fi
+
+    cat <<EOF
+Updating: $HOSTNAME → $hn
+EOF
+    update-hostname "$hn"
+    update-hosts "$hn"
+    update-mailname "$hn"
+
+    # NB: Certificates must be regenerated last!
+    update-ssh-certificates "$hn"
+    update-tls-certificates "$hn"
+    update-zeroconf
+
+    cat <<EOF
+Update complete! Adjust DNS records accordingly.
+Please reboot the system NOW!
+EOF
+
+fi

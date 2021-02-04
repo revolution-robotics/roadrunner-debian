@@ -455,6 +455,10 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/logrotate/rsyslog" \
             "${RECOVERYFS_BASE}/etc/logrotate.d"
 
+    # Install REVO update-hostname script
+    install -m 0755 "${G_VENDOR_PATH}/resources/update-hostname" \
+            "${RECOVERYFS_BASE}/usr/bin"
+
     # Generate unique hostname on first boot
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/hostname-commit.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
