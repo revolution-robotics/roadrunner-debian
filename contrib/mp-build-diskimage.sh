@@ -222,13 +222,10 @@ else
 fi
 
 # Multipass evidently consumes/flushes stdin here, so redirect $TTY as
-# a work-around when piping this script to bash.
-$MKDIR -p "$DEST_DIR" &&
-    "$MULTIPASS" exec "$VMNAME" -- $MKDIR -p "$OUTPUT_DIR" <"$TTY" &&
-    {
-        "$MULTIPASS" mount "$DEST_DIR" "${VMNAME}:${OUTPUT_DIR}" <"$TTY" ||
-            true
-    }
+# a workaround when piping this script to bash.
+$MKDIR -p "$DEST_DIR"
+"$MULTIPASS" exec "$VMNAME" -- $MKDIR -p "$OUTPUT_DIR" <"$TTY"
+"$MULTIPASS" mount "$DEST_DIR" "${VMNAME}:${OUTPUT_DIR}" <"$TTY"
 
 # Enable SSH access, e.g.:
 #
