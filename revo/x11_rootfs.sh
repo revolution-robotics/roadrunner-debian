@@ -124,6 +124,7 @@ make_debian_x11_rootfs ()
     #    ${ROOTFS_BASE}/srv/local-apt-repository
 
     # BEGIN -- REVO i.MX7D security
+    pr_info "rootfs: security infrastructure"
     mkdir -p ${ROOTFS_BASE}/etc/sudoers.d/
     echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${ROOTFS_BASE}/etc/sudoers.d/revo
     chmod 0440 ${ROOTFS_BASE}/etc/sudoers.d/revo
@@ -445,6 +446,8 @@ EOF
     # fourth-stage
 
     # BEGIN -- REVO i.MX7D updates
+    pr_info "rootfs: install updates and local packages"
+
     # Update logrotate
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/logrotate/logrotate.conf" \
             "${ROOTFS_BASE}/etc"
@@ -731,6 +734,8 @@ EOF
     fi
 
     # rootfs startup patches
+    pr_info "rootfs: begin startup patches"
+
     install -m 0644 ${G_VENDOR_PATH}/issue ${ROOTFS_BASE}/etc/
     install -m 0755 ${G_VENDOR_PATH}/resources/rc.local ${ROOTFS_BASE}/etc/
     install -m 0644 ${G_VENDOR_PATH}/resources/hostapd.conf ${ROOTFS_BASE}/etc/
@@ -749,6 +754,8 @@ EOF
     rm -f ${ROOTFS_BASE}/usr/sbin/policy-rc.d
 
     # Install kernel modules to rootfs
+    pr_info "rootfs: install kernel modules"
+
     install_kernel_modules \
         ${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
         ${G_LINUX_KERNEL_DEF_CONFIG} ${G_LINUX_KERNEL_SRC_DIR} \
@@ -763,6 +770,8 @@ EOF
     #    ${ROOTFS_BASE}/usr/local/src/linux-imx/
 
     # Install U-Boot environment editor
+    pr_info "rootfs: install U-Boot environment editor"
+
     install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-mmc ${ROOTFS_BASE}/usr/bin
     ln -sf fw_printenv-mmc ${ROOTFS_BASE}/usr/bin/fw_printenv
     ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_setenv
@@ -773,6 +782,8 @@ EOF
 
     # BEGIN -- REVO i.MX7D post-packages stage
     # Run curl with system root certificates file.
+    pr_info "rootfs: begin late packages"
+
     mv "${ROOTFS_BASE}/usr/bin/curl"{,.dist}
     install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
             "${ROOTFS_BASE}/usr/bin/curl"
@@ -837,13 +848,15 @@ apt clean
 
 rm -f /post-packages
 EOF
-
     pr_info "rootfs: post-packages stage"
+
     chmod +x ${ROOTFS_BASE}/post-packages
     chroot "${ROOTFS_BASE}" /post-packages
     # END -- REVO i.MX7D post-packages stage
 
     # BEGIN -- REVO i.MX7D cleanup
+    pr_info "rootfs: begin final cleanup"
+
     remove-charmaps
     remove-locales
     rm -rf "${ROOTFS_BASE}/usr/share/doc/"*

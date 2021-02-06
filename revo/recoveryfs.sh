@@ -128,6 +128,7 @@ make_debian_recoveryfs ()
     #    ${RECOVERYFS_BASE}/srv/local-apt-repository
 
     # BEGIN -- REVO i.MX7D security
+    pr_info "recoveryfs: security infrastructure"
     mkdir -p ${RECOVERYFS_BASE}/etc/sudoers.d/
     echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${RECOVERYFS_BASE}/etc/sudoers.d/revo
     chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/revo
@@ -449,6 +450,8 @@ EOF
     # fourth-stage
 
     # BEGIN -- REVO i.MX7D updates
+    pr_info "recoveryfs: install updates and local packages"
+
     # Update logrotate
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/logrotate/logrotate.conf" \
             "${RECOVERYFS_BASE}/etc"
@@ -731,6 +734,8 @@ EOF
     fi
 
     # recoveryfs startup patches
+    pr_info "recoveryfs: begin startup patches"
+
     install -m 0644 ${G_VENDOR_PATH}/issue ${RECOVERYFS_BASE}/etc/
     install -m 0755 ${G_VENDOR_PATH}/resources/rc.local ${RECOVERYFS_BASE}/etc/
     install -m 0644 ${G_VENDOR_PATH}/resources/hostapd.conf ${RECOVERYFS_BASE}/etc/
@@ -750,6 +755,8 @@ EOF
     rm -f ${RECOVERYFS_BASE}/usr/sbin/policy-rc.d
 
     # Install kernel modules to recoveryfs
+    pr_info "recoveryfs: install kernel modules"
+
     install_kernel_modules \
         ${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
         ${G_LINUX_KERNEL_DEF_CONFIG} ${G_LINUX_KERNEL_SRC_DIR} \
@@ -763,6 +770,8 @@ EOF
     #    ${RECOVERYFS_BASE}/usr/local/src/linux-imx/
 
     # Install U-Boot environment editor
+    pr_info "recoveryfs: install U-Boot environment editor"
+
     install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-mmc \
             ${RECOVERYFS_BASE}/usr/bin
     ln -sf fw_printenv-mmc ${RECOVERYFS_BASE}/usr/bin/fw_printenv
@@ -775,6 +784,8 @@ EOF
 
     # BEGIN -- REVO i.MX7D post-packages stage
     # Run curl with system root certificates file.
+    pr_info "recoveryfs: begin late packages"
+
     mv "${RECOVERYFS_BASE}/usr/bin/curl"{,.dist}
     install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
             "${RECOVERYFS_BASE}/usr/bin/curl"
@@ -840,13 +851,15 @@ apt clean
 
 rm -f /post-packages
 EOF
-
     pr_info "recoveryfs: post-packages stage"
+
     chmod +x ${RECOVERYFS_BASE}/post-packages
     chroot "${RECOVERYFS_BASE}" /post-packages
     # END -- REVO i.MX7D post-packages stage
 
     # BEGIN -- REVO i.MX7D cleanup
+    pr_info "recoveryfs: begin final cleanup"
+
     remove-charmaps
     remove-locales
     rm -rf "${RECOVERYFS_BASE}/usr/share/doc/"*
