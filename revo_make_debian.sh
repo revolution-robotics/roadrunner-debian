@@ -365,12 +365,14 @@ make_tarball ()
     (
         cd "$1"
         chown root:root .
+        chmod 775 .
         pr_info "make tarball from folder $1"
         pr_info "Remove old tarball $2"
         rm -f "$2"
 
         pr_info "Create $2"
 
+        rm -f root/.bash_history
         tar -zcf "$2" --exclude '*~' . || {
             rm -f "$2"
             exit 1
@@ -999,8 +1001,10 @@ cmd_make_recoveryfs ()
 
 cmd_make_usbfs ()
 {
+    # cp -a "$G_ROOTFS_DIR" "$G_USBFS_DIR"
     rm -rf "$G_USBFS_DIR"
-    cp -a "$G_ROOTFS_DIR" "$G_USBFS_DIR"
+    install -d -m 0775 "$G_USBFS_DIR"
+    tar -C "$G_USBFS_DIR" -zxpf "$G_ROOTFS_TARBALL_PATH"
     ln -s "$G_IMAGES_DIR" "${G_USBFS_DIR}/system-update"
 
     # pack usbfs
@@ -1011,8 +1015,10 @@ cmd_make_provisionfs ()
 {
     local SD_DEVICE=/dev/mmcblk0
 
+    # cp -a "$G_ROOTFS_DIR" "$G_PROVISIONFS_DIR"
     rm -rf "$G_PROVISIONFS_DIR"
-    cp -a "$G_ROOTFS_DIR" "$G_PROVISIONFS_DIR"
+    install -d -m 0775 "$G_PROVISIONFS_DIR"
+    tar -C "$G_PROVISIONFS_DIR" -zxpf "$G_ROOTFS_TARBALL_PATH"
     ln -s "$G_IMAGES_DIR" "${G_PROVISIONFS_DIR}/system-update"
 
     # Enable flash-emmc to update SD U-Boot environment.

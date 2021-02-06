@@ -844,14 +844,6 @@ EOF
     pr_info "recoveryfs: post-packages stage"
     chmod +x ${RECOVERYFS_BASE}/post-packages
     chroot "${RECOVERYFS_BASE}" /post-packages
-
-    # kill latest dbus-daemon instance due to qemu-arm-static
-    QEMU_PROC_ID=$(ps axf | grep dbus-daemon | grep qemu-arm-static | awk '{print $1}')
-    if test -n "$QEMU_PROC_ID"; then
-        kill -9 "$QEMU_PROC_ID"
-    fi
-
-    rm -f "${RECOVERYFS_BASE}/usr/bin/qemu-arm-static"
     # END -- REVO i.MX7D post-packages stage
 
     # BEGIN -- REVO i.MX7D cleanup
@@ -863,11 +855,11 @@ EOF
     # Restore APT source list to default Debian mirror.
     cat >"${RECOVERYFS_BASE}/etc/apt/sources.list" <<EOF
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
-deb ${DEF_DEBIAN_MIRROR}-security/ ${DEB_RELEASE}/updates main contrib non-free
+deb ${DEF_DEBIAN_MIRROR%/}-security/ ${DEB_RELEASE}/updates main contrib non-free
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 # deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
-# deb-src ${DEF_DEBIAN_MIRROR}-security/ ${DEB_RELEASE}/updates main contrib non-free
+# deb-src ${DEF_DEBIAN_MIRROR%/}-security/ ${DEB_RELEASE}/updates main contrib non-free
 # deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
 # deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
@@ -880,10 +872,21 @@ EOF
         -e '/alias ls/s/^# *//' -e '/alias l=/a alias h="history 50"' \
         "${RECOVERYFS_BASE}/root/.bashrc"
 
+    # Remove misc. artifacts.
+    find "${RECOVERYFS_BASE}/usr/local/include" -name ..install.cmd -delete
+
     # Prepare /var/log to be mounted as tmpfs.
     # NB: *~ is excluded from recoveryfs tarball.
     rm -rf "${RECOVERYFS_BASE}/var/log"
     install -d -m 755 "${RECOVERYFS_BASE}/var/log"
+
+    # kill latest dbus-daemon instance due to qemu-arm-static
+    QEMU_PROC_ID=$(ps axf | grep dbus-daemon | grep qemu-arm-static | awk '{print $1}')
+    if test -n "$QEMU_PROC_ID"; then
+        kill -9 "$QEMU_PROC_ID"
+    fi
+
+    rm -f "${RECOVERYFS_BASE}/usr/bin/qemu-arm-static"
     # END -- REVO i.MX7D cleanup
 
     umount_recoveryfs
