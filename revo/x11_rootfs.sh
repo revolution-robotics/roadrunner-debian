@@ -1,70 +1,71 @@
 #!/usr/bin/env bash
 #
-
-remove-charmaps ()
-{
-    # Remove non-essential charmaps from /usr/share/i18n/charmaps
-    local charmap quoted
-    local -a find_args=()
-    local -a charmaps=(
-        $(tr -s ' ' '\n' <<<"$LOCALES UTF-8 ISO-8859-1" |
-              sed -e 's/.*\.//' |
-              sort -u)
-    )
-    for charmap in "${charmaps[@]}"; do
-        printf -v quoted "%q.gz" "$charmap";
-
-        if (( ${#find_args[*]} == 0 )); then
-            find_args=( -name "$quoted" )
-        else
-            find_args+=( -or -name "$quoted" )
-        fi
-    done
-    eval find "${ROOTFS_BASE}/usr/share/i18n/charmaps" -type f \
-          ${find_args[0]:+"-not \\( ${find_args[@]} \\)"} -delete
-}
-
-remove-locales ()
-{
-    # Remove non-essential charmaps from /usr/share/i18n/locales
-    local charmap quoted
-    local -a find_args=()
-    local -a locales=(
-        $(tr -s ' ' '\n' <<<"$LOCALES" |
-            sed -n -e 's/\..*//' -e '/_/p' -e 's/_.*//p')
-    )
-    local locale
-
-    locales+=( C POSIX )
-    for locale in "${locales[@]}"; do
-        printf -v quoted "%q" "$locale";
-
-        if (( ${#find_args[*]} == 0 )); then
-            find_args=( -name "$quoted" )
-
-            # If keeping, e.g., `en_IE', also keep `en_IE@euro'.
-            if [[ ."$quoted" =~ \.[^_]+_[^@]+$ ]]; then
-                find_args+=( -or -name "${quoted}@*" )
-            fi
-        else
-            find_args+=( -or -name "$quoted" )
-
-            # If keeping, e.g., `en_IE', also keep `en_IE@euro'.
-            if [[ ."$quoted" =~ \.[^_]+_[^@]+$ ]]; then
-                find_args+=( -or -name "${quoted}@*" )
-            fi
-        fi
-    done
-    eval find "${ROOTFS_BASE}/usr/share/i18n/locales" -type f \
-          ${find_args[0]:+"-not \\( ${find_args[@]} \\)"} -delete
-}
-
 # Must be called after make_prepare in main script
 # function generate rootfs in input dir
 # $1 - rootfs base dir
 make_debian_x11_rootfs ()
 {
     local ROOTFS_BASE=$1
+
+
+    remove-charmaps ()
+    {
+        # Remove non-essential charmaps from /usr/share/i18n/charmaps
+        local charmap quoted
+        local -a find_args=()
+        local -a charmaps=(
+            $(tr -s ' ' '\n' <<<"$LOCALES UTF-8 ISO-8859-1" |
+                  sed -e 's/.*\.//' |
+                  sort -u)
+        )
+        for charmap in "${charmaps[@]}"; do
+            printf -v quoted "%q.gz" "$charmap";
+
+            if (( ${#find_args[*]} == 0 )); then
+                find_args=( -name "$quoted" )
+            else
+                find_args+=( -or -name "$quoted" )
+            fi
+        done
+        eval find "${ROOTFS_BASE}/usr/share/i18n/charmaps" -type f \
+             ${find_args[0]:+"-not \\( ${find_args[@]} \\)"} -delete
+    }
+
+    remove-locales ()
+    {
+        # Remove non-essential charmaps from /usr/share/i18n/locales
+        local charmap quoted
+        local -a find_args=()
+        local -a locales=(
+            $(tr -s ' ' '\n' <<<"$LOCALES" |
+                  sed -n -e 's/\..*//' -e '/_/p' -e 's/_.*//p')
+        )
+        local locale
+
+        locales+=( C POSIX )
+        for locale in "${locales[@]}"; do
+            printf -v quoted "%q" "$locale";
+
+            if (( ${#find_args[*]} == 0 )); then
+                find_args=( -name "$quoted" )
+
+                # If keeping, e.g., `en_IE', also keep `en_IE@euro'.
+                if [[ ."$quoted" =~ \.[^_]+_[^@]+$ ]]; then
+                    find_args+=( -or -name "${quoted}@*" )
+                fi
+            else
+                find_args+=( -or -name "$quoted" )
+
+                # If keeping, e.g., `en_IE', also keep `en_IE@euro'.
+                if [[ ."$quoted" =~ \.[^_]+_[^@]+$ ]]; then
+                    find_args+=( -or -name "${quoted}@*" )
+                fi
+            fi
+        done
+        eval find "${ROOTFS_BASE}/usr/share/i18n/locales" -type f \
+             ${find_args[0]:+"-not \\( ${find_args[@]} \\)"} -delete
+    }
+
 
     pr_info "Make debian(${DEB_RELEASE}) rootfs start..."
 
