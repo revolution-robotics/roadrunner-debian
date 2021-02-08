@@ -499,10 +499,6 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/resources/set_window_title.sh" \
             "${RECOVERYFS_BASE}/etc/profile.d"
 
-    # Install redirect-web-ports.
-    install -m 0755 "${G_VENDOR_PATH}/resources/redirect-web-ports" \
-            "${RECOVERYFS_BASE}/usr/sbin"
-
     # Build and install RS-485 mode configuration utility.
     make -C "${G_VENDOR_PATH}/resources/rs485" clean all
     install -m 0755 "${G_VENDOR_PATH}/resources/rs485/rs485" \
@@ -632,7 +628,7 @@ EOF
             "${RECOVERYFS_BASE}/usr/sbin"
 
     # Install REVO web dispatch config
-    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/etc/default/web-dispatch" \
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/etc/default/web-dispatch" \
             "${RECOVERYFS_BASE}/etc/default"
 
     # Install REVO web dispatch service
@@ -640,6 +636,10 @@ EOF
             "${RECOVERYFS_BASE}/lib/systemd/system"
     ln -sf '/lib/systemd/system/revo-web-dispatch.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
+
+    # Install redirect-web-ports.
+    install -m 0755 "${G_VENDOR_PATH}/resources/redirect-web-ports" \
+            "${RECOVERYFS_BASE}/usr/sbin"
 
     # END -- REVO i.MX7D update
 

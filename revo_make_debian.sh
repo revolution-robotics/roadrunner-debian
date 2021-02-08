@@ -6,7 +6,7 @@
 umask 022
 
 # -e  Exit immediately if a command exits with a non-zero status.
-set -e
+set -e -o pipefail
 
 declare -r SCRIPT_NAME=${0##*/}
 
@@ -15,7 +15,7 @@ declare -r SCRIPT_NAME=${0##*/}
 #### Exports Variables ####
 #### global variables ####
 declare -r ABSOLUTE_FILENAME=$(readlink -e "$0")
-declare -r ABSOLUTE_DIRECTORY=$(dirname "$ABSOLUTE_FILENAME")
+declare -r ABSOLUTE_DIRECTORY=${ABSOLUTE_FILENAME%/*}
 declare -r LOOP_MAJOR=7
 declare COMPRESSION_SUFFIX='{bz2,gz,img,lz,lzma,lzo,xz,zip}'
 declare ZCAT='gzip -dc'
