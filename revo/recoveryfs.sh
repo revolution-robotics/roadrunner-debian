@@ -986,7 +986,8 @@ make_recovery_image ()
                    )
             sed -e "/^setenv kernelargs/s;\$; ${cmdline};" \
                 "${P2_MOUNT_DIR}/usr/share/boot/boot.sh" >"${G_TMP_DIR}/boot.sh"
-            make -C "$G_TMP_DIR" -f "${P2_MOUNT_DIR}/usr/share/boot/Makefile"
+            make -C "$G_TMP_DIR" -f "${P2_MOUNT_DIR}/usr/share/boot/Makefile" \
+                 clean all
         fi
 
         pr_info "Flashing \"BOOT\" partition"

@@ -349,10 +349,6 @@ make_prepare ()
     # create out dir
     mkdir -p "$PARAM_OUTPUT_DIR"
 
-    if test -d "$G_TMP_DIR"; then
-        rm -rf "$G_TMP_DIR"
-    fi
-
     # create tmp dir
     mkdir -p "$G_TMP_DIR"
 }
