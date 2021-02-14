@@ -623,14 +623,17 @@ EOF
     # Install MIME databases
     tar -C "$RECOVERYFS_BASE" -Jxf "${G_VENDOR_PATH}/resources/mime.txz"
 
-    # Link /var/www/html
-    install -d -m 0755 "${RECOVERYFS_BASE}/var/www"
-    rm -f "${RECOVERYFS_BASE}/var/www/html"
-    ln -sf /opt/revoedge/web-ui "${RECOVERYFS_BASE}/var/www/html"
+    # Create /var/www/html. TODO: Add index.html.
+    install -d -m 0755 "${RECOVERYFS_BASE}/var/www/html"
 
-    # Install REVO web dispatch
-    install -m 0755 "${G_VENDOR_PATH}/resources/revo-web-dispatch/revo-web-dispatch" \
+    # Build and install REVO web dispatch.
+    make -C "${G_REVO_WEB_DISPATCH_SRC_DIR}" clean all
+    install -m 0755 "${G_REVO_WEB_DISPATCH_SRC_DIR}/revo-web-dispatch" \
             "${RECOVERYFS_BASE}/usr/sbin"
+
+    # Install REVO web dispatch config
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/etc/default/web-dispatch" \
+            "${RECOVERYFS_BASE}/etc/default"
 
     # Install REVO web dispatch service
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-web-dispatch.service" \

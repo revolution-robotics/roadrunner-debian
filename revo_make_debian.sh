@@ -114,6 +114,7 @@ Options:
        provisionimage
                      -- create a bootable provision image file from provisionfs
        flashimage    -- flash a disk image to SD card
+       webdispatch   -- build and install web dispatch
   --debug            -- enable debug mode for this script
   -d|--dev           -- removable block device to write to (e.g., -d /dev/sdg)
   -i|--image image-file
@@ -911,7 +912,12 @@ cmd_make_deploy ()
                         "$G_IMXBOOT_BRACH" "$G_IMXBOOT_SRC_DIR" "$G_IMXBOOT_REV"
         fi
     fi
-
+    # get REVO web dispatch
+    if (( $(ls "$G_REVO_WEB_DISPATCH_SRC_DIR" 2>/dev/null | wc -l) == 0 )); then
+        pr_info "Get REVO web dispatch repository"
+        get_git_src "$G_REVO_WEB_DISPATCH_GIT" "$G_REVO_WEB_DISPATCH_BRANCH" \
+                    "$G_REVO_WEB_DISPATCH_SRC_DIR" "$G_REVO_WEB_DISPATCH_REV"
+    fi
 
 }
 
@@ -1071,6 +1077,16 @@ cmd_make_kmodules ()
     install_kernel_modules "${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
                            "$G_LINUX_KERNEL_DEF_CONFIG" \
                            "$G_LINUX_KERNEL_SRC_DIR" "$targetdir"
+}
+
+cmd_make_web_dispatch ()
+{
+    local target_base=$1
+
+    # Build and install REVO web dispatch.
+    make -C "${G_REVO_WEB_DISPATCH_SRC_DIR}" clean all
+    install -m 0755 "${G_REVO_WEB_DISPATCH_SRC_DIR}/revo-web-dispatch" \
+            "${target_base}/usr/sbin"
 }
 
 cmd_make_rfs_ubi ()
@@ -1344,6 +1360,10 @@ case $PARAM_CMD in
     firmware)
         cmd_make_firmware $G_ROOTFS_DIR
         cmd_make_firmware $G_RECOVERYFS_DIR
+        ;;
+    webdispatch)
+        cmd_make_web_dispatch $G_ROOTFS_DIR
+        cmd_make_web_dispatch $G_RECOVERYFS_DIR
         ;;
     diskimage)
         cmd_make_diskimage $DEF_ROOTFS_TARBALL_NAME
