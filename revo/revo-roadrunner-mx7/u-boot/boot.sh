@@ -2,7 +2,7 @@
 #
 # @(#) boot.sh
 #
-# Copyright © 2020, Revolution Robotics, Inc.
+# Copyright © 2021, Revolution Robotics, Inc.
 #
 # This U-Boot script probes for expansion modules and selects the
 # appropriate flattened device tree (FDT) file. It then checks if
@@ -69,14 +69,14 @@ setenv silent
 
 # If 0x23 is a valid I2C address...
 if test $status23 -eq 0; then
-    echo 'REVO digital GPIO expansion board detected'
-    setenv fdt_file imx7d-roadrunner-dio.dtb
+    echo 'REVO GPIO-16 expansion board detected'
+    setenv fdt_file imx7d-roadrunner-gpio16.dtb
     setenv kernelargs "$kernelargs REVO_IND-GPIO-16_v1.0"
 
 # If 0x49 is a valid I2C address...
 elif test $status49 -eq 0; then
-    echo 'REVO mixed-signal expansion board detected'
-    setenv fdt_file imx7d-roadrunner-mixio.dtb
+    echo 'REVO IOMIX expansion board detected'
+    setenv fdt_file imx7d-roadrunner-iomix.dtb
     setenv kernelargs "$kernelargs REVO_IOMIX-A_v1.0"
 
 # Otherwise...

@@ -6,7 +6,7 @@ declare -r ARCH_CPU="32BIT"
 declare -r G_UBOOT_SRC_DIR="${DEF_SRC_DIR}/uboot"
 declare -r G_UBOOT_GIT="https://github.com/revolution-robotics/roadrunner-uboot-imx.git"
 declare -r G_UBOOT_BRANCH="imx_v2018.03_4.14.78_1.0.0_ga_var01_rr01"
-declare -r G_UBOOT_REV="d03d3714d7f2d9c081e19574256283aff91172a7"
+declare -r G_UBOOT_REV="4efa8e63a6364e484307d8cbb79f053f7e91f4a9"
 declare -r G_UBOOT_DEF_CONFIG_MMC='mx7d_roadrunner_defconfig'
 declare -r G_UBOOT_DEF_CONFIG_NAND='mx7d_roadrunner_nand_defconfig'
 declare -r G_UBOOT_NAME_FOR_EMMC='u-boot.img.mmc'
@@ -18,10 +18,9 @@ declare -r G_SPL_NAME_FOR_NAND='SPL.nand'
 declare -r G_LINUX_KERNEL_SRC_DIR="${DEF_SRC_DIR}/kernel"
 declare -r G_LINUX_KERNEL_GIT="https://github.com/revolution-robotics/roadrunner-linux-imx.git"
 declare -r G_LINUX_KERNEL_BRANCH="imx_4.14.78_1.0.0_ga_var01_rr01"
-declare -r G_LINUX_KERNEL_REV="99f5f662ea8b87a670812aea8fd887728eaaa60f"
+declare -r G_LINUX_KERNEL_REV="711030f7183b13423bcb44285ddaf50ce967a61f"
 declare -r G_LINUX_KERNEL_DEF_CONFIG='imx_v7_roadrunner_defconfig'
-declare -r G_LINUX_DTB="imx7d-roadrunner-mixio.dtb
-        imx7d-roadrunner-dio.dtb"
+declare -r G_LINUX_DTB="imx7d-roadrunner-gpio16.dtb imx7d-roadrunner-iomix.dtb"
 
 # ACCESS_CONTROL must be one of:
 #   Apparmor
