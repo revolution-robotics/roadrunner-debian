@@ -5,7 +5,7 @@ DESTDIR ?= ../../../output
 .SUFFIXES: .sh .scr
 
 .sh.scr:
-	mkimage -T script -C none -n '$(basename $@) script' -d $< $@
+	mkimage -A arm -T script -C none -n '$(basename $@) script' -d $< $@
 
 SRCS = $(wildcard *.sh)
 OBJS = $(SRCS:.sh=.scr)
