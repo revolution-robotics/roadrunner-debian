@@ -725,6 +725,8 @@ apt update
 
 # install all user packages from backports
 DEBIAN_FRONTEND=noninteractive apt -yq -t ${DEB_RELEASE}-backports install ${G_USER_PACKAGES}
+
+pip3 install https://github.com/zeromq/pyre/archive/master.zip
 pip3 install minimalmodbus
 pip3 install pystemd
 pip3 install pytz
