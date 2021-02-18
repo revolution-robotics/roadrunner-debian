@@ -649,20 +649,23 @@ EOF
 
     # END -- REVO i.MX7D update
 
-    # install variscite-bt service
-    install -m 0755 ${G_VENDOR_PATH}/resources/brcm_patchram_plus \
-            ${RECOVERYFS_BASE}/usr/bin
-    install -d ${RECOVERYFS_BASE}/etc/bluetooth
-    install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/variscite-bt.conf \
-            ${RECOVERYFS_BASE}/etc/bluetooth
-    install -m 0755 ${G_VENDOR_PATH}/resources/variscite-bt \
-            ${RECOVERYFS_BASE}/etc/bluetooth
-    install -m 0644 ${G_VENDOR_PATH}/resources/variscite-bt.service \
-            ${RECOVERYFS_BASE}/lib/systemd/system
-    ln -sf /lib/systemd/system/variscite-bt.service \
-       ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-bt.service
+    # Build and install brcm_patchram_plus utility.
+    make -C "${G_VENDOR_PATH}/resources/bluetooth" clean all
+    install -m 0755 "${G_VENDOR_PATH}/resources/bluetooth/brcm_patchram_plus" \
+            "${RECOVERYFS_BASE}/usr/bin"
 
-    # install BT audio and main config
+    # Install bluetooth service
+    install -d "${RECOVERYFS_BASE}/etc/bluetooth"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/etc/bluetooth/revo-bluetooth.conf" \
+            "${RECOVERYFS_BASE}/etc/bluetooth"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-bluetooth" \
+            "${RECOVERYFS_BASE}/etc/bluetooth"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-bluetooth.service" \
+            "${RECOVERYFS_BASE}/lib/systemd/system"
+    ln -sf /lib/systemd/system/revo-bluetooth.service \
+       "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
+
+    # Install BT audio and main config
     # install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/audio.conf \
     #         ${RECOVERYFS_BASE}/etc/bluetooth/
     # install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/main.conf \
@@ -677,7 +680,7 @@ EOF
     # ln -sf /lib/systemd/system/obex.service \
     #    ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service
 
-    # install pulse audio configuration
+    # Install pulse audio configuration
     # install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service \
     #         ${RECOVERYFS_BASE}/lib/systemd/system
     # ln -sf /lib/systemd/system/pulseaudio.service \
@@ -692,32 +695,30 @@ EOF
     #         ${RECOVERYFS_BASE}/var/lib/alsa/
     # install -m 0644 ${G_VENDOR_PATH}/resources/asound.conf ${RECOVERYFS_BASE}/etc/
 
-    # install variscite-wifi service
-    install -d ${RECOVERYFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/resources/blacklist.conf \
-            ${RECOVERYFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/variscite-wifi.conf \
-            ${RECOVERYFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/resources/variscite-wifi-common.sh \
-            ${RECOVERYFS_BASE}/etc/wifi
-    install -m 0755 ${G_VENDOR_PATH}/resources/variscite-wifi \
-            ${RECOVERYFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/resources/variscite-wifi.service \
-            ${RECOVERYFS_BASE}/lib/systemd/system
-    ln -sf /lib/systemd/system/variscite-wifi.service \
-       ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-wifi.service
+    # Install WiFi service
+    install -d "${RECOVERYFS_BASE}/etc/wifi"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/etc/wifi/blacklist.conf" \
+            "${RECOVERYFS_BASE}/etc/wifi"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/etc/wifi/revo-wifi.conf" \
+            "${RECOVERYFS_BASE}/etc/wifi"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-wifi-common.sh" \
+            "${RECOVERYFS_BASE}/etc/wifi"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-wifi" \
+            "${RECOVERYFS_BASE}/etc/wifi"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-wifi.service" \
+            "${RECOVERYFS_BASE}/lib/systemd/system"
+    ln -sf /lib/systemd/system/revo-wifi.service \
+       "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    # remove pm-utils default scripts and install wifi / bt pm-utils script
-    rm -rf ${RECOVERYFS_BASE}/usr/lib/pm-utils/sleep.d/
-    rm -rf ${RECOVERYFS_BASE}/usr/lib/pm-utils/module.d/
-    rm -rf ${RECOVERYFS_BASE}/usr/lib/pm-utils/power.d/
-    install -d -m 0755 ${RECOVERYFS_BASE}/etc/pm/sleep.d
-    install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/wifi.sh \
-            ${RECOVERYFS_BASE}/etc/pm/sleep.d/
+    # Remove pm-utils default scripts and install WiFi / Bluetooth script
+    rm -rf "${RECOVERYFS_BASE}/usr/lib/pm-utils/sleep.d/"
+    rm -rf "${RECOVERYFS_BASE}/usr/lib/pm-utils/module.d/"
+    rm -rf "${RECOVERYFS_BASE}/usr/lib/pm-utils/power.d/"
+    install -d -m 0755 "${RECOVERYFS_BASE}/etc/pm/sleep.d"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/wifi.sh" \
+            "${RECOVERYFS_BASE}/etc/pm/sleep.d/"
 
-    # tar -xzf ${G_VENDOR_PATH}/deb/shared-mime-info/mime_image_prebuilt.tar.gz -C \
-    #     ${RECOVERYFS_BASE}/
-    ## end packages stage ##
+    ## End packages stage ##
     if test ."${G_USER_PACKAGES}" != .''; then
 
         pr_info "recoveryfs: install user defined packages (user-stage)"

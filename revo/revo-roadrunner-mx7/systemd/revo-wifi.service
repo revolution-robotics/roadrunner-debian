@@ -1,0 +1,13 @@
+[Unit]
+Description=REVO WiFi initialization
+Before=network.target revo-bluetooth.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStartPre=-/etc/pm/sleep.d/wifi.sh resume
+ExecStart=/etc/wifi/revo-wifi
+ExecStop=/etc/pm/sleep.d/wifi.sh suspend
+
+[Install]
+WantedBy=multi-user.target

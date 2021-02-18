@@ -1,0 +1,13 @@
+[Unit]
+Description=REVO bluetooth initialization
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStartPre=-/etc/pm/sleep.d/bluetooth.sh resume
+ExecStart=/etc/bluetooth/revo-bluetooth
+ExecStop=/etc/pm/sleep.d/bluetooth.sh suspend
+
+[Install]
+WantedBy=multi-user.target

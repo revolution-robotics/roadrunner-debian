@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+#
+# Activate Bluetooth for REVO Roadrunner
+#
+# In order to enable or disable this script just change the execution
+# bits.
+
+# Load board-specific configuration settings
+source /etc/bluetooth/revo-bluetooth.conf
+
+# Check if WIFI+BT combo chip is available
+bt_found ()
+{
+
+    if test -f "$WIFI_SDIO_ID_FILE"; then
+        echo "Bluetooth available"
+
+        return 0
+    else
+        echo "Bluetooth unavailable - WiFi must be enabled first"
+        return 1
+    fi
+}
+
+# Enable bluetooth via GPIO
+enable_bt ()
+{
+    if test ! -d "/sys/class/gpio/gpio${BT_GPIO}"; then
+        echo "$BT_GPIO" >/sys/class/gpio/export
+        echo "out" > "/sys/class/gpio/gpio${BT_GPIO}/direction"
+    fi
+
+    echo 0 > "/sys/class/gpio/gpio${BT_GPIO}/value"
+    sleep 1
+    echo 1 > "/sys/class/gpio/gpio${BT_GPIO}/value"
+}
+
+# Get BT MAC address
+get_bt_macaddr ()
+{
+    declare -a addrs=( $(sed -e 's/://g' /sys/class/net/eth[01]/address) )
+    declare -i i=$(( 0x${addrs[0]} > 0x${addrs[1]} ? 0 : 1 ))
+    printf -v new_addr '%012X' $(( 0x${addrs[i]} + 1 ))
+
+    sed -e 's/../&:/g' -e 's/:$//' <<<"$new_addr"
+}
+
+# Detect SOM with 5G WIFI chip
+som_has_5g_wifi ()
+{
+    test ."$(< $WIFI_SDIO_ID_FILE)" = ."$WIFI_5G_SDIO_ID"
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+
+    ###########################
+    #  Execution starts here  #
+    ###########################
+
+    # Exit if BT is not available
+    bt_found || exit 1
+
+    # Enable BT hardware
+    enable_bt
+
+    # Get BT MAC address
+    BT_MACADDR=$(get_bt_macaddr)
+
+    # On SOMs with 5G WIFI use different firmware binary
+    if som_has_5g_wifi; then
+        BT_FIRMWARE=${BT_FIRMWARE_5G}
+    fi
+
+    # Load BT firmware and set MAC address
+    pkill -9 -f brcm_patchram_plus
+    brcm_patchram_plus --patchram ${BT_FIRMWARE} \
+                       --enable_hci \
+                       --bd_addr ${BT_MACADDR} \
+                       --no2bytes \
+                       --baudrate 3000000 \
+                       --scopcm=1,0,0,0,0,0,0,0,0,0 \
+                       --tosleep 1000 ${BT_TTY_DEV} &
+    exit 0
+fi

@@ -651,74 +651,76 @@ EOF
 
     # END -- REVO i.MX7D update
 
-    # install variscite-bt service
-    install -m 0755 ${G_VENDOR_PATH}/resources/brcm_patchram_plus \
-            ${ROOTFS_BASE}/usr/bin
-    install -d ${ROOTFS_BASE}/etc/bluetooth
-    install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/variscite-bt.conf \
-            ${ROOTFS_BASE}/etc/bluetooth
-    install -m 0755 ${G_VENDOR_PATH}/resources/variscite-bt \
-            ${ROOTFS_BASE}/etc/bluetooth
-    install -m 0644 ${G_VENDOR_PATH}/resources/variscite-bt.service \
-            ${ROOTFS_BASE}/lib/systemd/system
-    ln -sf /lib/systemd/system/variscite-bt.service \
-       ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-bt.service
+    # Build and install brcm_patchram_plus utility.
+    make -C "${G_VENDOR_PATH}/resources/bluetooth" clean all
+    install -m 0755 "${G_VENDOR_PATH}/resources/bluetooth/brcm_patchram_plus" \
+            "${ROOTFS_BASE}/usr/bin"
 
-    # install BT audio and main config
-    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/audio.conf \
-            ${ROOTFS_BASE}/etc/bluetooth/
-    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/main.conf \
-            ${ROOTFS_BASE}/etc/bluetooth/
+    # Install bluetooth service
+    install -d "${ROOTFS_BASE}/etc/bluetooth"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/etc/bluetooth/revo-bluetooth.conf" \
+            "${ROOTFS_BASE}/etc/bluetooth"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-bluetooth" \
+            "${ROOTFS_BASE}/etc/bluetooth"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-bluetooth.service" \
+            "${ROOTFS_BASE}/lib/systemd/system"
+    ln -sf /lib/systemd/system/revo-bluetooth.service \
+       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    # install obexd configuration
-    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/obexd.conf \
-            ${ROOTFS_BASE}/etc/dbus-1/system.d
+    # Install BT audio and main config
+    install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/audio.conf" \
+            "${ROOTFS_BASE}/etc/bluetooth/"
+    install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/main.conf" \
+            "${ROOTFS_BASE}/etc/bluetooth/"
 
-    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/obex.service \
-            ${ROOTFS_BASE}/lib/systemd/system
+    # Install obexd configuration
+    install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obexd.conf" \
+            "${ROOTFS_BASE}/etc/dbus-1/system.d"
+
+    install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obex.service" \
+            "${ROOTFS_BASE}/lib/systemd/system"
     ln -sf /lib/systemd/system/obex.service \
-       ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service
+       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    # install pulse audio configuration
-    install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service \
-            ${ROOTFS_BASE}/lib/systemd/system
-    ln -sf /lib/systemd/system/pulseaudio.service \
-       ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service
-    install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf \
-            ${ROOTFS_BASE}/etc/dbus-1/system.d
-    install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/system.pa \
-            ${ROOTFS_BASE}/etc/pulse/
+    # Install pulse audio configuration
+    install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service" \
+            "${ROOTFS_BASE}/lib/systemd/system"
+    ln -sf "/lib/systemd/system/pulseaudio.service" \
+       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
+    install -m 0644" ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf" \
+            "${ROOTFS_BASE}/etc/dbus-1/system.d"
+    install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/system.pa" \
+            "${ROOTFS_BASE}/etc/pulse/"
 
     # Add alsa default configs
-    install -m 0644 ${G_VENDOR_PATH}/resources/asound.state \
-            ${ROOTFS_BASE}/var/lib/alsa/
-    install -m 0644 ${G_VENDOR_PATH}/resources/asound.conf ${ROOTFS_BASE}/etc/
+    install -m 0644 "${G_VENDOR_PATH}/resources/asound.state" \
+            "${ROOTFS_BASE}/var/lib/alsa/"
+    install -m 0644 "${G_VENDOR_PATH}/resources/asound.conf ${ROOTFS_BASE}/etc/"
 
-    # install variscite-wifi service
-    install -d ${ROOTFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/resources/blacklist.conf \
-            ${ROOTFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/variscite-wifi.conf \
-            ${ROOTFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/resources/variscite-wifi-common.sh \
-            ${ROOTFS_BASE}/etc/wifi
-    install -m 0755 ${G_VENDOR_PATH}/resources/variscite-wifi \
-            ${ROOTFS_BASE}/etc/wifi
-    install -m 0644 ${G_VENDOR_PATH}/resources/variscite-wifi.service \
-            ${ROOTFS_BASE}/lib/systemd/system
-    ln -sf /lib/systemd/system/variscite-wifi.service \
-       ${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/variscite-wifi.service
+    # Install WiFi service
+    install -d "${ROOTFS_BASE}/etc/wifi"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/etc/wifi/blacklist.conf" \
+            "${ROOTFS_BASE}/etc/wifi"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/etc/wifi/revo-wifi.conf" \
+            "${ROOTFS_BASE}/etc/wifi"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-wifi-common.sh" \
+            "${ROOTFS_BASE}/etc/wifi"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-wifi" \
+            "${ROOTFS_BASE}/etc/wifi"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-wifi.service" \
+            "${ROOTFS_BASE}/lib/systemd/system"
+    ln -sf /lib/systemd/system/revo-wifi.service \
+       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    # remove pm-utils default scripts and install wifi / bt pm-utils script
-    rm -rf ${ROOTFS_BASE}/usr/lib/pm-utils/sleep.d/
-    rm -rf ${ROOTFS_BASE}/usr/lib/pm-utils/module.d/
-    rm -rf ${ROOTFS_BASE}/usr/lib/pm-utils/power.d/
-    install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/wifi.sh \
-            ${ROOTFS_BASE}/etc/pm/sleep.d/
+    # Remove pm-utils default scripts and install WiFi / Bluetooth script
+    rm -rf "${ROOTFS_BASE}/usr/lib/pm-utils/sleep.d/"
+    rm -rf "${ROOTFS_BASE}/usr/lib/pm-utils/module.d/"
+    rm -rf "${ROOTFS_BASE}/usr/lib/pm-utils/power.d/"
+    install -d -m 0755 "${ROOTFS_BASE}/etc/pm/sleep.d"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/wifi.sh" \
+            "${ROOTFS_BASE}/etc/pm/sleep.d/"
 
-    # tar -xzf ${G_VENDOR_PATH}/deb/shared-mime-info/mime_image_prebuilt.tar.gz -C \
-    #     ${ROOTFS_BASE}/
-    ## end packages stage ##
+    ## End packages stage ##
     if test ."${G_USER_PACKAGES}" != .''; then
 
         pr_info "rootfs: install user defined packages (user-stage)"

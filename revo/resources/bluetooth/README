@@ -1,0 +1,24 @@
+# Copyright (C) 2014 Broadcom Corporation
+
+The program downloads firmware file over UART for Broadcom Bluetooth chipset.
+The patchram included in this path is a generic firmware for BCM4354 chipset.
+
+This module builds brcm_patchram_plus which uses the serial port to download
+the firmware, chip initialization and configuration. Once the chip is
+configured, brcm_patchram_plus will map the serial port to HCI and
+register as a HCI interface.
+
+The following are some important parameters to configure brcm_patchram_plus :
+
+-d                 : Enables debug logs for brcm_patchram_plus
+--enable_lpm       : Enables LPM mode
+--enable_bt_rfkill : Will use BT RFKILL interface to toggle BT power
+
+To configure brcm_patchram_plus, the parameters should be changed in
+brcm_bt.conf script.
+
+A sample brcm_bt.conf and default firmware file is also included in this
+module. These conf file has be modified for every platform and a new firmware
+file has to be added to the respective overlay-XXXX folder for every platform
+build.
+
