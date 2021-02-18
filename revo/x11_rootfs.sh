@@ -456,18 +456,24 @@ EOF
             "${ROOTFS_BASE}/etc/logrotate.d"
 
     # Install REVO update-hostname script
-    install -m 0755 "${G_VENDOR_PATH}/resources/update-hostname" \
-            "${ROOTFS_BASE}/usr/bin"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/update-hostname" \
+            "${ROOTFS_BASE}/usr/sbin"
 
-    # Generate unique hostname on first boot
+    # Install REVO tls-generate-self-signed script
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/tls-generate-self-signed" \
+            "${ROOTFS_BASE}/usr/sbin"
+
+    # Install REVO hostname-commit service to generate unique hostname
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/hostname-commit.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
     install -d -m 0755 "${ROOTFS_BASE}/etc/systemd/system/network.target.wants"
     ln -sf '/lib/systemd/system/hostname-commit.service' \
        "${ROOTFS_BASE}/etc/systemd/system/network.target.wants"
+
+    # Install REVO commit-hostname script
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/commit-hostname" "${ROOTFS_BASE}/usr/sbin"
 
-    # Remove machine ID and hostname to force generation of unique ones.
+    # Remove machine ID and hostname to force generation of unique ones
     rm -f "${ROOTFS_BASE}/etc/machine-id" \
        "${ROOTFS_BASE}/var/lib/dbus/machine-id" \
        "${ROOTFS_BASE}/etc/hostname"
@@ -476,10 +482,10 @@ EOF
     # echo "$MACHINE" > "${ROOTFS_BASE}/etc/mailname"
 
     # Regenerate SSH keys on first boot
-    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/regenerate-ssh-host-keys.service" \
-            "${ROOTFS_BASE}/lib/systemd/system"
-    ln -sf '/lib/systemd/system/regenerate-ssh-host-keys.service' \
-       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
+    # install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/regenerate-ssh-host-keys.service" \
+    #         "${ROOTFS_BASE}/lib/systemd/system"
+    # ln -sf '/lib/systemd/system/regenerate-ssh-host-keys.service' \
+    #    "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Support resizing a serial console - taken from Debian xterm package.
     if test ! -f "${ROOTFS_BASE}/usr/bin/resize"; then

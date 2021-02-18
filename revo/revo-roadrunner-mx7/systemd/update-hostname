@@ -12,6 +12,8 @@
 # In general, changing the system hostname is a bad idea, so use this
 # script only as a last resort!
 #
+set -e
+
 confirm-update ()
 {
     local hn=$1
@@ -25,7 +27,7 @@ confirm-update ()
     fi
 }
 
-update-hostname ()
+update-hostnames ()
 {
     local hn=$1
 
@@ -50,17 +52,24 @@ update-mailname ()
 
 update-ssh-certificates ()
 {
-    systemctl enable --now regenerate-ssh-host-keys
+    rm -f /etc/ssh/ssh_host_*_key*
+    ssh-keygen -A
 }
 
 update-tls-certificates ()
 {
-    : TODO
+    tls-generate-self-signed
 }
 
-update-zeroconf ()
+restart-zeroconf ()
 {
     systemctl restart avahi-daemon
+}
+
+restart-web-services ()
+{
+    systemctl restart cockpit
+    systemctl restart revo-web-dispatch
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
@@ -78,22 +87,27 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
         confirm-update "$hn" "$msg" || exit
     fi
 
-    if test ."$hn" = ."$HOSTNAME" -a ."$hn" = .$(< /etc/hostname); then
-        msg="$hn: Hostname appears set already."
-        confirm-update "$hn" "$msg" || exit
+    if test ."$hn" = ."$HOSTNAME" -a -f /etc/hostname; then
+        if test ."$hn" = .$(< /etc/hostname); then
+            msg="$hn: Hostname appears set already."
+            confirm-update "$hn" "$msg" || exit
+        fi
     fi
 
     cat <<EOF
 Updating: $HOSTNAME → $hn
 EOF
-    update-hostname "$hn"
+
+    update-hostnames "$hn"
     update-hosts "$hn"
     update-mailname "$hn"
 
     # NB: Certificates must be regenerated last!
-    update-ssh-certificates "$hn"
-    update-tls-certificates "$hn"
-    update-zeroconf
+    update-ssh-certificates
+    update-tls-certificates
+
+    restart-zeroconf
+    restart-web-services
 
     cat <<EOF
 Update complete! Adjust DNS records accordingly.

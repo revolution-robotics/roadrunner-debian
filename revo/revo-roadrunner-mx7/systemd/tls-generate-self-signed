@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+#
+# Copyright © 2021 Revolution Robotics, Inc.
+#
+# @(#) tls-generate-self-signed
+#
+# Generate self-signed TLS certificate for current hostname.
+#
+# If the file `self-signed.conf' already exists in the directory
+# $certsdir, then for the purposes of updating that file, it's assumed
+# that the section `[alt_names]' exists and is the last.
+#
+: ${CAT:='/bin/cat'}
+: ${CHOWN:='/bin/chown'}
+: ${CHMOD:='/bin/chmod'}
+: ${CP:='/bin/cp'}
+: ${ED:='/bin/ed'}
+: ${INSTALL:='/usr/bin/install'}
+: ${MKTEMP:='/bin/mktemp'}
+: ${OPENSSL:='/usr/bin/openssl'}
+: ${RM:='/bin/rm'}
+
+declare script_name=${0##*/}
+
+declare certsdir=/etc/web-dispatch/certs
+declare cockpit_tls_certificate=/etc/cockpit/ws-certs.d/0-self-signed.cert
+declare tmpfile=$($MKTEMP -p /tmp "${script_name}.XXXXX")
+
+trap '$RM -f "$tmpfile"; exit' 0 1 2 15
+
+# If certificate template does not exist.
+if test ! -f "${certsdir}/self-signed.conf"; then
+
+    # Create default certificate
+    $INSTALL -d -m 0755 "$certsdir"
+    $CAT >"${certsdir}/self-signed.conf" <<EOF
+[req]
+default_bits = 2048
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+utf8 = yes
+prompt = no
+
+[req_distinguished_name]
+C = US
+ST = OR
+L = Corvallis
+O = Revolution Robotics, Inc.
+OU = Web Dispatch
+CN = $HOSTNAME
+
+[v3_req]
+keyUsage = digitalSignature, keyEncipherment, keyAgreement, keyCertSign, cRLSign
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+IP.1 = 127.0.0.1
+DNS.1 = localhost
+EOF
+    $CP "${certsdir}/self-signed.conf" "$tmpfile"
+else
+
+    # Update only hostname and IPs.
+    # Assert: [alt_names] is last section!
+    $ED -s "${certsdir}/self-signed.conf" <<EOF
+/^CN/c
+CN = $HOSTNAME
+.
+/^\\[alt_names/+;\$c
+IP.1 = 127.0.0.1
+DNS.1 = localhost
+.
+wq $tmpfile
+EOF
+
+fi
+
+declare -i i=2
+declare ip
+
+# Add alternate names for each IP.
+for ip in $(hostname -I); do
+    $CAT >>"$tmpfile" <<EOF
+IP.$i = $ip
+DNS.$i = ${HOSTNAME}.local
+EOF
+    (( ++i ))
+done
+echo $tmpfile
+
+# Regenerate certificate
+cd "${certsdir}"
+if test -f self-signed.crt; then
+    $CP -a self-signed.crt{,~}
+    $CP -a self-signed.key{,~}
+fi
+$OPENSSL req -x509 -nodes -newkey rsa:2048 \
+        -keyout self-signed.key -config "$tmpfile" \
+        -out self-signed.crt -days 3650
+
+# Copy to Cockpit
+{
+    $CAT self-signed.crt
+    echo
+    $CAT self-signed.key
+    echo
+} >"$cockpit_tls_certificate"
+$CHOWN root:cockpit-ws "$cockpit_tls_certificate"
+$CHMOD 640 "$cockpit_tls_certificate"

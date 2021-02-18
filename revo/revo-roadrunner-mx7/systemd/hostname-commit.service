@@ -1,9 +1,9 @@
 [Unit]
 Description=Generate unique hostname
-DefaultDependencies=no
-Wants=network.target system-update-pre.target
-Before=system-update-pre.target
+Requires=network.target
 After=local-fs.target network.target
+Before=avahi-daemon.service cockpit.service revo-web-dispatch.service
+Before=system-update-pre.target
 ConditionPathExists=!/etc/hostname
 
 [Service]
@@ -12,8 +12,6 @@ Type=oneshot
 # Give network queuing disciplines time to be loaded.
 ExecStartPre=/bin/sleep 4
 ExecStart=/bin/bash -c '/usr/sbin/commit-hostname'
-ExecStartPost=/bin/systemctl try-restart avahi-daemon.service
-ExecStartPost=/bin/systemctl disable hostname-commit
 
 [Install]
 WantedBy=network.target
