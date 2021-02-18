@@ -102,10 +102,10 @@ make_debian_recoveryfs ()
         fi
     done
 
-    chroot $RECOVERYFS_BASE /debootstrap/debootstrap --second-stage
+    chroot "$RECOVERYFS_BASE" /debootstrap/debootstrap --second-stage
 
     # delete unused folder
-    chroot $RECOVERYFS_BASE rm -rf  ${RECOVERYFS_BASE}/debootstrap
+    chroot "$RECOVERYFS_BASE" rm -rf  "${RECOVERYFS_BASE}/debootstrap"
 
     # pr_info "recoveryfs: generate default configs"
     # mkdir -p ${RECOVERYFS_BASE}/etc/sudoers.d/
@@ -113,11 +113,11 @@ make_debian_recoveryfs ()
     # chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/user
 
     # install local Debian packages
-    mkdir -p ${RECOVERYFS_BASE}/srv/local-apt-repository
+    mkdir -p "${RECOVERYFS_BASE}/srv/local-apt-repository"
 
     # udisk2
-    cp -r ${G_VENDOR_PATH}/deb/udisks2/* \
-       ${RECOVERYFS_BASE}/srv/local-apt-repository
+    cp -r "${G_VENDOR_PATH}/deb/udisks2"/* \
+       "${RECOVERYFS_BASE}/srv/local-apt-repository"
 
     # gstreamer-imx
     # cp -r ${G_VENDOR_PATH}/deb/gstreamer-imx/* \
@@ -129,12 +129,12 @@ make_debian_recoveryfs ()
 
     # BEGIN -- REVO i.MX7D security
     pr_info "recoveryfs: security infrastructure"
-    mkdir -p ${RECOVERYFS_BASE}/etc/sudoers.d/
+    mkdir -p "${RECOVERYFS_BASE}/etc/sudoers.d/"
     echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${RECOVERYFS_BASE}/etc/sudoers.d/revo
-    chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/revo
+    chmod 0440 "${RECOVERYFS_BASE}/etc/sudoers.d/revo"
 
-    cp -r ${G_VENDOR_PATH}/deb/smallstep/* \
-       ${RECOVERYFS_BASE}/srv/local-apt-repository
+    cp -r "${G_VENDOR_PATH}/deb/smallstep"/* \
+       "${RECOVERYFS_BASE}/srv/local-apt-repository"
 
     for pkg in smallstep firewalld iptables libedit libnftnl nftables; do
         install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
@@ -143,7 +143,7 @@ make_debian_recoveryfs ()
     # END -- REVO i.MX7D security
 
     # add mirror to source list
-    cat >${RECOVERYFS_BASE}/etc/apt/sources.list <<EOF
+    cat >"${RECOVERYFS_BASE}/etc/apt/sources.list" <<EOF
 deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
 deb ${PARAM_DEB_LOCAL_MIRROR%/}-security/ ${DEB_RELEASE}/updates main contrib non-free
 deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
@@ -155,20 +155,20 @@ deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
     # raise backports priority
-    cat >${RECOVERYFS_BASE}/etc/apt/preferences.d/backports <<EOF
+    cat >"${RECOVERYFS_BASE}/etc/apt/preferences.d/backports" <<EOF
 Package: *
 Pin: release n=${DEB_RELEASE}-backports
 Pin-Priority: 500
 EOF
 
     # maximize local repo priority
-    cat >${RECOVERYFS_BASE}/etc/apt/preferences.d/local <<EOF
+    cat >"${RECOVERYFS_BASE}/etc/apt/preferences.d/local" <<EOF
 Package: *
 Pin: origin ""
 Pin-Priority: 1000
 EOF
 
-    cat >${RECOVERYFS_BASE}/etc/fstab <<EOF
+    cat >"${RECOVERYFS_BASE}/etc/fstab" <<EOF
 
 # /dev/mmcblk0p1  /boot           vfat    defaults        0       0
 EOF
@@ -177,7 +177,7 @@ EOF
     # echo "$MACHINE" > etc/hostname
 
     # "127.0.1.1 $hostname"  added when hostname generated on boot
-    cat >${RECOVERYFS_BASE}/etc/hosts <<EOF
+    cat >"${RECOVERYFS_BASE}/etc/hosts" <<EOF
 127.0.0.1	localhost
 
 # The following lines are desirable for IPv6 capable hosts
@@ -192,7 +192,7 @@ EOF
 # iface lo inet loopback
 # " > etc/network/interfaces
 
-    cat >${RECOVERYFS_BASE}/debconf.set <<EOF
+    cat >"${RECOVERYFS_BASE}/debconf.set" <<EOF
 locales locales/locales_to_be_generated multiselect $LOCALES
 locales locales/default_environment_locale select ${LOCALES%% *}
 console-common	console-data/keymap/policy	select	Select keymap from full list
@@ -203,15 +203,15 @@ EOF
     pr_info "recoveryfs: prepare install packages in recoveryfs"
 
     # Run apt install without invoking daemons.
-    cat > ${RECOVERYFS_BASE}/usr/sbin/policy-rc.d <<EOF
+    cat >"${RECOVERYFS_BASE}/usr/sbin/policy-rc.d" <<EOF
 #!/bin/bash
 exit 101
 EOF
 
-    chmod +x ${RECOVERYFS_BASE}/usr/sbin/policy-rc.d
+    chmod +x "${RECOVERYFS_BASE}/usr/sbin/policy-rc.d"
 
     # third packages stage
-    cat > ${RECOVERYFS_BASE}/third-stage <<EOF
+    cat >"${RECOVERYFS_BASE}/third-stage" <<EOF
 #!/bin/bash
 # apply debconfig options
 echo 'LANG=${LOCALES%% *}' >/etc/default/locale
@@ -447,10 +447,11 @@ EOF
     pr_info "recoveryfs: install selected debian packages (third-stage)"
     chmod +x ${RECOVERYFS_BASE}/third-stage
     LANG=C chroot ${RECOVERYFS_BASE} /third-stage
-    # fourth-stage
+
+    ## Begin packages stage ##
+    pr_info "recoveryfs: install updates and local packages"
 
     # BEGIN -- REVO i.MX7D updates
-    pr_info "recoveryfs: install updates and local packages"
 
     # Update logrotate
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/logrotate/logrotate.conf" \
@@ -724,7 +725,7 @@ EOF
         pr_info "recoveryfs: install user defined packages (user-stage)"
         pr_info "recoveryfs: G_USER_PACKAGES \"${G_USER_PACKAGES}\" "
 
-        cat > ${RECOVERYFS_BASE}/user-stage <<EOF
+        cat >"${RECOVERYFS_BASE}/user-stage" <<EOF
 #!/bin/bash
 # update packages
 apt update
@@ -740,8 +741,8 @@ pip3 install pytz
 rm -f /user-stage
 EOF
 
-        chmod +x ${RECOVERYFS_BASE}/user-stage
-        LANG=C chroot ${RECOVERYFS_BASE} /user-stage
+        chmod +x "${RECOVERYFS_BASE}/user-stage"
+        LANG=C chroot "$RECOVERYFS_BASE" /user-stage
 
     fi
 
@@ -833,7 +834,7 @@ EOF
     sed -i 's;^\(ENABLED=\).*;\1"true";' "${RECOVERYFS_BASE}/etc/default/sysstat"
 
     ## post-packages command
-    cat > ${RECOVERYFS_BASE}/post-packages <<EOF
+    cat >"${RECOVERYFS_BASE}/post-packages" <<EOF
 #!/bin/bash
 
 # Install node via nvm
@@ -865,8 +866,8 @@ rm -f /post-packages
 EOF
     pr_info "recoveryfs: post-packages stage"
 
-    chmod +x ${RECOVERYFS_BASE}/post-packages
-    chroot "${RECOVERYFS_BASE}" /post-packages
+    chmod +x "${RECOVERYFS_BASE}/post-packages"
+    chroot "$RECOVERYFS_BASE" /post-packages
     # END -- REVO i.MX7D post-packages stage
 
     # BEGIN -- REVO i.MX7D cleanup

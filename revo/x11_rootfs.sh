@@ -103,32 +103,32 @@ make_debian_x11_rootfs ()
         fi
     done
 
-    chroot $ROOTFS_BASE /debootstrap/debootstrap --second-stage
+    chroot "$ROOTFS_BASE" /debootstrap/debootstrap --second-stage
 
     # delete unused folder
-    chroot $ROOTFS_BASE rm -rf  ${ROOTFS_BASE}/debootstrap
+    chroot "$ROOTFS_BASE" rm -rf  "${ROOTFS_BASE}/debootstrap"
 
     pr_info "rootfs: generate default configs"
-    mkdir -p ${ROOTFS_BASE}/etc/sudoers.d/
-    echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > ${ROOTFS_BASE}/etc/sudoers.d/user
-    chmod 0440 ${ROOTFS_BASE}/etc/sudoers.d/user
-    mkdir -p ${ROOTFS_BASE}/srv/local-apt-repository
+    mkdir -p "${ROOTFS_BASE}/etc/sudoers.d/"
+    echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > "${ROOTFS_BASE}/etc/sudoers.d/user"
+    chmod 0440 "${ROOTFS_BASE}/etc/sudoers.d/user"
+    mkdir -p "${ROOTFS_BASE}/srv/local-apt-repository"
 
     # udisk2
-    cp -r ${G_VENDOR_PATH}/deb/udisks2/* \
-       ${ROOTFS_BASE}/srv/local-apt-repository
+    cp -r "${G_VENDOR_PATH}/deb/udisks2"/* \
+       "${ROOTFS_BASE}/srv/local-apt-repository"
     # gstreamer-imx
-    cp -r ${G_VENDOR_PATH}/deb/gstreamer-imx/* \
-       ${ROOTFS_BASE}/srv/local-apt-repository
+    cp -r "${G_VENDOR_PATH}/deb/gstreamer-imx"/* \
+       "${ROOTFS_BASE}/srv/local-apt-repository"
     # shared-mime-info
-    # cp -r ${G_VENDOR_PATH}/deb/shared-mime-info/* \
-    #    ${ROOTFS_BASE}/srv/local-apt-repository
+    # cp -r "${G_VENDOR_PATH}/deb/shared-mime-info"/* \
+    #    "${ROOTFS_BASE}/srv/local-apt-repository"
 
     # BEGIN -- REVO i.MX7D security
     pr_info "rootfs: security infrastructure"
-    mkdir -p ${ROOTFS_BASE}/etc/sudoers.d/
-    echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${ROOTFS_BASE}/etc/sudoers.d/revo
-    chmod 0440 ${ROOTFS_BASE}/etc/sudoers.d/revo
+    mkdir -p "${ROOTFS_BASE}/etc/sudoers.d/"
+    echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > "${ROOTFS_BASE}/etc/sudoers.d/revo"
+    chmod 0440 "${ROOTFS_BASE}/etc/sudoers.d/revo"
 
     for pkg in smallstep firewalld iptables libedit libnftnl nftables; do
         install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
@@ -138,7 +138,7 @@ make_debian_x11_rootfs ()
     # END -- REVO i.MX7D security
 
     # add mirror to source list
-    cat >${ROOTFS_BASE}/etc/apt/sources.list <<EOF
+    cat >"${ROOTFS_BASE}/etc/apt/sources.list" <<EOF
 deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
 deb ${PARAM_DEB_LOCAL_MIRROR%/}-security/ ${DEB_RELEASE}/updates main contrib non-free
 deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
@@ -150,20 +150,20 @@ deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
     # raise backports priority
-    cat >${ROOTFS_BASE}/etc/apt/preferences.d/backports <<EOF
+    cat >"${ROOTFS_BASE}/etc/apt/preferences.d/backports" <<EOF
 Package: *
 Pin: release n=${DEB_RELEASE}-backports
 Pin-Priority: 500
 EOF
 
     # maximize local repo priority
-    cat >${ROOTFS_BASE}/etc/apt/preferences.d/local <<EOF
+    cat >"${ROOTFS_BASE}/etc/apt/preferences.d/local" <<EOF
 Package: *
 Pin: origin ""
 Pin-Priority: 1000
 EOF
 
-    cat >${ROOTFS_BASE}/etc/fstab <<EOF
+    cat >"${ROOTFS_BASE}/etc/fstab" <<EOF
 
 # /dev/mmcblk0p1  /boot           vfat    defaults        0       0
 EOF
@@ -172,7 +172,7 @@ EOF
     # echo "$MACHINE" > etc/hostname
 
     # "127.0.1.1 $hostname"  added when hostname generated on boot
-    cat >${ROOTFS_BASE}/etc/hosts <<EOF
+    cat >"${ROOTFS_BASE}/etc/hosts" <<EOF
 127.0.0.1	localhost
 
 # The following lines are desirable for IPv6 capable hosts
@@ -187,7 +187,7 @@ EOF
 # iface lo inet loopback
 # " > etc/network/interfaces
 
-    cat >${ROOTFS_BASE}/debconf.set <<EOF
+    cat >"${ROOTFS_BASE}/debconf.set" <<EOF
 locales locales/locales_to_be_generated multiselect $LOCALES
 locales locales/default_environment_locale select ${LOCALES%% *}
 console-common	console-data/keymap/policy	select	Select keymap from full list
@@ -198,15 +198,15 @@ EOF
     pr_info "rootfs: prepare install packages in rootfs"
 
     # Run apt install without invoking daemons.
-    cat > ${ROOTFS_BASE}/usr/sbin/policy-rc.d <<EOF
+    cat >"${ROOTFS_BASE}/usr/sbin/policy-rc.d" <<EOF
 #!/bin/sh
 exit 101
 EOF
 
-    chmod +x ${ROOTFS_BASE}/usr/sbin/policy-rc.d
+    chmod +x "${ROOTFS_BASE}/usr/sbin/policy-rc.d"
 
     # third packages stage
-    cat > ${ROOTFS_BASE}/third-stage <<EOF
+    cat >"${ROOTFS_BASE}/third-stage" <<EOF
 #!/bin/bash
 # apply debconfig options
 echo 'LANG=${LOCALES%% *}' >/etc/default/locale
@@ -442,12 +442,13 @@ rm -f /third-stage
 EOF
 
     pr_info "rootfs: install selected debian packages (third-stage)"
-    chmod +x ${ROOTFS_BASE}/third-stage
-    LANG=C chroot ${ROOTFS_BASE} /third-stage
-    # fourth-stage
+    chmod +x "${ROOTFS_BASE}/third-stage"
+    LANG=C chroot "$ROOTFS_BASE" /third-stage
+
+    ## Begin packages stage ##
+    pr_info "rootfs: install updates and local packages"
 
     # BEGIN -- REVO i.MX7D updates
-    pr_info "rootfs: install updates and local packages"
 
     # Update logrotate
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/logrotate/logrotate.conf" \
@@ -726,7 +727,7 @@ EOF
         pr_info "rootfs: install user defined packages (user-stage)"
         pr_info "rootfs: G_USER_PACKAGES \"${G_USER_PACKAGES}\" "
 
-        cat > ${ROOTFS_BASE}/user-stage <<EOF
+        cat >"${ROOTFS_BASE}/user-stage" <<EOF
 #!/bin/bash
 # update packages
 apt update
@@ -742,8 +743,8 @@ pip3 install pytz
 rm -f /user-stage
 EOF
 
-        chmod +x ${ROOTFS_BASE}/user-stage
-        LANG=C chroot ${ROOTFS_BASE} /user-stage
+        chmod +x "${ROOTFS_BASE}/user-stage"
+        LANG=C chroot "$ROOTFS_BASE" /user-stage
 
     fi
 
