@@ -49,7 +49,7 @@ declare -r G_BCM_FW_GIT_REV="7bce9b69b51ffd967176c1597feed79305927370"
 declare -r G_REVO_WEB_DISPATCH_SRC_DIR="${DEF_SRC_DIR}/web_dispatch"
 declare -r G_REVO_WEB_DISPATCH_GIT="https://github.com/revolution-robotics/roadrunner-web-dispatch.git"
 declare -r G_REVO_WEB_DISPATCH_BRANCH="golang"
-declare -r G_REVO_WEB_DISPATCH_REV="654895ed9a4028fbb00e327d14635cc0d86185e6"
+declare -r G_REVO_WEB_DISPATCH_REV="6aa8f314b80f515309a18840dc2f8c5591c8e9c8"
 
 # ubi
 declare -r G_UBI_FILE_NAME='rootfs.ubi.img'
