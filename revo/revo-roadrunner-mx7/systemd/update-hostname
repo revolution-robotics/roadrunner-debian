@@ -14,6 +14,14 @@
 #
 set -e
 
+: ${LOCKED:=''}
+
+if test ."$0" != ."$LOCKED"; then
+
+    #  Avoid running multiple instances of this script.
+    exec env LOCKED=$0 flock -en "$0" "$0" "$@" || true
+fi
+
 confirm-update ()
 {
     local hn=$1
