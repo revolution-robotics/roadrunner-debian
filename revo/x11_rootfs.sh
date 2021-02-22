@@ -795,6 +795,10 @@ EOF
     # install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-nand ${ROOTFS_BASE}/usr/bin
     # ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_printenv-nand
 
+    ## Restrict pmlogger volume size
+    sed -i -e 's/[0-9]\{1,\}Mb/20Mb/' \
+        "${ROOTFS_BASE}/etc/pcp/pmlogger/control.d/local"
+
     # BEGIN -- REVO i.MX7D post-packages stage
     # Run curl with system root certificates file.
     pr_info "rootfs: begin late packages"
