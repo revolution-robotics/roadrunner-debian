@@ -563,13 +563,13 @@ EOF
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Install REVO recover eMMC service.
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc" "${RECOVERYFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
     install -d -m 0755 "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
     ln -sf '../recover-emmc.service' \
        "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
     ln -sf "$G_IMAGES_DIR" "${RECOVERYFS_BASE}/system-update"
-    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc" "${RECOVERYFS_BASE}/usr/sbin"
 
     # Install REVO eMMC-recovery monitor service
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor" \
@@ -667,34 +667,35 @@ EOF
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Install BT audio and main config
-    # install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/audio.conf \
-    #         ${RECOVERYFS_BASE}/etc/bluetooth/
-    # install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/main.conf \
-    #         ${RECOVERYFS_BASE}/etc/bluetooth/
+    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/audio.conf \
+            ${RECOVERYFS_BASE}/etc/bluetooth/
+    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/main.conf \
+            ${RECOVERYFS_BASE}/etc/bluetooth/
 
-    # install obexd configuration
-    # install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/obexd.conf \
-    #         ${RECOVERYFS_BASE}/etc/dbus-1/system.d
+    # Install obexd configuration
+    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/obexd.conf \
+            ${RECOVERYFS_BASE}/etc/dbus-1/system.d
 
-    # install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/obex.service \
-    #         ${RECOVERYFS_BASE}/lib/systemd/system
+    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/obex.service \
+            ${RECOVERYFS_BASE}/lib/systemd/system
     # ln -sf /lib/systemd/system/obex.service \
-    #    ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service
+    #    ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.servic
+    e
 
     # Install pulse audio configuration
-    # install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service \
-    #         ${RECOVERYFS_BASE}/lib/systemd/system
+    install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service \
+            ${RECOVERYFS_BASE}/lib/systemd/system
     # ln -sf /lib/systemd/system/pulseaudio.service \
     #    ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service
-    # install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf \
-    #         ${RECOVERYFS_BASE}/etc/dbus-1/system.d
-    # install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/system.pa \
-    #         ${RECOVERYFS_BASE}/etc/pulse/
+    install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf \
+            ${RECOVERYFS_BASE}/etc/dbus-1/system.d
+    install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/system.pa \
+            ${RECOVERYFS_BASE}/etc/pulse/
 
     # Add alsa default configs
-    # install -m 0644 ${G_VENDOR_PATH}/resources/asound.state \
-    #         ${RECOVERYFS_BASE}/var/lib/alsa/
-    # install -m 0644 ${G_VENDOR_PATH}/resources/asound.conf ${RECOVERYFS_BASE}/etc/
+    install -m 0644 ${G_VENDOR_PATH}/resources/asound.state \
+            ${RECOVERYFS_BASE}/var/lib/alsa/
+    install -m 0644 ${G_VENDOR_PATH}/resources/asound.conf ${RECOVERYFS_BASE}/etc/
 
     # Install WiFi service
     install -d "${RECOVERYFS_BASE}/etc/wifi"
@@ -731,7 +732,7 @@ EOF
 apt update
 
 # install all user packages from backports
-DEBIAN_FRONTEND=noninteractive apt -yq -t ${DEB_RELEASE}-backports install ${G_USER_PACKAGES}
+DEBIAN_FRONTEND=noninteractive apt -yq -t ${DEB_RELEASE}-backports install ${G_USER_MINIMAL_PACKAGES}
 
 pip3 install https://github.com/zeromq/pyre/archive/master.zip
 pip3 install minimalmodbus

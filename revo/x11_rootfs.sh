@@ -560,12 +560,12 @@ EOF
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Install REVO flash eMMC service.
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/flash-emmc" "${ROOTFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/flash-emmc.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
     install -d -m 0755 "${ROOTFS_BASE}/lib/systemd/system/system-update.target.wants"
     ln -sf '../flash-emmc.service' \
        "${ROOTFS_BASE}/lib/systemd/system/system-update.target.wants"
-    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/flash-emmc" "${ROOTFS_BASE}/usr/sbin"
 
     # Install REVO eMMC-recovery monitor service
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor" \
