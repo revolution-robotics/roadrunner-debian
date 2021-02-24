@@ -395,8 +395,8 @@ protected_install firewalld
 sed -i -e '/^\(FirewallBackend=\).*$/s//\1nftables/' \\
     /etc/firewalld/firewalld.conf
 
-# protected_install step-cli
-# protected_install step-certificates
+protected_install step-cli
+protected_install step-certificates
 
 ## ifupdown is superceded by NetworkManager...
 apt -y purge ifupdown
@@ -438,7 +438,7 @@ useradd -m -G audio,video -s /bin/bash x_user
 
 # BEGIN -- REVO i.MX7D users
 # useradd -m -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
-# useradd -m -s /bin/bash -c "Smallstep PKI" step
+useradd -m -s /bin/bash -c "Smallstep PKI" step
 # END -- REVO i.MX7D users
 
 rm -f /third-stage
@@ -612,8 +612,12 @@ EOF
     # Add Exim4 service
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/exim4.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
-    ln -sf '/lib/systemd/system/exim4.service' \
-       "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
+
+    # ln -sf '/lib/systemd/system/exim4.service' \
+    #    "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
+
+    # Disable Exim4 service
+    rm -f "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/exim4.service"
 
     # Update systemd dbus socket
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/dbus.socket" \
@@ -687,6 +691,10 @@ EOF
             ${RECOVERYFS_BASE}/lib/systemd/system
     # ln -sf /lib/systemd/system/pulseaudio.service \
     #    ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service
+
+    # Disable pulse audio service
+    rm -f ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service
+
     install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf \
             ${RECOVERYFS_BASE}/etc/dbus-1/system.d
     install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/system.pa \
