@@ -658,7 +658,7 @@ EOF
             "${ROOTFS_BASE}/usr/bin"
 
     # Install bluetooth service
-    install -d "${ROOTFS_BASE}/etc/bluetooth"
+    install -d -m 0755 "${ROOTFS_BASE}/etc/bluetooth"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/etc/bluetooth/revo-bluetooth.conf" \
             "${ROOTFS_BASE}/etc/bluetooth"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-bluetooth" \
@@ -688,7 +688,7 @@ EOF
             "${ROOTFS_BASE}/lib/systemd/system"
     ln -sf "/lib/systemd/system/pulseaudio.service" \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
-    install -m 0644" ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf" \
+    install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf" \
             "${ROOTFS_BASE}/etc/dbus-1/system.d"
     install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/system.pa" \
             "${ROOTFS_BASE}/etc/pulse/"
@@ -828,7 +828,7 @@ EOF
             "${ROOTFS_BASE}/etc/default"
 
     # Enable zramswap service
-    ln -sf "${ROOTFS_BASE}/lib/systemd/system/zramswap.service" \
+    ln -sf '/lib/systemd/system/zramswap.service' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/"
 
     # Mask e2scrub_{all,reap} services.
@@ -904,7 +904,8 @@ EOF
         "${ROOTFS_BASE}/root/.bashrc"
 
     # Remove misc. artifacts.
-    find "${RECOVERYFS_BASE}/usr/local/include" -name ..install.cmd -delete
+    find "${ROOTFS_BASE}/usr/local/include" -name ..install.cmd -delete
+    find "${ROOTFS_BASE}/usr/local/include" -name .install -delete
 
     # Prepare /var/log to be mounted as tmpfs.
     # NB: *~ is excluded from rootfs tarball.

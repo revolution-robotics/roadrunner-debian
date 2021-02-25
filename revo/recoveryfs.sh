@@ -660,7 +660,7 @@ EOF
             "${RECOVERYFS_BASE}/usr/bin"
 
     # Install bluetooth service
-    install -d "${RECOVERYFS_BASE}/etc/bluetooth"
+    install -d -m 0755 "${RECOVERYFS_BASE}/etc/bluetooth"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/etc/bluetooth/revo-bluetooth.conf" \
             "${RECOVERYFS_BASE}/etc/bluetooth"
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-bluetooth" \
@@ -677,8 +677,8 @@ EOF
             ${RECOVERYFS_BASE}/etc/bluetooth/
 
     # Install obexd configuration
-    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/obexd.conf \
-            ${RECOVERYFS_BASE}/etc/dbus-1/system.d
+    install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obexd.conf" \
+            "${RECOVERYFS_BASE}/etc/dbus-1/system.d"
 
     install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/obex.service \
             ${RECOVERYFS_BASE}/lib/systemd/system
@@ -837,7 +837,7 @@ EOF
             "${RECOVERYFS_BASE}/etc/default"
 
     # Enable zramswap service
-    ln -sf "${RECOVERYFS_BASE}/lib/systemd/system/zramswap.service" \
+    ln -sf '/lib/systemd/system/zramswap.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/"
 
     # Mask e2scrub_{all,reap} services.
@@ -915,6 +915,7 @@ EOF
 
     # Remove misc. artifacts.
     find "${RECOVERYFS_BASE}/usr/local/include" -name ..install.cmd -delete
+    find "${RECOVERYFS_BASE}/usr/local/include" -name .install -delete
 
     # Prepare /var/log to be mounted as tmpfs.
     # NB: *~ is excluded from recoveryfs tarball.

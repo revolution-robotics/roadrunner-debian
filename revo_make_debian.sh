@@ -989,6 +989,7 @@ cmd_make_recoveryfs ()
                 cd "$G_RECOVERYFS_DIR"
                 # make debian backend recoveryfs
                 make_debian_recoveryfs "$G_RECOVERYFS_DIR"
+
                 trap - 0 1 2 15 RETURN
 
                 # make imx sdma firmware
