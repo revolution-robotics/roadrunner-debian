@@ -4,7 +4,7 @@
 - [Prerequisites](#prerequisites)
 - [Fetch build suite and kernel sources](#fetch-build-suite-and-kernel-sources)
 - [Build U-Boot, Linux kernel and modules](#build-u-boot-linux-kernel-and-modules)
-- [Populate root and recovery filesystems](#populate-root-and-recovery-filesystems)
+- [Bootstrap root and recovery filesystems](#bootstrap-root-and-recovery-filesystems)
 - [Create bootable image file](#create-bootable-image-file)
 - [Flash bootable image to SD card or USB flash drive](#flash-bootable-image-to-sd-card-or-usb-flash-drive)
 - [Enable booting from USB flash drive](#enable-booting-from-usb-flash-drive)
@@ -65,29 +65,30 @@ them as _output/SPL.mmc_ and _output/u-boot.img.mmc_, respecitvely.), use:
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c bootloader
 ```
 
-To build the Linux kernel (zImage) and Device Tree (DTB) files (and save
-them to _output_), use:
+To build the Linux kernel (zImage) and compile Device Tree (DTS) files
+(and save them to _output_), use:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c kernel
 ```
 
-To build kernel modules (and install them under _rootfs_), use:
+To build kernel modules and install them to _rootfs_ and _recoveryfs_, use:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c modules
 ```
 
-## Populate root and recovery filesystems
-To bootstrap Debian to _rootfs_ and install kernel modules and
-firmware, use:
+## Bootstrap root and recovery filesystems
+
+To bootstrap Debian buster to _rootfs_, install firmware and create an
+archive (as _output/rootfs.tar.gz_), use:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rootfs
 ```
 
-To bootstrap Debian to _recoveryfs_ and install kernel modules and
-firmware, use:
+To bootstrap Debian to _recoveryfs_, install firmware and create an
+archive (as _output/recoveryfs.tar.gz_), use:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c recoveryfs
@@ -111,7 +112,7 @@ sudo ./revo_make_debian.sh -c flashimage
 ```
 
 If multiple image files exist, you'll be prompted to select one. Likewise, if
-multiple removable drives exist, select one at the prompt.
+multiple removable drives exist.
 
 ## Enable booting from USB flash drive
 The U-Boot script that enables booting from USB flash drive is always

@@ -12,6 +12,9 @@ declare -r SCRIPT_NAME=${0##*/}
 
 : ${MACHINE:='revo-roadrunner-mx7'}
 
+# Build recoveryfs using alternate script?
+declare -r USE_ALT_RECOVERYFS=true
+
 #### Exports Variables ####
 #### global variables ####
 declare -r ABSOLUTE_FILENAME=$(readlink -e "$0")
@@ -166,7 +169,10 @@ elif test ."$ARCH_CPU" = .'32BIT'; then
     declare ARCH_ARGS=arm
     # Include backend rootfs and recoveryfs helpers
     source "${G_VENDOR_PATH}/x11_rootfs.sh"
-    source "${G_VENDOR_PATH}/recoveryfs.sh"
+    if ! $USE_ALT_RECOVERYFS; then
+        source "${G_VENDOR_PATH}/recoveryfs.sh"
+    fi
+
 else
     echo " Error unknown CPU type"
     exit 1
@@ -276,6 +282,17 @@ declare -r G_USBFS_TARBALL_PATH="${PARAM_OUTPUT_DIR}/${DEF_USBFS_TARBALL_NAME}"
 declare -r G_PROVISIONFS_TARBALL_PATH="${PARAM_OUTPUT_DIR}/${DEF_PROVISIONFS_TARBALL_NAME}"
 
 ###### local functions ######
+
+pr_elapsed_time ()
+{
+    local cmd=$1
+
+    local -i start_time=$(date -u +%s)
+    $cmd "${@:2}" || return $?
+    local -i end_time=$(date -u +%s)
+    local elapsed_time=$(date -ud "@$(( end_time - start_time ))" +'%H:%M:%S')
+    printf "I: Run time of ${cmd}(${@:2}): ${elapsed_time}\n"
+}
 
 ### printing functions ###
 
@@ -921,8 +938,6 @@ cmd_make_deploy ()
 
 cmd_make_rootfs ()
 {
-    make_prepare
-
     if test ."$MACHINE" = .'imx6ul-var-dart' ||
            test ."$MACHINE" = .'var-som-mx7' ||
            test ."$MACHINE" = .'revo-roadrunner-mx7'; then
@@ -963,32 +978,33 @@ cmd_make_rootfs ()
 
 cmd_make_recoveryfs ()
 {
-    make_prepare
-
-    if test ."$MACHINE" = .'imx6ul-var-dart' ||
-           test ."$MACHINE" = .'var-som-mx7' ||
-           test ."$MACHINE" = .'revo-roadrunner-mx7'; then
-
-        (
-            cd "$G_RECOVERYFS_DIR"
-            # make debian backend recoveryfs
-            make_debian_recoveryfs "$G_RECOVERYFS_DIR"
-
-            trap - 0 1 2 15 RETURN
-
-            # make imx sdma firmware
-            make_imx_sdma_fw "$G_IMX_SDMA_FW_SRC_DIR" "$G_RECOVERYFS_DIR"
-        )
+    if $USE_ALT_RECOVERYFS; then
+        ./revo/alt-recoveryfs.sh
     else
-        (
-            cd "$G_RECOVERYFS_DIR"
-            make_debian_weston_recoveryfs "$G_RECOVERYFS_DIR"
-        )
-    fi
+        if test ."$MACHINE" = .'imx6ul-var-dart' ||
+                test ."$MACHINE" = .'var-som-mx7' ||
+                test ."$MACHINE" = .'revo-roadrunner-mx7'; then
 
-    # make bcm firmwares
-    if test ! -z "$G_BCM_FW_GIT"; then
-        make_bcm_fw "$G_BCM_FW_SRC_DIR" "$G_RECOVERYFS_DIR"
+            (
+                cd "$G_RECOVERYFS_DIR"
+                # make debian backend recoveryfs
+                make_debian_recoveryfs "$G_RECOVERYFS_DIR"
+                trap - 0 1 2 15 RETURN
+
+                # make imx sdma firmware
+                make_imx_sdma_fw "$G_IMX_SDMA_FW_SRC_DIR" "$G_RECOVERYFS_DIR"
+            )
+        else
+            (
+                cd "$G_RECOVERYFS_DIR"
+                make_debian_weston_recoveryfs "$G_RECOVERYFS_DIR"
+            )
+        fi
+
+        # make bcm firmwares
+        if test ! -z "$G_BCM_FW_GIT"; then
+            make_bcm_fw "$G_BCM_FW_SRC_DIR" "$G_RECOVERYFS_DIR"
+        fi
     fi
 
     # pack recoveryfs
@@ -1098,8 +1114,15 @@ cmd_make_rfs_tar ()
     # pack rootfs
     make_tarball "$G_ROOTFS_DIR" "$G_ROOTFS_TARBALL_PATH"
 
-    # pack recoveryfs
-    make_tarball "$G_RECOVERYFS_DIR" "$G_RECOVERYFS_TARBALL_PATH"
+    if $USE_ALT_RECOVERYFS; then
+
+        # create and pack recoveryfs
+        cmd_make_recoveryfs
+    else
+
+        # pack recoveryfs
+        make_tarball "$G_RECOVERYFS_DIR" "$G_RECOVERYFS_TARBALL_PATH"
+    fi
 
     # create and pack usbfs
     cmd_make_usbfs
@@ -1318,82 +1341,106 @@ if test ."$1" = .'clean'; then
 fi
 
 pr_info "Command: \"$PARAM_CMD\" start..."
-
 make_prepare
 
 case $PARAM_CMD in
     deploy)
-        cmd_make_deploy
+        pr_elapsed_time cmd_make_deploy
         ;;
     rootfs)
-        cmd_make_rootfs
+        pr_elapsed_time cmd_make_rootfs
         ;;
     recoveryfs)
-        cmd_make_recoveryfs
+        pr_elapsed_time cmd_make_recoveryfs
         ;;
     usbfs)
-        cmd_make_usbfs
+        pr_elapsed_time cmd_make_usbfs
         ;;
     provisionfs)
-        cmd_make_provisionfs
+        pr_elapsed_time cmd_make_provisionfs
         ;;
     bootloader)
-        cmd_make_uboot
+        pr_elapsed_time cmd_make_uboot
         ;;
     kernel)
-        cmd_make_kernel
+        pr_elapsed_time cmd_make_kernel
         ;;
     modules)
-        cmd_make_kmodules $G_ROOTFS_DIR
-        cmd_make_kmodules $G_RECOVERYFS_DIR
-        cmd_make_scripts
+        pr_elapsed_time cmd_make_kmodules $G_ROOTFS_DIR
+
+        if ! $USE_ALT_RECOVERYFS; then
+            pr_elapsed_time cmd_make_kmodules $G_RECOVERYFS_DIR
+        fi
+
+        pr_elapsed_time cmd_make_scripts
         ;;
     scripts)
-        cmd_make_scripts
+        pr_elapsed_time cmd_make_scripts
         ;;
     bcmfw)
-        cmd_make_bcmfw $G_ROOTFS_DIR
-        cmd_make_bcmfw $G_RECOVERYFS_DIR
+        pr_elapsed_time cmd_make_bcmfw $G_ROOTFS_DIR
+
+        if ! $USE_ALT_RECOVERYFS; then
+            pr_elapsed_time cmd_make_bcmfw $G_RECOVERYFS_DIR
+        fi
         ;;
     firmware)
-        cmd_make_firmware $G_ROOTFS_DIR
-        cmd_make_firmware $G_RECOVERYFS_DIR
+        pr_elapsed_time cmd_make_firmware $G_ROOTFS_DIR
+
+        if ! $USE_ALT_RECOVERYFS; then
+            pr_elapsed_time cmd_make_firmware $G_RECOVERYFS_DIR
+        fi
         ;;
     webdispatch)
-        cmd_make_web_dispatch $G_ROOTFS_DIR
-        cmd_make_web_dispatch $G_RECOVERYFS_DIR
+        pr_elapsed_time cmd_make_web_dispatch $G_ROOTFS_DIR
+
+        if ! $USE_ALT_RECOVERYFS; then
+            pr_elapsed_time cmd_make_web_dispatch $G_RECOVERYFS_DIR
+        fi
         ;;
     diskimage)
-        cmd_make_diskimage $DEF_ROOTFS_TARBALL_NAME
+        pr_elapsed_time cmd_make_diskimage $DEF_ROOTFS_TARBALL_NAME
         ;;
     usbimage)
-        cmd_make_diskimage $DEF_USBFS_TARBALL_NAME
+        pr_elapsed_time cmd_make_diskimage $DEF_USBFS_TARBALL_NAME
         ;;
     provisionimage)
-        cmd_make_diskimage $DEF_PROVISIONFS_TARBALL_NAME
+        pr_elapsed_time cmd_make_diskimage $DEF_PROVISIONFS_TARBALL_NAME
         ;;
     flashimage)
-        cmd_flash_diskimage
+        pr_elapsed_time cmd_flash_diskimage
         ;;
     rubi)
-        cmd_make_rfs_ubi
+        pr_elapsed_time cmd_make_rfs_ubi
         ;;
     rtar)
-        cmd_make_rfs_tar
+        pr_elapsed_time cmd_make_rfs_tar
         ;;
     all)
-        cmd_make_uboot  &&
-            cmd_make_kernel &&
-            cmd_make_kmodules $G_ROOTFS_DIR &&
-            cmd_make_kmodules $G_RECOVERYFS_DIR &&
-            cmd_make_scripts
-        cmd_make_rootfs &&
-            cmd_make_recoveryfs &&
-            cmd_make_usbfs &&
-            cmd_make_provisionfs
+        # cmd_make_uboot  &&
+        #     cmd_make_kernel &&
+        #     cmd_make_kmodules $G_ROOTFS_DIR &&
+        #     cmd_make_kmodules $G_RECOVERYFS_DIR &&
+        #     cmd_make_scripts
+        # cmd_make_rootfs &&
+        #     cmd_make_recoveryfs &&
+        #     cmd_make_usbfs &&
+        #     cmd_make_provisionfs
+        pr_elapsed_time cmd_make_uboot &&
+            pr_elapsed_time cmd_make_kernel &&
+            pr_elapsed_time cmd_make_kmodules $G_ROOTFS_DIR &&
+            if ! $USE_ALT_RECOVERYFS; then
+                pr_elapsed_time cmd_make_kmodules $G_RECOVERYFS_DIR
+            fi &&
+            pr_elapsed_time cmd_make_scripts
+
+        pr_elapsed_time cmd_make_rootfs &&
+            pr_elapsed_time cmd_make_recoveryfs &&
+            pr_elapsed_time cmd_make_usbfs &&
+            pr_elapsed_time cmd_make_provisionfs
         ;;
     clean)
-        cmd_make_clean
+        pr_elapsed_time cmd_make_clean
         ;;
     *)
         pr_error "Invalid input command: \"$PARAM_CMD\""
