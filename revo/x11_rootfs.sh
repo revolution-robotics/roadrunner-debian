@@ -768,13 +768,15 @@ EOF
     # Revert regular booting
     rm -f ${ROOTFS_BASE}/usr/sbin/policy-rc.d
 
-    # Install kernel modules to rootfs
-    pr_info "rootfs: install kernel modules"
+    # Installing kernel modules to rootfs is redundant. This is
+    # already done by cmd_make_kmodules.
 
-    install_kernel_modules \
-        ${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-        ${G_LINUX_KERNEL_DEF_CONFIG} ${G_LINUX_KERNEL_SRC_DIR} \
-        ${ROOTFS_BASE}
+    # pr_info "rootfs: install kernel modules"
+
+    # install_kernel_modules \
+    #     ${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
+    #     ${G_LINUX_KERNEL_DEF_CONFIG} ${G_LINUX_KERNEL_SRC_DIR} \
+    #     ${ROOTFS_BASE}
 
 
     # Install kernel headers to rootfs

@@ -776,13 +776,15 @@ EOF
     # Revert regular booting
     rm -f ${RECOVERYFS_BASE}/usr/sbin/policy-rc.d
 
-    # Install kernel modules to recoveryfs
-    pr_info "recoveryfs: install kernel modules"
+    # Installing kernel modules to recoveryfs is redundant. This is
+    # already done by cmd_make_kmodules.
 
-    install_kernel_modules \
-        ${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-        ${G_LINUX_KERNEL_DEF_CONFIG} ${G_LINUX_KERNEL_SRC_DIR} \
-        ${RECOVERYFS_BASE}
+    # pr_info "recoveryfs: install kernel modules"
+
+    # install_kernel_modules \
+    #     ${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
+    #     ${G_LINUX_KERNEL_DEF_CONFIG} ${G_LINUX_KERNEL_SRC_DIR} \
+    #     ${RECOVERYFS_BASE}
 
     # Install kernel headers to recoveryfs
     # install -d -m 0755 ${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
