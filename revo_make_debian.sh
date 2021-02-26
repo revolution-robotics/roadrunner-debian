@@ -100,7 +100,8 @@ Options:
                         usbfs and provisionfs
        bootloader    -- build U-Boot (SPL.mmc and u-boot.img.mmc)
        kernel        -- build Linux kernel (uImage)
-       modules       -- build and install Linux kernel modules and headers
+       modules       -- install kernel modules and headers to rootfs
+       remodules     -- install kernel modules and headers to recoveryfs
        rootfs        -- build Debian root filesystem (rootfs.tar.gz),
                         including kernel modules, headers and firmware
        recoveryfs    -- build Debian recovery filesystem (recoveryfs.tar.gz),
@@ -112,7 +113,7 @@ Options:
        scripts       -- build U-Boot boot scripts
        bcmfw         -- install WiFi and Bluetooth firmware
        firmware      -- install DMA firmware
-       rtar          -- generate tarballs from rootfs and recoveryfs dirs
+       fstar         -- generate tarballs from filesystem directories
        clean         -- clean all build artifacts
        diskimage     -- create a bootable image file from rootfs
        usbimage      -- create a bootable recovery image file from usbfs
@@ -965,7 +966,7 @@ cmd_make_rootfs ()
     fi
 
     # pack rootfs
-    make_tarball "$G_ROOTFS_DIR" "$G_ROOTFS_TARBALL_PATH"
+    # make_tarball "$G_ROOTFS_DIR" "$G_ROOTFS_TARBALL_PATH"
 
     # if test ."$MACHINE" = .'imx6ul-var-dart' ||
     #        test ."$MACHINE" = .'var-som-mx7' ||
@@ -979,7 +980,7 @@ cmd_make_rootfs ()
 cmd_make_recoveryfs ()
 {
     if $USE_ALT_RECOVERYFS; then
-        ./revo/alt-recoveryfs.sh
+        ./revo/alt-recoveryfs.sh "$G_ROOTFS_DIR" "$G_RECOVERYFS_DIR"
     else
         if test ."$MACHINE" = .'imx6ul-var-dart' ||
                 test ."$MACHINE" = .'var-som-mx7' ||
@@ -1009,7 +1010,7 @@ cmd_make_recoveryfs ()
     fi
 
     # pack recoveryfs
-    make_tarball "$G_RECOVERYFS_DIR" "$G_RECOVERYFS_TARBALL_PATH"
+    # make_tarball "$G_RECOVERYFS_DIR" "$G_RECOVERYFS_TARBALL_PATH"
 
     # if test ."$MACHINE" = .'imx6ul-var-dart' ||
     #        test ."$MACHINE" = .'var-som-mx7' ||
@@ -1025,11 +1026,12 @@ cmd_make_usbfs ()
     # cp -a "$G_ROOTFS_DIR" "$G_USBFS_DIR"
     rm -rf "$G_USBFS_DIR"
     install -d -m 0775 "$G_USBFS_DIR"
-    tar -C "$G_USBFS_DIR" -zxpf "$G_ROOTFS_TARBALL_PATH"
+    tar -C "$G_ROOTFS_DIR" -cf - . |
+        tar -C "$G_USBFS_DIR" -xpf -
     ln -s "$G_IMAGES_DIR" "${G_USBFS_DIR}/system-update"
 
     # pack usbfs
-    make_tarball "$G_USBFS_DIR" "$G_USBFS_TARBALL_PATH"
+    # make_tarball "$G_USBFS_DIR" "$G_USBFS_TARBALL_PATH"
 }
 
 cmd_make_provisionfs ()
@@ -1039,7 +1041,8 @@ cmd_make_provisionfs ()
     # cp -a "$G_ROOTFS_DIR" "$G_PROVISIONFS_DIR"
     rm -rf "$G_PROVISIONFS_DIR"
     install -d -m 0775 "$G_PROVISIONFS_DIR"
-    tar -C "$G_PROVISIONFS_DIR" -zxpf "$G_ROOTFS_TARBALL_PATH"
+    tar -C "$G_ROOTFS_DIR" -cf - . |
+        tar -C "$G_PROVISIONFS_DIR" -xpf -
     ln -s "$G_IMAGES_DIR" "${G_PROVISIONFS_DIR}/system-update"
 
     # Enable flash-emmc to update SD U-Boot environment.
@@ -1059,7 +1062,7 @@ cmd_make_provisionfs ()
        "${G_PROVISIONFS_DIR}/etc/systemd/system/multi-user.target.wants"
 
     # pack provisionfs
-    make_tarball "$G_PROVISIONFS_DIR" "$G_PROVISIONFS_TARBALL_PATH"
+    # make_tarball "$G_PROVISIONFS_DIR" "$G_PROVISIONFS_TARBALL_PATH"
 }
 
 cmd_make_scripts ()
@@ -1110,26 +1113,28 @@ cmd_make_rfs_ubi ()
              "$G_UBI_FILE_NAME"
 }
 
-cmd_make_rfs_tar ()
+cmd_make_fs_tar ()
 {
     # pack rootfs
     make_tarball "$G_ROOTFS_DIR" "$G_ROOTFS_TARBALL_PATH"
 
-    if $USE_ALT_RECOVERYFS; then
+    # if $USE_ALT_RECOVERYFS; then
 
-        # create and pack recoveryfs
-        cmd_make_recoveryfs
-    else
+    #     # create and pack recoveryfs
+    #     cmd_make_recoveryfs
+    # else
 
-        # pack recoveryfs
-        make_tarball "$G_RECOVERYFS_DIR" "$G_RECOVERYFS_TARBALL_PATH"
-    fi
+    # pack recoveryfs
+    make_tarball "$G_RECOVERYFS_DIR" "$G_RECOVERYFS_TARBALL_PATH"
+    # fi
 
     # create and pack usbfs
-    cmd_make_usbfs
+    # cmd_make_usbfs
+    make_tarball "$G_USBFS_DIR" "$G_USBFS_TARBALL_PATH"
 
     # create and pack provisionfs
-    cmd_make_provisionfs
+    # cmd_make_provisionfs
+    make_tarball "$G_PROVISIONFS_DIR" "$G_PROVISIONFS_TARBALL_PATH"
 }
 
 cmd_make_diskimage ()
@@ -1369,11 +1374,10 @@ case $PARAM_CMD in
     modules)
         pr_elapsed_time cmd_make_kmodules $G_ROOTFS_DIR
 
-        if ! $USE_ALT_RECOVERYFS; then
-            pr_elapsed_time cmd_make_kmodules $G_RECOVERYFS_DIR
-        fi
-
         pr_elapsed_time cmd_make_scripts
+        ;;
+    remodules)
+        pr_elapsed_time cmd_make_kmodules $G_RECOVERYFS_DIR
         ;;
     scripts)
         pr_elapsed_time cmd_make_scripts
@@ -1414,8 +1418,8 @@ case $PARAM_CMD in
     rubi)
         pr_elapsed_time cmd_make_rfs_ubi
         ;;
-    rtar)
-        pr_elapsed_time cmd_make_rfs_tar
+    fstar)
+        pr_elapsed_time cmd_make_fs_tar
         ;;
     all)
         # cmd_make_uboot  &&
@@ -1428,17 +1432,17 @@ case $PARAM_CMD in
         #     cmd_make_usbfs &&
         #     cmd_make_provisionfs
         pr_elapsed_time cmd_make_uboot &&
+            pr_elapsed_time cmd_make_scripts &&
             pr_elapsed_time cmd_make_kernel &&
+            pr_elapsed_time cmd_make_rootfs &&
             pr_elapsed_time cmd_make_kmodules $G_ROOTFS_DIR &&
+            pr_elapsed_time cmd_make_recoveryfs &&
             if ! $USE_ALT_RECOVERYFS; then
                 pr_elapsed_time cmd_make_kmodules $G_RECOVERYFS_DIR
             fi &&
-            pr_elapsed_time cmd_make_scripts
-
-        pr_elapsed_time cmd_make_rootfs &&
-            pr_elapsed_time cmd_make_recoveryfs &&
             pr_elapsed_time cmd_make_usbfs &&
-            pr_elapsed_time cmd_make_provisionfs
+            pr_elapsed_time cmd_make_provisionfs &&
+            pr_elapsed_time cmd_make_fs_tar
         ;;
     clean)
         pr_elapsed_time cmd_make_clean

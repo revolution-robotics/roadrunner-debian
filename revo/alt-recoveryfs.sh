@@ -100,13 +100,15 @@ get-only-in-auto-install ()
 pare-fs ()
 {
     local fs=$1
-    local tarball=$2
+    local rootfs=$2
     local purge_lists=$3
 
-    echo "tar -C $fs -xpf $tarball"
+    echo "tar -C $rootfs -cf - . |"
+    echo "    tar -C $fs -xpf -"
     rm -rf "$fs"
     install -d -m 0755 "$fs"
-    tar -C "$fs" -xpf "$tarball"
+    tar -C "$rootfs" -cf - . |
+        tar -C "$fs" -xpf -
     for list in $purge_lists; do
         install -m 0755 "$list" "$fs"
     done
@@ -126,11 +128,11 @@ EOF
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
-    declare rootfs_tarball=${PWD}/output/rootfs.tar.gz
-    declare rootfs=${PWD}/rootfs
+    # declare rootfs=${PWD}/rootfs
     # declare recoveryfs=${PWD}/recoveryfs
     # declare newfs=${PWD}/newfs
-    declare newfs=${PWD}/recoveryfs
+    declare rootfs=$1
+    declare newfs=$2
 
     if test ."$USER" != .'root'; then
         echo "$script_name: Run as user root"
@@ -172,7 +174,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     # To produce recoveryfs, copy rootfs and remove from it all
     # packages in both lists `pkgs-to-remove.list' and
     # `residual-to-remove.list'.
-    pare-fs "$newfs" "$rootfs_tarball" "pkgs-to-remove.list residual-to-remove.list"
+    pare-fs "$newfs" "$rootfs" "pkgs-to-remove.list residual-to-remove.list"
 
     # Disable Pulse audio service.
     rm -f "${newfs}/etc/systemd/system/multi-user.target.wants/pulseaudio.service"

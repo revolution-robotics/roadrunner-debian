@@ -3,8 +3,10 @@
 - [Overview](#overview)
 - [Prerequisites](#prerequisites)
 - [Fetch build suite and kernel sources](#fetch-build-suite-and-kernel-sources)
-- [Build U-Boot, Linux kernel and modules](#build-u-boot-linux-kernel-and-modules)
-- [Bootstrap root and recovery filesystems](#bootstrap-root-and-recovery-filesystems)
+- [Build U-Boot and Linux kernel](#build-u-boot-and-linux-kernel)
+- [Bootstrap root filesystem](#bootstrap-root-filesystem)
+- [Bootstrap recovery filesystem](#bootstrap-recovery-filesystem)
+- [Archive root and recovery filesystems](#archive-root-and-recovery-filesystems)
 - [Create bootable image file](#create-bootable-image-file)
 - [Flash bootable image to SD card or USB flash drive](#flash-bootable-image-to-sd-card-or-usb-flash-drive)
 - [Enable booting from USB flash drive](#enable-booting-from-usb-flash-drive)
@@ -12,7 +14,9 @@
 
 ## Overview
 This is a Debian GNU/Linux build suite for REVO boards.
-The following build instructions have been verified on a Ubuntu 20.04 x86 host platform.
+The following build instructions have been verified on a Ubuntu 20.04
+x86 host platform. It's important that the commands are run in the
+order listed.
 
 ## Prerequisites
 Verify that required tools and libraries are available by running (on
@@ -56,7 +60,7 @@ cd roadrunner_debian
 MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c deploy
 ```
 
-## Build U-Boot, Linux kernel and modules
+## Build U-Boot and Linux kernel
 To build the primary (SPL) and secondary (U-Boot) bootloaders (and save
 them as _output/SPL.mmc_ and _output/u-boot.img.mmc_, respecitvely.), use:
 
@@ -65,33 +69,61 @@ them as _output/SPL.mmc_ and _output/u-boot.img.mmc_, respecitvely.), use:
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c bootloader
 ```
 
-To build the Linux kernel (zImage) and compile Device Tree (DTS) files
-(and save them to _output_), use:
+To build the Linux kernel + U-Boot wrapper (uImage) and compile Device
+Tree (DTS) files (and save them to _output_), use:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c kernel
 ```
 
-To build kernel modules and install them to _rootfs_ and _recoveryfs_, use:
+## Bootstrap root filesystem
 
-```shell
-sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c modules
-```
-
-## Bootstrap root and recovery filesystems
-
-To bootstrap Debian buster to _rootfs_, install firmware and create an
-archive (as _output/rootfs.tar.gz_), use:
+To bootstrap Debian buster and install firmware to the filesystem
+_rootfs_, use:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rootfs
 ```
 
-To bootstrap Debian to _recoveryfs_, install firmware and create an
-archive (as _output/recoveryfs.tar.gz_), use:
+To install kernel modules and headers to _rootfs_, use:
+
+```shell
+sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c modules
+```
+
+## Bootstrap recovery filesystem
+
+The rescue filesystem,  _recoveryfs_, can be built in either of two ways:
+
+* By running Debian bootstrap a second time, or
+* From a copy of _rootfs_.
+
+Building _recoveryfs_ from _rootfs_ is fast, but requires some
+preparation, including that _rootfs_ is fully populated with Debian,
+kernel modules (and headers) and firmware. See the
+script
+[express_recoveryfs.sh](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_buster_rr01/contrib/express-recoveryfs/express-recoveryfs.sh) for
+details. Choose which method to use by setting the variable
+`USE_ALT_RECOVERYFS` in the script *revo_make_debian.sh*. Then run:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c recoveryfs
+```
+
+To install kernel modules and headers to _recoveryfs_, use:
+
+```shell
+sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c remodules
+```
+
+## Archive root and recovery filesystems
+
+To archive the root and recovery filesystems (as
+_output/rootfs.tar.gz_ and _output/recoveryfs.tar.gz_, respectively)
+run:
+
+```shell
+sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c fstar
 ```
 
 ## Create bootable image file
@@ -138,13 +170,14 @@ jumpered and SD otherwise. In future builds, this may be reversed.
 ## Subsequent builds
 After commiting changes to the kernel or U-Boot source trees, to
 incorporate the changes into new builds, update the file
-*${G_VENDOR_PATH}/${MACHINE}/${MACHINE}.sh*. Then a new disk image can
+*\${G\_VENDOR\_PATH}/\${MACHINE}/\${MACHINE}.sh*. Then a new disk image can
 be created without re-running Debian bootstrap as follows:
 
 ```shell
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c kernel
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c modules
-sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rtar
+sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c remodules
+sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c fstar
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage
 ```
 

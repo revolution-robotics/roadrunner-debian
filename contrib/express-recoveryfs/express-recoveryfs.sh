@@ -5,11 +5,11 @@
 # This script quickly creates a recovery filesystem by paring an
 # existing root filesystem.
 #
-# After generating recovery filesystems `newfs' with this script and
-# `recoveryfs' with debootstrap, generate for each a list of installed
-# packages with the function `get-installed-pkgs' below. Comparing the
-# installed packages lists shows that the two filesystems are very
-# similar:
+# To compare the effectiveness of this script versus building with
+# Debian bootstrap, create with this script a recovery filesystem,
+# `newfs', and create with debootstrap `recoveryfs'. For each, make a
+# list of installed packages (see the function `get-installed-pkgs'
+# below) and compare them with:
 #
 #     $ comm -3 newfs/newfs-installed.list recoveryfs/recoveryfs-installed.list
 #     cpio
