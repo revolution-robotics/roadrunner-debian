@@ -490,8 +490,8 @@ EOF
 
     # Support resizing a serial console - taken from Debian xterm package.
     if test ! -f "${ROOTFS_BASE}/usr/bin/resize"; then
-        install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/resize \
-                ${ROOTFS_BASE}/usr/bin
+        install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/resize" \
+                "${ROOTFS_BASE}/usr/bin"
     fi
 
     # Set PATH and resize serial console window.
@@ -665,7 +665,7 @@ EOF
             "${ROOTFS_BASE}/etc/bluetooth"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-bluetooth.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
-    ln -sf /lib/systemd/system/revo-bluetooth.service \
+    ln -sf '/lib/systemd/system/revo-bluetooth.service' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Install BT audio and main config
@@ -680,7 +680,7 @@ EOF
 
     install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obex.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
-    ln -sf /lib/systemd/system/obex.service \
+    ln -sf '/lib/systemd/system/obex.service' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Install pulse audio configuration
@@ -696,7 +696,8 @@ EOF
     # Add alsa default configs
     install -m 0644 "${G_VENDOR_PATH}/resources/asound.state" \
             "${ROOTFS_BASE}/var/lib/alsa/"
-    install -m 0644 "${G_VENDOR_PATH}/resources/asound.conf ${ROOTFS_BASE}/etc/"
+    install -m 0644 "${G_VENDOR_PATH}/resources/asound.conf" \
+            "${ROOTFS_BASE}/etc/"
 
     # Install WiFi service
     install -d "${ROOTFS_BASE}/etc/wifi"
@@ -710,7 +711,7 @@ EOF
             "${ROOTFS_BASE}/etc/wifi"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-wifi.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
-    ln -sf /lib/systemd/system/revo-wifi.service \
+    ln -sf '/lib/systemd/system/revo-wifi.service' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Remove pm-utils default scripts and install WiFi / Bluetooth script
@@ -751,22 +752,23 @@ EOF
     # rootfs startup patches
     pr_info "rootfs: begin startup patches"
 
-    install -m 0644 ${G_VENDOR_PATH}/issue ${ROOTFS_BASE}/etc/
-    install -m 0755 ${G_VENDOR_PATH}/resources/rc.local ${ROOTFS_BASE}/etc/
-    install -m 0644 ${G_VENDOR_PATH}/resources/hostapd.conf ${ROOTFS_BASE}/etc/
-    install -d ${ROOTFS_BASE}/boot/
-    install -m 0644 ${G_VENDOR_PATH}/splash.bmp ${ROOTFS_BASE}/boot/
-    install -m 0644 ${G_VENDOR_PATH}/wallpaper.png \
-            ${ROOTFS_BASE}/usr/share/images/desktop-base/default
+    install -m 0644 "${G_VENDOR_PATH}/issue" "${ROOTFS_BASE}/etc/"
+    install -m 0755 "${G_VENDOR_PATH}/resources/rc.local" "${ROOTFS_BASE}/etc/"
+    install -m 0644 "${G_VENDOR_PATH}/resources/hostapd.conf" \
+            "${ROOTFS_BASE}/etc/"
+    install -d "${ROOTFS_BASE}/boot/"
+    install -m 0644 "${G_VENDOR_PATH}/splash.bmp" "${ROOTFS_BASE}/boot/"
+    install -m 0644 "${G_VENDOR_PATH}/wallpaper.png" \
+            "${ROOTFS_BASE}/usr/share/images/desktop-base/default"
 
     # Disable LightDM session locking
-    install -m 0755 ${G_VENDOR_PATH}/resources/disable-lightlocker \
-            ${ROOTFS_BASE}/usr/local/bin/
-    install -m 0644 ${G_VENDOR_PATH}/resources/disable-lightlocker.desktop \
-            ${ROOTFS_BASE}/etc/xdg/autostart/
+    install -m 0755 "${G_VENDOR_PATH}/resources/disable-lightlocker" \
+            "${ROOTFS_BASE}/usr/local/bin/"
+    install -m 0644 "${G_VENDOR_PATH}/resources/disable-lightlocker.desktop" \
+            "${ROOTFS_BASE}/etc/xdg/autostart/"
 
     # Revert regular booting
-    rm -f ${ROOTFS_BASE}/usr/sbin/policy-rc.d
+    rm -f "${ROOTFS_BASE}/usr/sbin/policy-rc.d"
 
     # Installing kernel modules to rootfs is redundant. This is
     # already done by cmd_make_kmodules.
@@ -774,28 +776,33 @@ EOF
     # pr_info "rootfs: install kernel modules"
 
     # install_kernel_modules \
-    #     ${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-    #     ${G_LINUX_KERNEL_DEF_CONFIG} ${G_LINUX_KERNEL_SRC_DIR} \
-    #     ${ROOTFS_BASE}
+    #     "${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
+    #     "${G_LINUX_KERNEL_DEF_CONFIG}" "${G_LINUX_KERNEL_SRC_DIR}" \
+    #     "${ROOTFS_BASE}"
 
 
     # Install kernel headers to rootfs
-    # mkdir -p ${ROOTFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
-    # cp ${G_LINUX_KERNEL_SRC_DIR}/drivers/staging/android/uapi/* \
-    #    ${ROOTFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
-    # cp -r ${G_LINUX_KERNEL_SRC_DIR}/include \
-    #    ${ROOTFS_BASE}/usr/local/src/linux-imx/
+    # mkdir -p "${ROOTFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi"
+    # cp "${G_LINUX_KERNEL_SRC_DIR}/drivers/staging/android/uapi/"* \
+    #    "${ROOTFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi"
+    # cp -r "${G_LINUX_KERNEL_SRC_DIR}/include" \
+    #    "${ROOTFS_BASE}/usr/local/src/linux-imx/"
 
     # Install U-Boot environment editor
     pr_info "rootfs: install U-Boot environment editor"
 
-    install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-mmc ${ROOTFS_BASE}/usr/bin
-    ln -sf fw_printenv-mmc ${ROOTFS_BASE}/usr/bin/fw_printenv
-    ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_setenv
-    install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/fw_env.config ${ROOTFS_BASE}/etc
-    # install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/kobs-ng ${ROOTFS_BASE}/usr/bin
-    # install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-nand ${ROOTFS_BASE}/usr/bin
-    # ln -sf fw_printenv ${ROOTFS_BASE}/usr/bin/fw_printenv-nand
+    install -m 0755 "${PARAM_OUTPUT_DIR}/fw_printenv-mmc" \
+            "${ROOTFS_BASE}/usr/bin"
+    ln -sf 'fw_printenv-mmc' "${ROOTFS_BASE}/usr/bin/fw_printenv"
+    ln -sf 'fw_printenv' "${ROOTFS_BASE}/usr/bin/fw_setenv"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/fw_env.config" \
+            "${ROOTFS_BASE}/etc"
+
+    # install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/kobs-ng" \
+    #         "${ROOTFS_BASE}/usr/bin"
+    # install -m 0755 "${PARAM_OUTPUT_DIR}/fw_printenv-nand" \
+    #         "${ROOTFS_BASE}/usr/bin"
+    # ln -sf 'fw_printenv' "${ROOTFS_BASE}/usr/bin/fw_printenv-nand"
 
     ## Restrict pmlogger volume size
     sed -i -e 's/[0-9]\{1,\}Mb/20Mb/' \
@@ -810,12 +817,12 @@ EOF
             "${ROOTFS_BASE}/usr/bin/curl"
 
     # Install node installation script.
-    install -m 0755 ${G_VENDOR_PATH}/resources/nodejs/install-node-lts \
-            ${ROOTFS_BASE}/usr/bin
+    install -m 0755 "${G_VENDOR_PATH}/resources/nodejs/install-node-lts" \
+            "${ROOTFS_BASE}/usr/bin"
     sed -i -e "s;@NODE_BASE@;${NODE_BASE};" \
         -e "s;@NODE_GROUP@;${NODE_GROUP};" \
         -e "s;@NODE_USER@;${NODE_USER};" \
-        ${ROOTFS_BASE}/usr/bin/install-node-lts
+        "${ROOTFS_BASE}/usr/bin/install-node-lts"
 
     # Redirect all system mail user `revo'.
     sed -i "\$a root: revo" "${ROOTFS_BASE}/etc/aliases"
@@ -840,7 +847,7 @@ EOF
     sed -i 's;^\(ENABLED=\).*;\1"true";' "${ROOTFS_BASE}/etc/default/sysstat"
 
     ## post-packages command
-    cat > ${ROOTFS_BASE}/post-packages <<EOF
+    cat >"${ROOTFS_BASE}/post-packages" <<EOF
 #!/bin/bash
 
 # Install node via nvm

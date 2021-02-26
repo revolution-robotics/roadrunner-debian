@@ -671,39 +671,42 @@ EOF
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Install BT audio and main config
-    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/audio.conf \
-            ${RECOVERYFS_BASE}/etc/bluetooth/
-    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/main.conf \
-            ${RECOVERYFS_BASE}/etc/bluetooth/
+    install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/audio.conf" \
+            "${RECOVERYFS_BASE}/etc/bluetooth/"
+    install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/main.conf" \
+            "${RECOVERYFS_BASE}/etc/bluetooth/"
 
     # Install obexd configuration
     install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obexd.conf" \
             "${RECOVERYFS_BASE}/etc/dbus-1/system.d"
 
-    install -m 0644 ${G_VENDOR_PATH}/resources/bluez5/files/obex.service \
-            ${RECOVERYFS_BASE}/lib/systemd/system
+    install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obex.service" \
+            "${RECOVERYFS_BASE}/lib/systemd/system"
     # ln -sf /lib/systemd/system/obex.service \
-    #    ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.servic
-    e
+    #    "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service"
+
+    # Disable obex service
+    rm -f "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service"
 
     # Install pulse audio configuration
-    install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service \
-            ${RECOVERYFS_BASE}/lib/systemd/system
+    install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service" \
+            "${RECOVERYFS_BASE}/lib/systemd/system"
     # ln -sf /lib/systemd/system/pulseaudio.service \
-    #    ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service
+    #    "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service"
 
     # Disable pulse audio service
-    rm -f ${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service
+    rm -f "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service"
 
-    install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf \
-            ${RECOVERYFS_BASE}/etc/dbus-1/system.d
-    install -m 0644 ${G_VENDOR_PATH}/resources/pulseaudio/system.pa \
-            ${RECOVERYFS_BASE}/etc/pulse/
+    install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf" \
+            "${RECOVERYFS_BASE}/etc/dbus-1/system.d"
+    install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/system.pa" \
+            "${RECOVERYFS_BASE}/etc/pulse/"
 
     # Add alsa default configs
-    install -m 0644 ${G_VENDOR_PATH}/resources/asound.state \
-            ${RECOVERYFS_BASE}/var/lib/alsa/
-    install -m 0644 ${G_VENDOR_PATH}/resources/asound.conf ${RECOVERYFS_BASE}/etc/
+    install -m 0644 "${G_VENDOR_PATH}/resources/asound.state" \
+            "${RECOVERYFS_BASE}/var/lib/alsa/"
+    install -m 0644 "${G_VENDOR_PATH}/resources/asound.conf" \
+            "${RECOVERYFS_BASE}/etc/"
 
     # Install WiFi service
     install -d "${RECOVERYFS_BASE}/etc/wifi"
@@ -758,20 +761,22 @@ EOF
     # recoveryfs startup patches
     pr_info "recoveryfs: begin startup patches"
 
-    install -m 0644 ${G_VENDOR_PATH}/issue ${RECOVERYFS_BASE}/etc/
-    install -m 0755 ${G_VENDOR_PATH}/resources/rc.local ${RECOVERYFS_BASE}/etc/
-    install -m 0644 ${G_VENDOR_PATH}/resources/hostapd.conf ${RECOVERYFS_BASE}/etc/
-    install -d -m 0755 ${RECOVERYFS_BASE}/boot
-    install -m 0644 ${G_VENDOR_PATH}/splash.bmp ${RECOVERYFS_BASE}/boot/
-    install -d -m 0755 ${RECOVERYFS_BASE}/usr/share/images/desktop-base
-    install -m 0644 ${G_VENDOR_PATH}/wallpaper.png \
-            ${RECOVERYFS_BASE}/usr/share/images/desktop-base/default
+    install -m 0644 "${G_VENDOR_PATH}/issue" "${RECOVERYFS_BASE}/etc/"
+    install -m 0755 "${G_VENDOR_PATH}/resources/rc.local" \
+            "${RECOVERYFS_BASE}/etc/"
+    install -m 0644 "${G_VENDOR_PATH}/resources/hostapd.conf" \
+            "${RECOVERYFS_BASE}/etc/"
+    install -d -m 0755 "${RECOVERYFS_BASE}/boot"
+    install -m 0644 "${G_VENDOR_PATH}/splash.bmp" "${RECOVERYFS_BASE}/boot/"
+    install -d -m 0755 "${RECOVERYFS_BASE}/usr/share/images/desktop-base"
+    install -m 0644 "${G_VENDOR_PATH}/wallpaper.png" \
+            "${RECOVERYFS_BASE}/usr/share/images/desktop-base/default"
 
     # Disable LightDM session locking
-    # install -m 0755 ${G_VENDOR_PATH}/resources/disable-lightlocker \
-    #         ${RECOVERYFS_BASE}/usr/local/bin/
-    # install -m 0644 ${G_VENDOR_PATH}/resources/disable-lightlocker.desktop \
-    #         ${RECOVERYFS_BASE}/etc/xdg/autostart/
+    # install -m 0755 "${G_VENDOR_PATH}/resources/disable-lightlocker" \
+    #         "${RECOVERYFS_BASE}/usr/local/bin/"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/disable-lightlocker.desktop" \
+    #         "${RECOVERYFS_BASE}/etc/xdg/autostart/"
 
     # Revert regular booting
     rm -f ${RECOVERYFS_BASE}/usr/sbin/policy-rc.d
@@ -782,29 +787,33 @@ EOF
     # pr_info "recoveryfs: install kernel modules"
 
     # install_kernel_modules \
-    #     ${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX} \
-    #     ${G_LINUX_KERNEL_DEF_CONFIG} ${G_LINUX_KERNEL_SRC_DIR} \
-    #     ${RECOVERYFS_BASE}
+    #     "${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
+    #     "${G_LINUX_KERNEL_DEF_CONFIG}" "${G_LINUX_KERNEL_SRC_DIR}" \
+    #     "${RECOVERYFS_BASE}"
 
-    # Install kernel headers to recoveryfs
-    # install -d -m 0755 ${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
-    # cp ${G_LINUX_KERNEL_SRC_DIR}/drivers/staging/android/uapi/* \
-    #    ${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi
-    # cp -r ${G_LINUX_KERNEL_SRC_DIR}/include \
-    #    ${RECOVERYFS_BASE}/usr/local/src/linux-imx/
+
+    # Install kernel headers to rootfs
+    # mkdir -p "${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi"
+    # cp "${G_LINUX_KERNEL_SRC_DIR}/drivers/staging/android/uapi/"* \
+    #    "${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi"
+    # cp -r "${G_LINUX_KERNEL_SRC_DIR}/include" \
+    #    "${RECOVERYFS_BASE}/usr/local/src/linux-imx/"
 
     # Install U-Boot environment editor
     pr_info "recoveryfs: install U-Boot environment editor"
 
-    install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-mmc \
-            ${RECOVERYFS_BASE}/usr/bin
-    ln -sf fw_printenv-mmc ${RECOVERYFS_BASE}/usr/bin/fw_printenv
-    ln -sf fw_printenv ${RECOVERYFS_BASE}/usr/bin/fw_setenv
-    install -m 0644 ${G_VENDOR_PATH}/${MACHINE}/fw_env.config \
-            ${RECOVERYFS_BASE}/etc
-    # install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/kobs-ng ${RECOVERYFS_BASE}/usr/bin
-    # install -m 0755 ${PARAM_OUTPUT_DIR}/fw_printenv-nand ${RECOVERYFS_BASE}/usr/bin
-    # ln -sf fw_printenv ${RECOVERYFS_BASE}/usr/bin/fw_printenv-nand
+    install -m 0755 "${PARAM_OUTPUT_DIR}/fw_printenv-mmc" \
+            "${RECOVERYFS_BASE}/usr/bin"
+    ln -sf 'fw_printenv-mmc' "${RECOVERYFS_BASE}/usr/bin/fw_printenv"
+    ln -sf 'fw_printenv' "${RECOVERYFS_BASE}/usr/bin/fw_setenv"
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/fw_env.config" \
+            "${RECOVERYFS_BASE}/etc"
+
+    # install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/kobs-ng" \
+    #         "${RECOVERYFS_BASE}/usr/bin"
+    # install -m 0755 "${PARAM_OUTPUT_DIR}/fw_printenv-nand" \
+    #         "${RECOVERYFS_BASE}/usr/bin"
+    # ln -sf 'fw_printenv' "${RECOVERYFS_BASE}/usr/bin/fw_printenv-nand"
 
     ## Restrict pmlogger volume size
     sed -i -e 's/[0-9]\{1,\}Mb/20Mb/' \
@@ -819,12 +828,12 @@ EOF
             "${RECOVERYFS_BASE}/usr/bin/curl"
 
     # Install node installation script.
-    install -m 0755 ${G_VENDOR_PATH}/resources/nodejs/install-node-lts \
-            ${RECOVERYFS_BASE}/usr/bin
+    install -m 0755 "${G_VENDOR_PATH}/resources/nodejs/install-node-lts" \
+            "${RECOVERYFS_BASE}/usr/bin"
     sed -i -e "s;@NODE_BASE@;${NODE_BASE};" \
         -e "s;@NODE_GROUP@;${NODE_GROUP};" \
         -e "s;@NODE_USER@;${NODE_USER};" \
-        ${RECOVERYFS_BASE}/usr/bin/install-node-lts
+        "${RECOVERYFS_BASE}/usr/bin/install-node-lts"
 
     # Redirect all system mail user `revo'.
     sed -i "\$a root: revo" "${RECOVERYFS_BASE}/etc/aliases"

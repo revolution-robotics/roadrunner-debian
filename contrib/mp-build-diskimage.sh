@@ -159,7 +159,7 @@ case "$system" in
             prompt="After completing install, please return here, and then press any key to
 continue or CTRL + C to cancel ..."
 
-            read -p "$prompt" -n 1 <$TTY
+            read -p "$prompt" -n 1 <"$TTY"
             cd "$OLDPWD"
             $RM -r "$tmpdir"
 
