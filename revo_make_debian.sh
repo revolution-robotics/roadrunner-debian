@@ -12,8 +12,10 @@ declare -r SCRIPT_NAME=${0##*/}
 
 : ${MACHINE:='revo-roadrunner-mx7'}
 
-# Build recoveryfs using alternate script?
-declare -r USE_ALT_RECOVERYFS=true
+# Build recoveryfs from rootfs?
+# Before enabling this, see: contrib/express-recoveryfs/README.md.
+# Must be either: true or false
+declare -r USE_ALT_RECOVERYFS=false
 
 #### Exports Variables ####
 #### global variables ####
