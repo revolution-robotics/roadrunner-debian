@@ -70,31 +70,31 @@ make_debian_x11_rootfs ()
     pr_info "Make debian(${DEB_RELEASE}) rootfs start..."
 
     # umount previus mounts (if fail)
-    umount -f ${ROOTFS_BASE}/{sys,proc,dev/pts,dev} 2>/dev/null || true
+    umount -f "${ROOTFS_BASE}"/{sys,proc,dev/pts,dev} 2>/dev/null || true
 
     # clear rootfs dir
-    rm -rf ${ROOTFS_BASE}/*
+    rm -rf "${ROOTFS_BASE}"/*
 
     pr_info "rootfs: debootstrap"
     debootstrap --verbose  --foreign --arch armhf \
-                --keyring='/etc/apt/trusted.gpg' \
-                ${DEB_RELEASE} ${ROOTFS_BASE}/ ${PARAM_DEB_LOCAL_MIRROR}
+                --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
+                "${DEB_RELEASE}" "${ROOTFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
 
     # prepare qemu
     pr_info "rootfs: debootstrap in rootfs (second-stage)"
-    install -m 0755 ${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static ${ROOTFS_BASE}/usr/bin/qemu-arm-static
+    install -m 0755 "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" "${ROOTFS_BASE}/usr/bin/qemu-arm-static"
 
     umount_rootfs ()
     {
-        umount -f ${ROOTFS_BASE}/{sys,proc,dev/pts,dev} 2>/dev/null || true
-        umount -f ${ROOTFS_BASE}/dev 2>/dev/null || true
+        umount -f "${ROOTFS_BASE}"/{sys,proc,dev/pts,dev} 2>/dev/null || true
+        umount -f "${ROOTFS_BASE}/dev" 2>/dev/null || true
     }
 
     trap 'umount_rootfs' RETURN
     trap 'umount_rootfs; exit' 0 1 2 15
 
-    if ! findmnt ${ROOTFS_BASE}/proc >/dev/null; then
-        mount -t proc /proc ${ROOTFS_BASE}/proc
+    if ! findmnt "${ROOTFS_BASE}/proc" >/dev/null; then
+        mount -t proc /proc "${ROOTFS_BASE}/proc"
     fi
 
     for fs in /sys /dev /dev/pts; do
