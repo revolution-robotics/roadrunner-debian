@@ -9,49 +9,25 @@
 # branch *ruby_2_7* of the
 # [Ruby language repository on GitHub](https://github.com/ruby/ruby).
 
-# At the time of this writing, the HEAD of this branch is between
-# releases 2.7.2 and 2.7.3, so following Debian conventions, the
-# version prefix is 2.7.3-1, to which is appended the commit ID of the
-# branch HEAD (as `~gID').
-
 # To begin, the Debian build system needs a tarball of the upstream
 # sources. This is created with the command `git archive` as follows:
 
-declare -r PACKAGE=ruby2.7
-declare -r BRANCH=ruby_2_7
-declare -r BASE_VERSION=2.7.3
-declare -r GIT_URI=https://github.com/ruby/ruby.git
-declare -r USER_EMAIL=slewsys@gmail.com
-declare -r FULL_NAME='Andrew L. Moore'
-
-init-git ()
+install-prerequisites ()
 {
-    local email=$1
-    local full_name=$2
-
-    if ! get config --global --get user.email >/dev/null; then
-        git config --global user.email "$email"
-    fi
-    if ! get config --global --get user.name >/dev/null; then
-        git config --global user.name "$full_name"
-    fi
+    sudo apt update
+    sudo apt install git-buildpackage
 }
 
 archive-repository ()
 {
     local package=$1
     local branch=$2
-    local base_version=$3
-    local uri=$4
 
-    local version=${base_version}-1~g$(git rev-parse --short=7 HEAD)
+    local version=$(git describe --tags --always --dirty="-dev")
     local archive=${package}_${version}
 
     git archive --format=tar --prefix="${archive}/" "$branch" |
         xz - > "../${archive}.orig.tar.xz"
-
-    cd "$OLDPWD"
-    trap '' 0 1 2 15 RETURN
 
     echo "$archive"
 }
@@ -61,9 +37,14 @@ archive-repository ()
 
 init-orphan-branches ()
 {
+    local email=$1
+    local full_name=$2
+
     git checkout --orphan upstream
     git rm -r --cached .
     git clean -fdx
+    git config --global user.email "$email"
+    git config --global user.name "$full_name"
     git commit --allow-empty -m 'Initial commit: Debian git-buildpackage.'
     git checkout -b debian
 }
@@ -100,20 +81,27 @@ commit-upstream-source ()
     git checkout debian
 }
 
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare PACKAGE=ruby2.7
+    declare BRANCH=ruby_2_7
+    declare GIT_URI=https://github.com/ruby/ruby.git
+    declare USER_EMAIL=slewsys@gmail.com
+    declare FULL_NAME='Andrew L. Moore'
+    declare oldpwd=$PWD
 
-declare oldpwd=$PWD
+    install-prerequisites
+    git clone -b "$BRANCH" "$GIT_URI"
+    cd ./ruby
 
-git clone -b "$branch" "$uri"
-cd ./ruby
+    declare BASE_VERSION=$(git describe --tags | sed -e 's/-.*//')
 
-trap 'cd "$oldpwd"; exit' 0 1 2 15
+    archive=$(archive-repository "$PACKAGE" "$BRANCH")
+    init-orphan-branches "$USER_EMAIL" "$FULL_NAME"
+    commit-debian-directory
+    commit-upstream-source "$archive" "$BASE_VERSION"
+    gbp buildpackage -uc -us --git-tag
+fi
 
-init-git  "$USER_EMAIL" "$FULL_NAME"
-archive=$(archive-repository "$PACKAGE" "$BRANCH" "$BASE_VERSION" "$GIT_URI")
-init-orphan-branches
-commit-debian-directory
-commit-upstream-source "$archive" "$BASE_VERSION"
-gbp buildpackage -uc -us --git-tag
 
 ## **** BEGIN debian patch ****
 # diff -Nru debian~/changelog debian/changelog
