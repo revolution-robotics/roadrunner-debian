@@ -11,31 +11,8 @@ declare script_name=${0##*/}
 declare cli_uri=https://github.com/smallstep/cli
 declare certificates_uri=https://github.com/smallstep/certificates
 
-declare -A param=(
-    [username]=step
-    [groupname]=step
-    [provisioner]=step
-    [name]=RevoEdge
-    [fqdn]=$(hostname).local
-    [address]=:14727
-    [template]=init-step-ca.in
-    [logdir]=/var/log/step
-    [password_file]=step-ca.pwd
-    [provisioner_password_file]=provisioner.pwd
-)
-
 : ${STEP_CLI:='/usr/bin/step-cli'}
 : ${STEP_CA:='/usr/bin/step-ca'}
-
-if getent passwd "${param[username]}" >/dev/null; then
-    declare homedir=$(
-        getent passwd "${param[username]}" |
-            awk -F: '{ print $6 }'
-            )
-    : ${STEPPATH:="${homedir}/.step"}
-else
-    : ${STEPPATH:="/home/${param[username]}/.step"}
-fi
 
 source /usr/lib/NetworkManager/ip-funcs
 
@@ -143,7 +120,7 @@ resolve-fqdn ()
         else
 
             # Try mDNS lookup of link-local hostname ...
-            local ll_hostname=$(hostname).local
+            local ll_hostname=$(hostname -s).local
 
             ip=$(dig  -p 5353 @224.0.0.251 "$ll_hostname" +short)
 
@@ -156,7 +133,7 @@ resolve-fqdn ()
             else
 
                 # Use IP 127.0.1.1 (cf. /etc/hosts)
-                argv[fqdn]=$(hostname)
+                argv[fqdn]=$(hostname -s).local
             fi
         fi
     fi
@@ -262,7 +239,7 @@ issue-link-local-certificate ()
 
     sudo -E -u ${argv[username]} provisioner=${argv[provisioner]} \
          STEPPATH=$STEPPATH bash <<'EOF'
-    declare link_local=$(hostname).local
+    declare link_local=$(hostname -s).local
     declare token=$(
         step ca token "$link_local" --issuer "$provisioner" --password-file "$(step path)/secrets/provisioner.pwd"
           )
@@ -271,85 +248,109 @@ issue-link-local-certificate ()
 EOF
 }
 
-declare opts
-declare status
-declare -r short_opts=a:,f:,g:,h,l:,n:,p:,P:,Q:,t:,u:
-declare -r long_opts=address:,fqdn:,group-name:,help,logdir:,provisioner:,password-file:,provisioner-password-file:,template:,user-name:
-
-opts=$(
-    getopt --name "$script_name" --options "$short_opts"  \
-           --longoptions "$long_opts" -- "$@"
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare opts
+    declare status
+    declare -r short_opts=a:,f:,g:,h,l:,n:,p:,P:,Q:,t:,u:
+    declare -r long_opts=address:,fqdn:,group-name:,help,logdir:,provisioner:,password-file:,provisioner-password-file:,template:,user-name:
+    declare -A param=(
+        [username]=step
+        [groupname]=step
+        [provisioner]=step
+        [name]=RevoEdge
+        [fqdn]=$(hostname -s).local
+        [address]=:14727
+        [template]=init-step-ca.in
+        [logdir]=/var/log/step
+        [password_file]=step-ca.pwd
+        [provisioner_password_file]=provisioner.pwd
     )
 
-status=$?
-if (( status != 0 )); then
-    exit $status
+    if getent passwd "${param[username]}" >/dev/null; then
+        declare homedir=$(
+            getent passwd "${param[username]}" |
+                awk -F: '{ print $6 }'
+                )
+        : ${STEPPATH:="${homedir}/.step"}
+    else
+        : ${STEPPATH:="/home/${param[username]}/.step"}
+    fi
+
+    opts=$(
+        getopt --name "$script_name" --options "$short_opts"  \
+               --longoptions "$long_opts" -- "$@"
+        )
+
+    status=$?
+    if (( status != 0 )); then
+        exit $status
+    fi
+
+    eval set -- "$opts"
+
+    while true; do
+        case "$1" in
+            -a|--address)
+                param[address]=$2
+                ;;
+            -f|--fqdn)
+                param[fqdn]=$2
+                ;;
+            -g|--group-name)
+                param[groupname]=$2
+                ;;
+            -h|--help)
+                usage 'param'
+                exit 0
+                ;;
+            -l|--logdir)
+                param[logdir]=$2
+                ;;
+            -n|--name)
+                param[name]=$2
+                ;;
+            -p|--provisioner)
+                param[provisioner]=$2
+                ;;
+            -P|--password-file)
+                param[password_file]=$2
+                ;;
+            -Q|--provisioner-password-file)
+                param[provisioner_password_file]=$2
+                ;;
+            -t|--template)
+                param[template]=$2
+                ;;
+            -u|--username)
+                param[username]=$2
+                if getent passwd "$2" >/dev/null; then
+                    STEPPATH=$(getent passwd "$2" | awk -F: '{ print $6 }')/.step
+                else
+                    STEPPATH=/home/$2/.step
+                fi
+                ;;
+            --)
+                break
+                ;;
+        esac
+        shift 2
+    done
+
+    if test ! -x "$STEP_CLI"; then
+        fetch-and-install-dpkg "$cli_uri"
+    fi
+
+    if test ! -x "$STEP_CA"; then
+        fetch-and-install-dpkg "$certificates_uri"
+    fi
+
+    resolve-fqdn 'param'
+    initialize-step-ca 'param'
+    deploy-step-ca-service 'param'
+    sudo systemctl enable step-ca
+    sudo systemctl start step-ca
+    sudo systemctl daemon-reload
+    issue-link-local-certificate 'param'
+
+    sudo systemctl status step-ca
 fi
-
-eval set -- "$opts"
-
-while true; do
-    case "$1" in
-        -a|--address)
-            param[address]=$2
-            ;;
-        -f|--fqdn)
-            param[fqdn]=$2
-            ;;
-        -g|--group-name)
-            param[groupname]=$2
-            ;;
-        -h|--help)
-            usage 'param'
-            exit 0
-            ;;
-        -l|--logdir)
-            param[logdir]=$2
-            ;;
-        -n|--name)
-            param[name]=$2
-            ;;
-        -p|--provisioner)
-            param[provisioner]=$2
-            ;;
-        -P|--password-file)
-            param[password_file]=$2
-            ;;
-        -Q|--provisioner-password-file)
-            param[provisioner_password_file]=$2
-            ;;
-        -t|--template)
-            param[template]=$2
-            ;;
-        -u|--username)
-            param[username]=$2
-            if getent passwd "$2" >/dev/null; then
-                STEPPATH=$(getent passwd "$2" | awk -F: '{ print $6 }')/.step
-            else
-                STEPPATH=/home/$2/.step
-            fi
-            ;;
-        --)
-            break
-            ;;
-    esac
-    shift 2
-done
-
-if test ! -x "$STEP_CLI"; then
-    fetch-and-install-dpkg "$cli_uri"
-fi
-
-if test ! -x "$STEP_CA"; then
-    fetch-and-install-dpkg "$certificates_uri"
-fi
-
-resolve-fqdn 'param'
-initialize-step-ca 'param'
-deploy-step-ca-service 'param'
-sudo systemctl enable step-ca
-sudo systemctl start step-ca
-sudo systemctl daemon-reload
-issue-link-local-certificate 'param'
-
-sudo systemctl status step-ca

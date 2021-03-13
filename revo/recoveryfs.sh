@@ -395,8 +395,8 @@ protected_install firewalld
 sed -i -e '/^\(FirewallBackend=\).*$/s//\1nftables/' \\
     /etc/firewalld/firewalld.conf
 
+protected_install step-ca
 protected_install step-cli
-protected_install step-certificates
 
 ## ifupdown is superceded by NetworkManager...
 apt -y purge ifupdown

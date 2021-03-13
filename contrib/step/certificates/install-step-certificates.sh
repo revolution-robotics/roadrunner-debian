@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#
+# @(#) install-github-ruby.sh
+#
+# Debianization of a Git repository
+#
+# The following command sequence demonstrates how to Debianize a Git
+# repository. A Debian package for ruby2.7 is created from the Git
+# branch *ruby_2_7* of the
+# [Ruby language repository on GitHub](https://github.com/ruby/ruby).
+
+# At the time of this writing, the HEAD of this branch is between
+# releases 2.7.2 and 2.7.3, so following Debian conventions, the
+# version prefix is 2.7.3-1, to which is appended the commit ID of the
+# branch HEAD (as `~gID').
+
+# To begin, the Debian build system needs a tarball of the upstream
+# sources. This is created with the command `git archive` as follows:
+
+install-prerequisites ()
+{
+    sudo apt update
+    sudo apt install -y devscripts libpcsclite-dev
+    if ! type go &>/dev/null; then
+        sudo apt install -y golang
+    fi
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare BRANCH=master
+    declare GIT_URI=https://github.com/smallstep/certificates.git
+
+    if [[ ! ."$PATH" =~ \..*/go/bin ]]; then
+        export PATH=$HOME/go/bin:$PATH
+    fi
+
+    install-prerequisites
+    rm -rf ./certificates
+    git clone -b "$BRANCH" "$GIT_URI"
+
+    cd ./certificates
+    ed -s Makefile  <<'EOF'
+/^lint/+s;\$Q;# &;
+/^test/+s;\$Q;# &;
+wq
+EOF
+    make bootstrap
+    make debian
+fi

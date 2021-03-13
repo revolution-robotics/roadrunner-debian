@@ -42,14 +42,14 @@ init-step-ca ()
         echo "${argv[password_file]}: File exists; Cannot overwrite"
     else
         install -d -m 0700 "${argv[password_file]%/*}"
-        install -m 0600 <(random-string 20) "${argv[password_file]}"
+        install -m 0600 <(random-string) "${argv[password_file]}"
     fi
 
     if test -f "${argv[provisioner_password_file]}"; then
         echo "${argv[provisioner_password_file]}: File exists; Cannot overwrite"
     else
         install -d -m 0700 "${argv[provisioner_password_file]%/*}"
-        install -m 0600 <(random-string 20) "${argv[provisioner_password_file]}"
+        install -m 0600 <(random-string) "${argv[provisioner_password_file]}"
     fi
 
     step ca init \
@@ -85,13 +85,15 @@ init-step-ca ()
     trap - 0 1 2 15
 }
 
-declare -A param=(
-    [name]="@NAME@"
-    [provisioner]="@PROVISIONER@"
-    [fqdn]="@FQDN@"
-    [address]="@ADDRESS@"
-    [password_file]="@PASSWORD_FILE@"
-    [provisioner_password_file]="@PROVISIONER_PASSWORD_FILE@"
-)
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare -A param=(
+        [name]="@NAME@"
+        [provisioner]="@PROVISIONER@"
+        [fqdn]="@FQDN@"
+        [address]="@ADDRESS@"
+        [password_file]="@PASSWORD_FILE@"
+        [provisioner_password_file]="@PROVISIONER_PASSWORD_FILE@"
+    )
 
-init-step-ca 'param'
+    init-step-ca 'param'
+fi
