@@ -89,7 +89,6 @@ make_debian_recoveryfs ()
         umount -f "${RECOVERYFS_BASE}/dev" 2>/dev/null || true
     }
 
-    trap 'umount_recoveryfs' RETURN
     trap 'umount_recoveryfs; exit' 0 1 2 15
 
     if ! findmnt "${RECOVERYFS_BASE}/proc" >/dev/null; then
@@ -97,8 +96,8 @@ make_debian_recoveryfs ()
     fi
 
     for fs in /sys /dev /dev/pts; do
-        if ! findmnt "${RECOVERYFS_BASE}/${fs}" >/dev/null; then
-            mount -o bind "$fs" "${RECOVERYFS_BASE}/${fs}"
+        if ! findmnt "${RECOVERYFS_BASE}${fs}" >/dev/null; then
+            mount -o bind "$fs" "${RECOVERYFS_BASE}${fs}"
         fi
     done
 
@@ -949,7 +948,6 @@ EOF
 
     umount_recoveryfs
     trap - 0 1 2 15
-    trap - RETURN
 }
 
 # Must be called after make_debian_recoveryfs in main script

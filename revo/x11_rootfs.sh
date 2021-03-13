@@ -90,7 +90,6 @@ make_debian_x11_rootfs ()
         umount -f "${ROOTFS_BASE}/dev" 2>/dev/null || true
     }
 
-    trap 'umount_rootfs' RETURN
     trap 'umount_rootfs; exit' 0 1 2 15
 
     if ! findmnt "${ROOTFS_BASE}/proc" >/dev/null; then
@@ -98,8 +97,8 @@ make_debian_x11_rootfs ()
     fi
 
     for fs in /sys /dev /dev/pts; do
-        if ! findmnt "${ROOTFS_BASE}/${fs}" >/dev/null; then
-            mount -o bind "$fs" "${ROOTFS_BASE}/${fs}"
+        if ! findmnt "${ROOTFS_BASE}${fs}" >/dev/null; then
+            mount -o bind "$fs" "${ROOTFS_BASE}${fs}"
         fi
     done
 
@@ -937,7 +936,6 @@ EOF
 
     umount_rootfs
     trap - 0 1 2 15
-    trap - RETURN
 }
 
 # Must be called after make_debian_x11_rootfs in main script
