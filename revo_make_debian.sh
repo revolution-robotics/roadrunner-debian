@@ -15,7 +15,7 @@ declare -r SCRIPT_NAME=${0##*/}
 # Build recoveryfs from rootfs?
 # Before enabling this, see: contrib/express-recoveryfs/README.md.
 # Must be either: true or false
-declare -r USE_ALT_RECOVERYFS=false
+declare USE_ALT_RECOVERYFS=false
 
 #### Exports Variables ####
 #### global variables ####
@@ -69,7 +69,7 @@ declare G_CROSS_COMPILER_JOPTION="-j $(nproc)"
 #### user rootfs packages ####
 declare -r G_USER_PACKAGES="avahi-daemon bash-completion bc binutils cockpit cockpit-networkmanager cockpit-pcp curl dnsutils git gpiod jq libsystemd-dev lm-sensors lsb-release openvpn network-manager-openvpn pciutils python3-asteval python3-cryptography python3-dateutil python3-libgpiod python3-lxml python3-pip python3-psutil python3-serial python3-websocket python3-websockets python3-zmq screen sqlite3 sudo sysstat systemtap-sdt-dev time tmux traceroute u-boot-tools vim wget wireguard-tools zram-tools"
 
-#### user rootfs packages ####
+#### user recoveryfs packages ####
 declare -r G_USER_MINIMAL_PACKAGES="avahi-daemon bash-completion bc binutils  curl dnsutils git gpiod jq libsystemd-dev lsb-release openvpn network-manager-openvpn pciutils python3-asteval python3-cryptography python3-dateutil python3-libgpiod python3-lxml python3-pip python3-psutil python3-serial python3-websocket python3-websockets python3-zmq sudo time u-boot-tools wget wireguard-tools zram-tools"
 
 # Space-separated list of locales, with default locale first.
@@ -189,8 +189,8 @@ declare -r G_IMAGES_DIR=opt/images/Debian
 ## parse input arguments ##
 declare ARGS
 declare status
-declare -r SHORTOPTS=c:d:hi:j:o:p:
-declare -r LONGOPTS=cmd:,debug,dev:,help,image:,jobs:,output:,proxy:
+declare -r SHORTOPTS=ac:d:hi:j:o:p:
+declare -r LONGOPTS=altrecovery,cmd:,debug,dev:,help,image:,jobs:,output:,proxy:
 
 ARGS=$(
     getopt --name "$SCRIPT_NAME" --options "$SHORTOPTS"  \
@@ -212,6 +212,9 @@ fi
 
 while true; do
     case "$1" in
+        -a|--altrecovery)
+            USE_ALT_RECOVERYFS=true
+            ;;
         -c|--cmd) # script command
             shift
             PARAM_CMD=$1
