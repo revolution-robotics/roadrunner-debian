@@ -22,7 +22,8 @@
 #     See the function `mpip' below for a way of defining of `vm_ipv4'.
 #
 declare script_name=${0##*/}
-declare build_suite_commit=$1
+declare use_alt_recoveryfs=${1:-'false'}
+declare build_suite_commit=$2
 
 # Exit immediately on errors
 set -eE -o pipefail
@@ -315,7 +316,11 @@ fi
 echo "Deploying sources..."
 MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c deploy |& $TEE "/home/ubuntu/${OUTPUT_DIR}/deploy.log"
 echo "Building all..."
-$SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -j "$NPROC" $DEBIAN_PROXY -c all |& $TEE "/home/ubuntu/${OUTPUT_DIR}/all.log"
+if $use_alt_recoveryfs; then
+    $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -a -j "$NPROC" $DEBIAN_PROXY -c all |& $TEE "/home/ubuntu/${OUTPUT_DIR}/all.log"
+else
+    $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -j "$NPROC" $DEBIAN_PROXY -c all |& $TEE "/home/ubuntu/${OUTPUT_DIR}/all.log"
+fi
 echo "Creating disk image..."
 echo | $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage |& $TEE "/home/ubuntu/${OUTPUT_DIR}/diskimage.log"
 echo | $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c usbimage |& $TEE "/home/ubuntu/${OUTPUT_DIR}/usbimage.log"
