@@ -16,7 +16,7 @@ declare -A param=(
     [groupname]=step
     [provisioner]=step
     [name]=RevoEdge
-    [fqdn]=$(hostname).local
+    [fqdn]=$(hostname -s).local
     [address]=:14727
     [template]=init-step-ca.in
     [logdir]=/var/log/step
@@ -143,7 +143,7 @@ resolve-fqdn ()
         else
 
             # Try mDNS lookup of link-local hostname ...
-            local ll_hostname=$(hostname).local
+            local ll_hostname=$(hostname -s).local
 
             ip=$(dig  -p 5353 @224.0.0.251 "$ll_hostname" +short)
 
@@ -156,7 +156,7 @@ resolve-fqdn ()
             else
 
                 # Use IP 127.0.1.1 (cf. /etc/hosts)
-                argv[fqdn]=$(hostname)
+                argv[fqdn]=$(hostname -s).local
             fi
         fi
     fi
@@ -262,7 +262,7 @@ issue-link-local-certificate ()
 
     sudo -E -u ${argv[username]} provisioner=${argv[provisioner]} \
          STEPPATH=$STEPPATH bash <<'EOF'
-    declare link_local=$(hostname).local
+    declare link_local=$(hostname -s).local
     declare token=$(
         step ca token "$link_local" --issuer "$provisioner" --password-file "$(step path)/secrets/provisioner.pwd"
           )
