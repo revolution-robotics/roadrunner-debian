@@ -303,7 +303,9 @@ $SUDO $APT install -qy binutils-arm-linux-gnueabihf |& $TEE -a "/home/ubuntu/${O
 $SUDO $APT install -qy cpp-arm-linux-gnueabihf |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
 $SUDO $APT install -qy gcc-arm-linux-gnueabihf |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
 $SUDO $APT install -qy g++-arm-linux-gnueabihf |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
-$CURL -sL https://ftp-master.debian.org/keys/release-10.asc | $SUDO $APT_KEY add
+$CURL -sL https://ftp-master.debian.org/keys/release-10.asc |
+    $SUDO $GPG --import --no-default-keyring \\
+        --keyring /usr/share/keyrings/debian-buster-release.gpg
 echo "Cloning build suite..."
 $GIT init |& $TEE "/home/ubuntu/${OUTPUT_DIR}/git.log"
 $GIT remote add origin https://github.com/revolution-robotics/roadrunner-debian.git |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/git.log"

@@ -69,14 +69,14 @@ make_debian_recoveryfs ()
     pr_info "Make debian(${DEB_RELEASE}) recoveryfs start..."
 
     # umount previus mounts (if fail)
-    umount -f "${RECOVERYFS_BASE}/"{sys,proc,dev/pts,dev} 2>/dev/null || true
+    umount -f "${RECOVERYFS_BASE}"/{sys,proc,dev/pts,dev} 2>/dev/null || true
 
     # clear recoveryfs dir
-    rm -rf "${RECOVERYFS_BASE}/"*
+    rm -rf "${RECOVERYFS_BASE}"/*
 
     pr_info "recoveryfs: debootstrap"
     debootstrap --variant=minbase --verbose  --foreign --arch armhf \
-                --keyring='/etc/apt/trusted.gpg' \
+                --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
                 "${DEB_RELEASE}" "${RECOVERYFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
 
     # prepare qemu
@@ -85,7 +85,7 @@ make_debian_recoveryfs ()
 
     umount_recoveryfs ()
     {
-        umount -f "${RECOVERYFS_BASE}/"{sys,proc,dev/pts,dev} 2>/dev/null || true
+        umount -f "${RECOVERYFS_BASE}"/{sys,proc,dev/pts,dev} 2>/dev/null || true
         umount -f "${RECOVERYFS_BASE}/dev" 2>/dev/null || true
     }
 
