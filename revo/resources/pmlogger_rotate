@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+#
+# @(#) pmlogger_rotate
+#
+# Remove pmlogger archives older than $MAX_AGE.
+#
+source /etc/pcp.conf
+
+: ${AWK:='/usr/bin/awk'}
+: ${FIND:='/usr/bin/find'}
+: ${PMLOGGER:="${PCP_RC_DIR}/pmlogger"}
+
+# -715 minutes = 11 hours 55 minutes old
+declare MAX_AGE='-715 minutes'
+
+cap-pmlogger-history ()
+{
+    # $PMLOGGER status does not return if not running...
+    # declare status=$($PMLOGGER status | $AWK '{ print $NF }')
+    # if test ."$status" = .'running'; then
+        $PMLOGGER stop
+        $FIND "${PCP_LOG_DIR}/pmlogger/${HOSTNAME}" -name '[0-9]*' \
+             ! -newermt "$MAX_AGE" -delete
+        $PMLOGGER start
+    # fi
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    cap-pmlogger-history
+fi

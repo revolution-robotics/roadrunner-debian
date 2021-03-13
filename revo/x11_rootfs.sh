@@ -753,6 +753,7 @@ EOF
     pr_info "rootfs: begin startup patches"
 
     install -m 0644 "${G_VENDOR_PATH}/issue" "${ROOTFS_BASE}/etc/"
+    cat /dev/null >"${ROOTFS_BASE}/etc/motd"
     install -m 0755 "${G_VENDOR_PATH}/resources/rc.local" "${ROOTFS_BASE}/etc/"
     install -m 0644 "${G_VENDOR_PATH}/resources/hostapd.conf" \
             "${ROOTFS_BASE}/etc/"
@@ -844,7 +845,13 @@ EOF
     ln -sf /dev/null "${ROOTFS_BASE}/etc/systemd/system/e2scrub_reap.service"
 
     # Enable sysstat data collection
-    sed -i 's;^\(ENABLED=\).*;\1"true";' "${ROOTFS_BASE}/etc/default/sysstat"
+    sed -i -e 's;^\(ENABLED=\).*;\1"true";' "${ROOTFS_BASE}/etc/default/sysstat"
+
+    # Keep 12 hours of pmlogger logs.
+    install -m 0755 "${G_VENDOR_PATH}/resources/pmlogger_rotate" \
+            "${ROOTFS_BASE}/usr/lib/pcp/bin"
+    printf "30 */6\t* * *\troot\t/usr/lib/pcp/bin/pmlogger_rotate\n" \
+           >>"${ROOTFS_BASE}/etc/crontab"
 
     ## post-packages command
     cat >"${ROOTFS_BASE}/post-packages" <<EOF

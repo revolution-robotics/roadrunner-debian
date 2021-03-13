@@ -762,6 +762,7 @@ EOF
     pr_info "recoveryfs: begin startup patches"
 
     install -m 0644 "${G_VENDOR_PATH}/issue" "${RECOVERYFS_BASE}/etc/"
+    cat /dev/null >"${RECOVERYFS_BASE}/etc/motd"
     install -m 0755 "${G_VENDOR_PATH}/resources/rc.local" \
             "${RECOVERYFS_BASE}/etc/"
     install -m 0644 "${G_VENDOR_PATH}/resources/hostapd.conf" \
@@ -855,7 +856,13 @@ EOF
     ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_reap.service"
 
     # Enable sysstat data collection
-    sed -i 's;^\(ENABLED=\).*;\1"true";' "${RECOVERYFS_BASE}/etc/default/sysstat"
+    sed -i -e 's;^\(ENABLED=\).*;\1"true";' "${RECOVERYFS_BASE}/etc/default/sysstat"
+
+    # Keep 12 hours of pmlogger logs.
+    install -m 0755 "${G_VENDOR_PATH}/resources/pmlogger_rotate" \
+            "${RECOVERYFS_BASE}/usr/lib/pcp/bin"
+    printf "30 */6\t* * *\troot\t/usr/lib/pcp/bin/pmlogger_rotate" \
+           >>"${RECOVERYFS_BASE}/etc/crontab"
 
     ## post-packages command
     cat >"${RECOVERYFS_BASE}/post-packages" <<EOF
