@@ -248,6 +248,21 @@ issue-link-local-certificate ()
 EOF
 }
 
+issue-fqdn-certificate ()
+{
+    local -n argv=$1
+
+    set -x
+    sudo -E -u ${argv[username]} fqdn=${argv[fqdn]} provisioner=${argv[provisioner]} \
+         STEPPATH=$STEPPATH bash <<'EOF'
+    declare token=$(
+        step ca token "$fqdn" --issuer "$provisioner" --password-file "$(step path)/secrets/provisioner.pwd"
+          )
+    eval cd ~$USER
+    step ca certificate "$fqdn" "${fqdn}.crt" "${fqdn}.key" --token "$token"
+EOF
+}
+
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare opts
     declare status
@@ -351,6 +366,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     sudo systemctl start step-ca
     sudo systemctl daemon-reload
     issue-link-local-certificate 'param'
+    issue-fqdn-certificate 'param'
 
     sudo systemctl status step-ca
 fi
