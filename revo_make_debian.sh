@@ -395,7 +395,7 @@ make_tarball ()
         pr_info "Create $2"
 
         rm -f root/.bash_history
-        tar -zcf "$2" --exclude '*~' . || {
+        tar -zcf "$2" --sort=name --exclude '*~' . || {
             rm -f "$2"
             exit 1
         }
