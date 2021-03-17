@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# @(#) certbot-manual.sh
+# @(#) certbot-manual
 #
 # This script issues a manual TLS certificate signing request to Let's
 # Encrypt for a primary domain and, optionally, its wildcard
@@ -8,11 +8,12 @@
 # placed under /etc/letsencrypt/live/${primary_domain}/. In
 # particular, servers will typically use:
 #
-# /etc/letsencrypt/live/revotics.slewsys.org/fullchain.pem
+#     /etc/letsencrypt/live/revo.io/fullchain.pem
 #
 #
-# As part It solicits a DNS challenge to confirm domain ownership.  Let's Encrypt
-# prompts for two DNS TXT records to be published under the primary domain.
+# As part It solicits a DNS challenge to confirm domain ownership.
+# Let's Encrypt prompts for two DNS TXT records to be published under
+# the primary domain.
 #
 # The result is TXT records in the BIND9 data base for the primary
 # domain along the lines of:
@@ -24,7 +25,7 @@
 #    $ sudo rndc reload
 #
 declare email=slewsys@icloud.com
-declare primary_domain=revotics.slewsys.org
+declare primary_domain=revo.io
 declare include_wildcard_subdomains=false
 declare dry_run=false
 

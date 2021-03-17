@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#
+# @(#) remove-step-ca
+#
+# This script attempts to remove files and settings created by
+# `install-step-ca'.
+#
+if systemctl is-active --quiet step-ca; then
+    systemctl stop step-ca
+    systemctl disable step-ca
+fi
+rm -f /lib/systemd/system/step-ca.service
+if getent passwd step >/dev/null; then
+    userdel step
+fi
+rm -rf /home/step/
+sed -i -e '/step/d' /lib/tmpfiles.d/var-log.conf
+sed -i -e "/^#$/,/$(hostname).local/d" /etc/hosts
+rm -f /etc/logrotate.d/step
+rm -rf /var/log/step
+if test -d "${HOME}/.step"; then
+    echo "Maybe delete ${HOME}/.step"
+fi
