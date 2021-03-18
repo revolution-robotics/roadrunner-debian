@@ -119,7 +119,6 @@ resolve-fqdn ()
 
             # Update /etc/hosts with link-local record
             sudo sed -i -e "\$a #\n# local hosts\n$ip\t${argv[fqdn]}" /etc/hosts
-            set +x
         else
 
             # Try mDNS lookup of link-local hostname ...
@@ -241,15 +240,19 @@ issue-link-local-certificate ()
     local -n argv=$1
 
     sudo -E -u ${argv[username]} provisioner=${argv[provisioner]} \
-         STEPPATH=$STEPPATH STEP_CLI=$STEP_CLI bash <<'EOF'
+         STEPPATH=$STEPPATH STEP_CLI=$STEP_CLI bash -s <<'EOF'
+years () {
+    echo "$(( ($(date -d "$1 years" +%s) - $(date +%s)) / 3600 ))h"
+}
+
 declare link_local=$(hostname -s).local
 declare token=$(
-    $STEP_CLI ca token "$link_local" --issuer "$provisioner" \\
+    $STEP_CLI ca token "$link_local" --issuer "$provisioner" \
     --password-file "$(step path)/secrets/provisioner.pwd"
       )
 eval cd ~$USER
-$STEP_CLI ca certificate "$link_local" "${link_local}.crt" \\
-    "${link_local}.key" --token "$token"
+$STEP_CLI ca certificate "$link_local" "${link_local}.crt" \
+    "${link_local}.key" --not-after "$(years 10)" --token "$token"
 EOF
 }
 
@@ -257,16 +260,20 @@ issue-fqdn-certificate ()
 {
     local -n argv=$1
 
-    set -x
     sudo -E -u ${argv[username]} fqdn=${argv[fqdn]} \
          provisioner=${argv[provisioner]} \
-         STEPPATH=$STEPPATH STEP_CLI=$STEP_CLI bash <<'EOF'
+         STEPPATH=$STEPPATH STEP_CLI=$STEP_CLI bash -s <<'EOF'
+years () {
+    echo "$(( ($(date -d "$1 years" +%s) - $(date +%s)) / 3600 ))h"
+}
+
 declare token=$(
-    $STEP_CLI ca token "$fqdn" --issuer "$provisioner" \\
+    $STEP_CLI ca token "$fqdn" --issuer "$provisioner" \
     --password-file "$(step path)/secrets/provisioner.pwd"
       )
 eval cd ~$USER
-$STEP_CLI ca certificate "$fqdn" "${fqdn}.crt" "${fqdn}.key" --token "$token"
+$STEP_CLI ca certificate "$fqdn" "${fqdn}.crt" "${fqdn}.key" \
+    --not-after "$(years 10)" --token "$token"
 EOF
 }
 
@@ -384,8 +391,8 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
 fi
 
 # **** BEGIN patch ****
-# --- init-step-ca.in	2021-03-15 19:13:22.050211428 -0400
-# +++ /dev/null	2021-03-13 15:12:11.186395129 -0500
+# --- init-step-ca.in~	1969-12-31 19:00:00.000000000 -0500
+# +++ init-step-ca.in	2021-03-18 03:03:36.168245254 -0400
 # @@ -0,0 +1,99 @@
 # +#!/usr/bin/env bash
 # +#
@@ -465,7 +472,7 @@ fi
 # +
 # +    trap 'rm -rf "$tmpfile"; exit' 0 1 2 15
 # +
-# +    jq '.db = { "type" : "badgerV2", "dataSource" : '"$data_source"', "badgerFileLoadingMode" : "FileIO" }' < "$(step path)/config/ca.json" >"$tmpfile"
+# +    jq '.db = { "type" : "badgerV2", "dataSource" : '"$data_source"', "badgerFileLoadingMode" : "FileIO" } | .authority += { claims: { maxTLSCertDuration: "175320h", defaultTLSCertDuration: "1h" } }' < "$(step path)/config/ca.json" >"$tmpfile"
 # +
 # +    mv "$(step path)/config/ca.json"{,~}
 # +    install -m 0644 "$tmpfile" "$(step path)/config/ca.json"

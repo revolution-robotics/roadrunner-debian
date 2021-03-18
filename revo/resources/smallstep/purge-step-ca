@@ -6,18 +6,27 @@
 # `install-step-ca'.
 #
 if systemctl is-active --quiet step-ca; then
-    systemctl stop step-ca
-    systemctl disable step-ca
+    sudo systemctl stop step-ca
+    sudo systemctl disable step-ca
 fi
-rm -f /lib/systemd/system/step-ca.service
+sudo rm -f /lib/systemd/system/step-ca.service
 if getent passwd step >/dev/null; then
-    userdel step
+    sudo userdel step
 fi
-rm -rf /home/step/
-sed -i -e '/step/d' /lib/tmpfiles.d/var-log.conf
-sed -i -e "/^#$/,/$(hostname).local/d" /etc/hosts
-rm -f /etc/logrotate.d/step
-rm -rf /var/log/step
+fs=$(mount | grep ' /home/step ' | awk '{ print $1 }')
+if test ."$fs" != .''; then
+    sudo zfs destroy "$fs"
+else
+    sudo rm -rf /home/step/
+fi
+if test -f '/lib/tmpfiles.d/var-log.conf'; then
+    sudo sed -i -e '/step/d' /lib/tmpfiles.d/var-log.conf
+fi
+if grep -q "$(hostname -s).local" /etc/hosts; then
+    sudo sed -i -e "/^#$/,/$(hostname -s).local/d" /etc/hosts
+fi
+sudo rm -f /etc/logrotate.d/step
+sudo rm -rf /var/log/step
 if test -d "${HOME}/.step"; then
     echo "Maybe delete ${HOME}/.step"
 fi

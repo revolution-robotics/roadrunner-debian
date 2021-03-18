@@ -76,7 +76,7 @@ init-step-ca ()
 
     trap 'rm -rf "$tmpfile"; exit' 0 1 2 15
 
-    jq '.db = { "type" : "badgerV2", "dataSource" : '"$data_source"', "badgerFileLoadingMode" : "FileIO" }' < "$(step path)/config/ca.json" >"$tmpfile"
+    jq '.db = { "type" : "badgerV2", "dataSource" : '"$data_source"', "badgerFileLoadingMode" : "FileIO" } | .authority += { claims: { maxTLSCertDuration: "175320h", defaultTLSCertDuration: "8760h" } }' < "$(step path)/config/ca.json" >"$tmpfile"
 
     mv "$(step path)/config/ca.json"{,~}
     install -m 0644 "$tmpfile" "$(step path)/config/ca.json"
