@@ -6,16 +6,24 @@
 # `step-certificates' on Ubuntu x86_64. On both x86_64 and Arm
 # architectures, step-ca is initialized.
 #
+# Exit immediately on error.
+set -e -o pipefail
+
 declare script_name=${0##*/}
 declare script_dir=$(readlink -e "$0")
 
 script_dir=${script_dir%/*}
 
-declare cli_uri=https://github.com/smallstep/cli
-declare certificates_uri=https://github.com/smallstep/certificates
-
-: ${STEP_CLI:='/usr/bin/step-cli'}
+: ${STEP_CLI:='/usr/bin/step'}
 : ${STEP_CA:='/usr/bin/step-ca'}
+
+if test ! -f /usr/lib/NetworkManager/ip-funcs; then
+    cd /usr/lib/NetworkManager && {
+        sudo curl -C - -LO https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_buster_rr01/revo/resources/NetworkManager/usr/lib/NetworkManager/ip-funcs
+        sudo chmod 644 ip-funcs
+        cd -
+    }
+fi
 
 source /usr/lib/NetworkManager/ip-funcs
 
@@ -75,27 +83,55 @@ get-current-tag ()
     #     v0.14.2
     #     v0.14.3
     git ls-remote --tags "$uri" |
-        grep -v -- '-rc\.' |
+        grep -v -- '-rc[-.0-9]*' |
         sed 's;.*refs/tags/;;' |
         sort --version-sort -k1.2 |
         tail -1
 }
 
-fetch-and-install-dpkg ()
+fetch-and-install-step-pkg ()
 {
     local uri=$1
 
+    local pkg
     local tag=$(get-current-tag "$uri")
-    local debian_pkg=step-${uri##*/}_${tag#v}_amd64.deb
+    local extension=${uri##*/}
+    local machine=amd64
+
+    if test ."$extension" = .'certificates'; then
+        extension=-ca
+    else
+        extension=''
+    fi
+
+    if test ."$(uname --machine)" = .'armv7l'; then
+        machine=armv7
+    fi
+
+    if test -f /etc/fedora-release -o -f /etc/centos-release; then
+        pkg=step${extension}_linux_${tag#v}_${machine}.tar.gz
+    else
+        pkg=step${extension}_${tag#v}_${machine}.deb
+    fi
 
     local tmpdir=$(mktemp -d "/tmp/${FUNCNAME[0]}.XXXXX")
 
     trap 'rm -rf "$tmpdir"; exit' 0 1 2 15
 
     cd "$tmpdir"
-    curl -C - -LO "${uri}/releases/download/${tag}/${debian_pkg}"
-    sudo apt install "./${debian_pkg}"
-    cd "$OLDPWD"
+    curl -C - -LO "${uri}/releases/download/${tag}/${pkg}"
+
+    if test -f /etc/fedora-release -o -f /etc/centos-release; then
+        tar --strip-components=1 -zxf "./${pkg}"
+        sudo install -m 0755 ./bin/* /usr/bin/
+        if test -d "./autocomplete"; then
+            sudo install -m 0644 autocomplete/bash* /usr/share/bash-completion/completions
+        fi
+    else
+        sudo apt install "./${pkg}"
+    fi
+
+    cd -
 
     rm -rf "$tmpdir"
     trap - 0 1 2 15
@@ -152,6 +188,13 @@ initialize-step-ca ()
     if ! getent passwd "${argv[username]}" >/dev/null; then
         sudo useradd -g "${argv[groupname]}" -c 'Smallstep CA' -m \
              -s /bin/bash "${argv[username]}"
+
+        # Add $USER to group "${argv[username]}".
+        sudo usermod -aG "${argv[username]}" "$USER"
+
+        local homedir=$(getent passwd "${argv[username]}" | cut -d: -f6)
+
+        sudo chmod 750 "$homedir"
     fi
 
 
@@ -280,6 +323,8 @@ EOF
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare opts
     declare status
+    declare cli_uri=https://github.com/smallstep/cli
+    declare certificates_uri=https://github.com/smallstep/certificates
     declare -r short_opts=a:,f:,g:,h,l:,n:,p:,P:,Q:,t:,u:
     declare -r long_opts=address:,fqdn:,group-name:,help,logdir:,provisioner:,password-file:,provisioner-password-file:,template:,user-name:
     declare -A param=(
@@ -287,7 +332,11 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
         [groupname]=step
         [provisioner]=step
         [name]=RevoEdge
-        [fqdn]=$(hostname -s).local
+        [fqdn]=$(
+            test ."$(hostname -s)" = ."$(hostname --fqdn)" &&
+                echo "$(hostname -s).local" ||
+                    echo "$(hostname --fqdn)"
+              )
         [address]=:14727
         [template]=init-step-ca.in
         [logdir]=/var/log/step
@@ -371,11 +420,11 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     fi
 
     if test ! -x "$STEP_CLI"; then
-        fetch-and-install-dpkg "$cli_uri"
+        fetch-and-install-step-pkg "$cli_uri"
     fi
 
     if test ! -x "$STEP_CA"; then
-        fetch-and-install-dpkg "$certificates_uri"
+        fetch-and-install-step-pkg "$certificates_uri"
     fi
 
     resolve-fqdn 'param'
@@ -399,7 +448,7 @@ fi
 # +# This script initializes the step CA.
 # +
 # +# Exit immediately on error.
-# +set -e
+# +set -e -o pipefail
 # +
 # +# Return uniformly distributed random integer in the range [0,$bound).
 # +random-integer ()
