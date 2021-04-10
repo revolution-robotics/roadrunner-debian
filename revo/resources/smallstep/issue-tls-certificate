@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+#
+# @(#) issue-tls-certificate
+#
+declare script_name=${0##*/}
+
+: ${BASH:='/bin/bash'}
+: ${CHMOD:='/bin/chmod'}
+: ${DIG:='/usr/bin/dig'}
+: ${GETOPT:='/usr/bin/getopt'}
+: ${GETENT:='/usr/bin/getent'}
+: ${HOSTNAME_CMD:='/bin/hostname'}
+: ${SED:='/bin/sed'}
+: ${STEP_CLI:='/usr/bin/step'}
+: ${STEP_CA:='/usr/bin/step-ca'}
+: ${SUDO:='/usr/bin/sudo'}
+
+source /usr/lib/NetworkManager/ip-funcs
+
+usage ()
+{
+    local -n argv=$1
+
+    cat <<EOF
+Usage: $script_name OPTIONS
+where OPTIONS are:
+  -c|--ca-url=URL
+             Certificate authority URL.
+             (default: ${argv[ca_url]})
+  -d|--duration=TIME|DURATION
+             Set certificate duration in either TIME format per
+             RFC 3339, e.g.,
+               2022-03-18T09:26:12+00:00
+             or DURATION as integer optionally suffixed with one of
+             the time units: ns, us (μs), ms, s, m, h.
+             (default: ${argv[duration]})
+  -h|--help  Display help, then exit.
+  -f|--fqdn=HOSTNAME
+             Set certificate Common Name (fully qualified domain name).
+             (default: ${argv[fqdn]})
+  -p|--provisioner=NAME
+             Set name of certificate authority JWK provisioner.
+             (default: ${argv[provisioner]})
+  -Q|--provisioner-password-file=PATHNAME
+             Set name of file containing provisioner password.
+             (default: ${STEPPATH}/secrets/${argv[provisioner_password_file]})
+  -r|--root=PATHNAME
+             Set name of CA root certificate.
+             (default: ${HOME}/.step/certs/root_ca.crt)
+  -u|--user-name=NAME
+             Name of certificate authority owner.
+             (default: ${argv[username]})
+EOF
+}
+
+resolve-fqdn ()
+{
+    local -n argv=$1
+
+    # Try DNS lookup of our IP ...
+    local ip=$($DIG "${argv[fqdn]}" +short)
+
+    # If DNS unavailable ...
+    if test ."$ip" = .''; then
+
+        # Try mDNS ...
+        ip=$($DIG  -p 5353 @224.0.0.251 "${argv[fqdn]}" +short)
+
+        # If mDNS available ...
+        if test ."$ip" != '' && is-dotted-quad "$ip"; then
+
+            # Update /etc/hosts with link-local record
+            $SUDO $SED -i -e "\$a #\n# local hosts\n$ip\t${argv[fqdn]}" \
+                  /etc/hosts
+            set +x
+        else
+            echo "$script_name: ${argv[fqdn]}: WARNING: Host not reachable" >&2
+        fi
+    fi
+}
+
+generate-tls-certificate ()
+{
+    local -n argv=$1
+
+    $SUDO -E -u "${argv[username]}" fqdn="${argv[fqdn]}" \
+         ca_url="${argv[ca_url]}" provisioner="${argv[provisioner]}" \
+         provisioner_password_file="${argv[provisioner_password_file]}" \
+         duration="${argv[duration]}" STEPPATH=$STEPPATH  \
+         STEP_CLI=$STEP_CLI CHMOD=$CHMOD $BASH -s <<'EOF'
+declare token=$(
+    $STEP_CLI ca token "$fqdn" --issuer "$provisioner" \
+    --password-file "$($STEP_CLI path)/secrets/${provisioner_password_file}"
+        )
+eval cd ~$USER
+$STEP_CLI ca certificate "$fqdn" "${fqdn}.crt" "${fqdn}.key" \
+    --token "$token" --not-after "$duration" --ca-url "$ca_url" &&
+    $CHMOD 640 "${fqdn}.crt" "${fqdn}.key"
+EOF
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare opts
+    declare status
+    declare -r short_opts=c:,d:,f:,h,p:,Q:,r:,u:
+    declare -r long_opts=ca-url:,duration:,fqdn:,help,provisioner:,provisioner-password-file:,root:,user-name:
+    declare -A param=(
+        [username]=step
+        [ca_url]=https://ca.revoio.slewsys.org:14727
+        [root]=/home/step/.step/certs/root_ca.crt
+        [fqdn]=$($HOSTNAME_CMD --fqdn)
+        [provisioner]=step
+        [provisioner_password_file]=provisioner.pwd
+        [duration]=1h
+    )
+
+    opts=$(
+        $GETOPT --name "$script_name" --options "$short_opts"  \
+               --longoptions "$long_opts" -- "$@"
+        )
+
+    status=$?
+    if (( status != 0 )); then
+        exit $status
+    fi
+
+    eval set -- "$opts"
+
+    while true; do
+        case "$1" in
+            -c|--ca-url)
+                param[ca_url]=$2
+                ;;
+            -d|--duration)
+                param[duration]=$2
+                ;;
+            -f|--fqdn)
+                param[fqdn]=$2
+                ;;
+            -h|--help)
+                usage 'param'
+                exit 0
+                ;;
+            -p|--provisioner)
+                param[provisioner]=$2
+                ;;
+            -Q|--provisioner-password-file)
+                param[provisioner_password_file]=$2
+                ;;
+            -r|--root)
+                param[root]=$2
+                ;;
+            -u|--username)
+                param[username]=$2
+                ;;
+            --)
+                break
+                ;;
+        esac
+        shift 2
+    done
+
+    if $GETENT passwd "${param[username]}" >/dev/null; then
+        : ${STEPPATH:="$($SUDO -u ${param[username]} $STEP_CLI path)"}
+    else
+        echo "$script_name: ${param[username]}: No such user"
+        exit 1
+    fi
+    if test ."$($SUDO -u ${param[username]} $STEP_CLI ca health)" != .'ok'; then
+        echo "$script_name: step CA not reachable"
+        exit 1
+    fi
+
+    resolve-fqdn 'param'
+    generate-tls-certificate 'param'
+fi
