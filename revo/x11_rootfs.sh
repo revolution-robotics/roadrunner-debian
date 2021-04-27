@@ -753,7 +753,7 @@ EOF
     # rootfs startup patches
     pr_info "rootfs: begin startup patches"
 
-    install -m 0644 "${G_VENDOR_PATH}/issue"/{,.net} "${ROOTFS_BASE}/etc/"
+    install -m 0644 "${G_VENDOR_PATH}/issue"{,.net} "${ROOTFS_BASE}/etc/"
     cat /dev/null >"${ROOTFS_BASE}/etc/motd"
     install -m 0755 "${G_VENDOR_PATH}/resources/rc.local" "${ROOTFS_BASE}/etc/"
     install -m 0644 "${G_VENDOR_PATH}/resources/hostapd.conf" \

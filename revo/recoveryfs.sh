@@ -762,7 +762,7 @@ EOF
     # recoveryfs startup patches
     pr_info "recoveryfs: begin startup patches"
 
-    install -m 0644 "${G_VENDOR_PATH}/issue"/{,.net} "${RECOVERYFS_BASE}/etc/"
+    install -m 0644 "${G_VENDOR_PATH}/issue"{,.net} "${RECOVERYFS_BASE}/etc/"
     cat /dev/null >"${RECOVERYFS_BASE}/etc/motd"
     install -m 0755 "${G_VENDOR_PATH}/resources/rc.local" \
             "${RECOVERYFS_BASE}/etc/"
