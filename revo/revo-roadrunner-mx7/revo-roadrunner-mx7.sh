@@ -57,6 +57,6 @@ declare -r G_REVO_WEB_DISPATCH_REV="6aa8f314b80f515309a18840dc2f8c5591c8e9c8"
 declare -r G_UBI_FILE_NAME='rootfs.ubi.img'
 
 # Node version and user
-declare -r NODE_BASE=v14
+declare -r NODE_BASE=14.
 declare -r NODE_GROUP=revo
 declare -r NODE_USER=revo

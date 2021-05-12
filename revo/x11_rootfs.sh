@@ -129,7 +129,7 @@ make_debian_x11_rootfs ()
     echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > "${ROOTFS_BASE}/etc/sudoers.d/revo"
     chmod 0440 "${ROOTFS_BASE}/etc/sudoers.d/revo"
 
-    for pkg in smallstep firewalld iptables libedit libnftnl nftables; do
+    for pkg in smallstep firewalld iptables libcurl libedit libnftnl nftables; do
         install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
            "${ROOTFS_BASE}/srv/local-apt-repository"
     done
@@ -248,6 +248,7 @@ protected_install dialog
 ## Replace mawk with gawk.
 protected_install gawk
 apt -y purge mawk
+
 # END -- REVO i.MX7D: additions
 
 ## Host a local disk-based Debian repository...
@@ -260,6 +261,12 @@ protected_install local-apt-repository
 ## Update packages and install base.
 apt update
 apt -y full-upgrade
+
+# Downgrade libcurl3-gnutls from 7.74.0-1.2~bpo10+1 to 7.64.0-4+deb10u2.
+apt install libcurl3-gnutls=7.64.0-4+deb10u2 <<<'y'
+
+# Freeze libcurl3-gnutls version.
+dpkg --set-selections <<<'libcurl3-gnutls hold'
 
 protected_install locales
 
@@ -742,6 +749,8 @@ pip3 install minimalmodbus
 pip3 install pystemd
 pip3 install pytz
 
+update-ca-certificates
+
 rm -f /user-stage
 EOF
 
@@ -812,11 +821,11 @@ EOF
 
     # BEGIN -- REVO i.MX7D post-packages stage
     # Run curl with system root certificates file.
-    pr_info "rootfs: begin late packages"
+    # pr_info "rootfs: begin late packages"
 
-    mv "${ROOTFS_BASE}/usr/bin/curl"{,.dist}
-    install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
-            "${ROOTFS_BASE}/usr/bin/curl"
+    # mv "${ROOTFS_BASE}/usr/bin/curl"{,.dist}
+    # install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
+    #         "${ROOTFS_BASE}/usr/bin/curl"
 
     # Install node installation script.
     install -m 0755 "${G_VENDOR_PATH}/resources/nodejs/install-node-lts" \

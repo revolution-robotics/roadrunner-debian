@@ -31,44 +31,49 @@ if ! $GETENT passwd "$NODE_USER" >/dev/null 2>&1; then
     $SUDO $USERADD -m -g "$NODE_GROUP" -s "$BASH" -c "Node User" "$NODE_USER"
 fi
 
-$CAT <<EOF | $SUDO  -u "$NODE_USER" $BASH -s
-if test ! -f "\${HOME}/.nvm/nvm.sh"; then
+set -x
+declare homedir=$($GETENT passwd "$NODE_USER" | $AWK -F: '{ print $6 }')
 
-    # Install latest nvm release.
-    tag=\$(
-        $GIT ls-remote --tags https://github.com/nvm-sh/nvm |
-            $GREP -v '{}' |
-            $SED 's;.*refs/tags/;;' |
-            $SORT -V -k1.2 |
-            $TAIL -1
-       )
+clone_asdf_repo ()
+{
+    echo "Cloning..."
+    $CAT <<EOF | $SUDO  -u "$NODE_USER" $BASH -s
+git clone https://github.com/asdf-vm/asdf.git ~/.asdf || true
+EOF
+    echo "Done cloning..."
+}
 
-    $CURL -C - -L https://raw.githubusercontent.com/nvm-sh/nvm/\${tag}/install.sh | $BASH -s
-fi
+init_asdf_in_bashrc ()
+{
+    echo "Appending to bashrc..."
+    $CAT >>"${homedir}/.bashrc" <<'EOF'
 
-export NVM_DIR="\${HOME}/.nvm"
-
-if test -f "\${NVM_DIR}/nvm.sh"; then
-    source "\${NVM_DIR}/nvm.sh"
-fi
-
-if test -f "\${NVM_DIR}/bash_completion"; then
-    source "\${NVM_DIR}/bash_completion"
-fi
-
-current_version=\$(nvm current)
-
-latest_version_in_series=\$(
-    nvm ls-remote "$NODE_BASE" --no-colors |
-        $SED -e 's/->//' |
-        $AWK '{ print \$1 }' |
-        $SORT -V -k1.2 |
-        $TAIL -1
-   )
-
-if test ."\$current_version" != ."\$latest_version_in_series"; then
-   nvm install "\$latest_version_in_series" --latest-npm --alias=default
-   nvm use default
-   npm install -g yarn
+# Initialize asdf version manager.
+export ASDF_DIR=~/.asdf
+if test -f "${ASDF_DIR}/asdf.sh"; then
+    source "${ASDF_DIR}/asdf.sh"
+    source "${ASDF_DIR}/completions/asdf.bash"
 fi
 EOF
+}
+
+install_node ()
+{
+    echo "Installing node..."
+    $CAT <<EOF | $SUDO -i -u "$NODE_USER" $BASH -s
+export ASDF_DIR=~/.asdf
+if test -f "\${ASDF_DIR}/asdf.sh"; then
+    . "\${ASDF_DIR}/asdf.sh"
+    if type asdf >/dev/null 2>&1; then
+        asdf plugin add nodejs
+        node_lts=\$(asdf latest nodejs "$NODE_BASE")
+        asdf install nodejs "\$node_lts"
+        asdf global  nodejs "\$node_lts"
+    fi
+fi
+EOF
+}
+
+clone_asdf_repo
+init_asdf_in_bashrc
+install_node
