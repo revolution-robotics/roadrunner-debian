@@ -31,7 +31,6 @@ if ! $GETENT passwd "$NODE_USER" >/dev/null 2>&1; then
     $SUDO $USERADD -m -g "$NODE_GROUP" -s "$BASH" -c "Node User" "$NODE_USER"
 fi
 
-set -x
 declare homedir=$($GETENT passwd "$NODE_USER" | $AWK -F: '{ print $6 }')
 
 clone_asdf_repo ()

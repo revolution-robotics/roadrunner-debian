@@ -922,6 +922,9 @@ EOF
     # Limit kernel messages to the console.
     sed -i -e '/^#kernel.printk/s/^#*//' "${ROOTFS_BASE}/etc/sysctl.conf"
 
+    # Allow non-root users to run ping.
+    echo 'net.ipv4.ping_group_range = 0 2147483647' >"${ROOTFS_BASE}/etc/sysctl.d/99-ping.conf"
+
     # Enable colorized `ls' and alias h='history 50' for `root'.
     sed -i -e '/export LS/s/^# *//' -e '/eval.*dircolors/s/^# *//' \
         -e '/alias ls/s/^# *//' -e '/alias l=/a alias h="history 50"' \
