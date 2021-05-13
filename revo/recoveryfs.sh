@@ -838,13 +838,18 @@ EOF
     # install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
     #         "${RECOVERYFS_BASE}/usr/bin/curl"
 
-    # Install node installation script.
-    install -m 0755 "${G_VENDOR_PATH}/resources/nodejs/install-node-lts" \
-            "${RECOVERYFS_BASE}/usr/bin"
-    sed -i -e "s;@NODE_BASE@;${NODE_BASE};" \
+    # Install nodejs/reverse-tunnel-server installation script.
+    sed -e "s;@NODE_BASE@;${NODE_BASE};" \
         -e "s;@NODE_GROUP@;${NODE_GROUP};" \
         -e "s;@NODE_USER@;${NODE_USER};" \
-        "${RECOVERYFS_BASE}/usr/bin/install-node-lts"
+        "${G_VENDOR_PATH}/resources/reverse-tunnel-server/install-reverse-tunnel-server" \
+        >"${RECOVERYFS_BASE}/usr/bin/install-reverse-tunnel-server"
+    chmod 0755 "${RECOVERYFS_BASE}/usr/bin/install-reverse-tunnel-server"
+
+    # Install reverse-tunnel server npm package.
+    install -d -m 0700 "${RECOVERYFS_BASE}/home/${NODE_USER}"
+    install -m 0644 "${G_VENDOR_PATH}/resources/reverse-tunnel-server/reverse-tunnel-server"*.tgz \
+            "${RECOVERYFS_BASE}/home/${NODE_USER}"
 
     # Redirect all system mail user `revo'.
     sed -i "\$a root: revo" "${RECOVERYFS_BASE}/etc/aliases"
@@ -873,6 +878,8 @@ EOF
             "${RECOVERYFS_BASE}/usr/lib/pcp/bin"
     printf "30 */6\t* * *\troot\t/usr/lib/pcp/bin/pmlogger_rotate" \
            >>"${RECOVERYFS_BASE}/etc/crontab"
+
+    pr_info "recoveryfs: install reverse-tunnel-server"
 
     ## post-packages command
     cat >"${RECOVERYFS_BASE}/post-packages" <<EOF
