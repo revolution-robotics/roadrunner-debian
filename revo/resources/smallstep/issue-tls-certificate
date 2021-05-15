@@ -43,7 +43,7 @@ where OPTIONS are:
              (default: ${argv[provisioner]})
   -Q|--provisioner-password-file=PATHNAME
              Set name of file containing provisioner password.
-             (default: ${STEPPATH}/secrets/${argv[provisioner_password_file]})
+             (default: $($SUDO -u ${argv[username]} $STEP_CLI path)/secrets/${argv[provisioner_password_file]})
   -r|--root=PATHNAME
              Set name of CA root certificate.
              (default: ${HOME}/.step/certs/root_ca.crt)
@@ -106,7 +106,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare -r long_opts=ca-url:,duration:,fqdn:,help,provisioner:,provisioner-password-file:,root:,user-name:
     declare -A param=(
         [username]=step
-        [ca_url]=https://ca.revoio.slewsys.org:14727
+        [ca_url]=https://ca.revo.io:14727
         [root]=/home/step/.step/certs/root_ca.crt
         [fqdn]=$($HOSTNAME_CMD --fqdn)
         [provisioner]=step
