@@ -356,6 +356,9 @@ protected_install ed
 ## Add gstreamer-imx.
 # protected_install gstreamer-imx
 
+## Add libatomic1, pulled in gstreamer, but needed by Node.js.
+protected_install libatomic1
+
 ## Add i2c tools.
 protected_install i2c-tools
 
@@ -445,7 +448,7 @@ useradd -m -G audio,video -s /bin/bash x_user
 # passwd -d x_user
 
 # BEGIN -- REVO i.MX7D users
-# useradd -m -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
+useradd -m -G audio,bluetooth,lp,video -s /bin/bash -c "REVO Roadrunner" revo
 useradd -m -s /bin/bash -c "Smallstep PKI" step
 # END -- REVO i.MX7D users
 
