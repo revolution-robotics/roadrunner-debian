@@ -1,6 +1,8 @@
 [Unit]
 Description=REVO bluetooth initialization
-After=network.target
+Requires=revo-wifi.service
+After=revo-wifi.service
+ConditionPathIsDirectory=/sys/class/gpio
 
 [Service]
 Type=oneshot
@@ -10,4 +12,4 @@ ExecStart=/etc/bluetooth/revo-bluetooth
 ExecStop=/etc/pm/sleep.d/bluetooth.sh suspend
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=bluetooth.target

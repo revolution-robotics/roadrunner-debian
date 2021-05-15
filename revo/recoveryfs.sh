@@ -734,13 +734,15 @@ EOF
     ln -sf /lib/systemd/system/revo-wifi.service \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    # Remove pm-utils default scripts and install WiFi / Bluetooth script
+    # Remove pm-utils default scripts and install WiFi / Bluetooth scripts
     rm -rf "${RECOVERYFS_BASE}/usr/lib/pm-utils/sleep.d/"
     rm -rf "${RECOVERYFS_BASE}/usr/lib/pm-utils/module.d/"
     rm -rf "${RECOVERYFS_BASE}/usr/lib/pm-utils/power.d/"
     install -d -m 0755 "${RECOVERYFS_BASE}/etc/pm/sleep.d"
-    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/wifi.sh" \
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/etc/pm/sleep.d/wifi.sh" \
             "${RECOVERYFS_BASE}/etc/pm/sleep.d/"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/etc/pm/sleep.d/bluetooth.sh" \
+            "${RECOVERYFS_BASE}/etc/pm/sleep.d"
 
     ## End packages stage ##
     if test ."${G_USER_PACKAGES}" != .''; then
