@@ -67,6 +67,8 @@ if test -f "\${ASDF_DIR}/asdf.sh"; then
         node_lts=\$(asdf latest nodejs "$NODE_BASE")
         asdf install nodejs "\$node_lts"
         asdf global  nodejs "\$node_lts"
+        \${ASDF_DIR}/shims/npm i -g npm
+        asdf reshim nodejs
     fi
 fi
 EOF
@@ -75,20 +77,21 @@ EOF
 install_remote_access_server ()
 {
     if test -f "${homedir}/reverse-tunnel-server"*.tgz; then
+        $SUDO mkdir ~/.ssh
         $CAT <<EOF | $SUDO -i -u "$NODE_USER" $BASH -s
 export ASDF_DIR=~/.asdf
 if test -f "\${ASDF_DIR}/asdf.sh"; then
     . "\${ASDF_DIR}/asdf.sh"
-    npm i -g "${homedir}/reverse-tunnel-server"*.tgz
+    \${ASDF_DIR}/shims/npm i -g "${homedir}/reverse-tunnel-server"*.tgz
     asdf reshim nodejs
     srcdir=\$(npm prefix -g)/lib/node_modules/reverse-tunnel-server
-    sudo install -m 0644 "\${srcdir}/config/reverse-tunnel"  /etc/default
-    sudo install -m 0644 "\${srcdir}/scripts/reverse-tunnel@.service"  /lib/systemd/system/
+    $SUDO install -m 0644 "\${srcdir}/config/reverse-tunnel"  /etc/default
+    $SUDO install -m 0644 "\${srcdir}/scripts/reverse-tunnel@.service"  /lib/systemd/system/
     mkdir -p ~/.ssh
     statedir=\$(awk  '/^API_STATE_DIR/ { print \$NF }' /etc/default/reverse-tunnel)
-    sudo mkdir -p "\${statedir}"/{certs,config,secrets}
-    sudo chown -R ${NODE_USER}:${NODE_GROUP} "\${statedir}"
-    sudo chmod 700 "\${statedir}/secrets"
+    $SUDO mkdir -p "\${statedir}"/{certs,config,secrets}
+    $SUDO chown -R ${NODE_USER}:${NODE_GROUP} "\${statedir}"
+    $SUDO chmod 700 "\${statedir}/secrets"
 fi
 EOF
     fi
