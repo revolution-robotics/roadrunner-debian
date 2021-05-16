@@ -282,9 +282,7 @@ protected_install openssh-server
 protected_install dosfstools
 
 ## Fix config for sshd (permit root login).
-sed -i -e 's/#PermitRootLogin.*/PermitRootLogin\tyes/g' \\
-    -e '/#Banner/a Banner /etc/issue.net' \\
-    /etc/ssh/sshd_config
+sed -i -e 's/#PermitRootLogin.*/PermitRootLogin\tyes/g' /etc/ssh/sshd_config
 
 ## Hardware-based random-number generation daemon.
 protected_install rng-tools
@@ -764,10 +762,7 @@ EOF
     # rootfs startup patches
     pr_info "rootfs: begin startup patches"
 
-    install -m 0644 "${G_VENDOR_PATH}/issue"{,.net} "${ROOTFS_BASE}/etc/"
-    cat /dev/null >"${ROOTFS_BASE}/etc/motd"
-    install -m 0755 "${G_VENDOR_PATH}/resources/rc.local" "${ROOTFS_BASE}/etc/"
-    install -m 0644 "${G_VENDOR_PATH}/resources/hostapd.conf" \
+    install -m 0644 "${G_VENDOR_PATH}/resources/etc/"{motd,rc.local,hostapd.conf} \
             "${ROOTFS_BASE}/etc/"
     install -d "${ROOTFS_BASE}/boot/"
     install -m 0644 "${G_VENDOR_PATH}/splash.bmp" "${ROOTFS_BASE}/boot/"
