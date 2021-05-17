@@ -845,11 +845,6 @@ EOF
         >"${RECOVERYFS_BASE}/usr/bin/install-reverse-tunnel-server"
     chmod 0755 "${RECOVERYFS_BASE}/usr/bin/install-reverse-tunnel-server"
 
-    # Install reverse-tunnel server npm package.
-    install -d -m 0700 "${RECOVERYFS_BASE}/home/${NODE_USER}"
-    install -m 0644 "${G_VENDOR_PATH}/resources/reverse-tunnel-server/reverse-tunnel-server"*.tgz \
-            "${RECOVERYFS_BASE}/home/${NODE_USER}"
-
     # Redirect all system mail user `revo'.
     sed -i "\$a root: revo" "${RECOVERYFS_BASE}/etc/aliases"
 

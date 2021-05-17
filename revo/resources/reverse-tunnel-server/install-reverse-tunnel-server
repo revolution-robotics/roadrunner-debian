@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# @(#) install-node-lts
+# @(#) install-reverse-tunnel-server
 #
-# This script installs node version manager and then the latest node
-# version of the $node_base series.
+# This script installs version manager `asdf', then with asdf, the
+# latest node version of the $node_base series and finally the npm
+# package `reverse-tunnel-server'.
 #
-
 # Edit these ...
 : ${NODE_BASE:='@NODE_BASE@'}
 : ${NODE_GROUP:='@NODE_GROUP@'}
@@ -16,35 +16,67 @@
 : ${BASH:='/bin/bash'}
 : ${CAT:='/bin/cat'}
 : ${CURL:='/usr/bin/curl'}
+: ${CUT:='/usr/bin/cut'}
 : ${GETENT:='/usr/bin/getent'}
 : ${GIT:='/usr/bin/git'}
 : ${GREP:='/bin/grep'}
-: ${GROUPADD:='/usr/sbin/groupadd'}
+: ${INSTALL:='/usr/bin/install'}
+: ${MKDIR:='/bin/mkdir'}
+: ${READLINK:='/bin/readlink'}
+: ${RM:='/bin/rm'}
 : ${SED:='/bin/sed'}
+: ${SCRIPT:='/usr/bin/script'}
 : ${SORT:='/usr/bin/sort'}
 : ${SUDO:='/usr/bin/sudo'}
 : ${TAIL:='/usr/bin/tail'}
-: ${USERADD:='/usr/sbin/useradd'}
+: ${TAR:='/bin/tar'}
 
-declare -r homedir=$($GETENT passwd "$NODE_USER" | $AWK -F: '{ print $6 }')
-
-clone_or_update_asdf_repo ()
+fetch_remote_access_server ()
 {
-    echo "Cloning..."
-    $CAT <<EOF | $SUDO  -u "$NODE_USER" $BASH -s
-if test -d ~/.asdf; then
-    git -C ~/.asdf pull
-else
-    git clone https://github.com/asdf-vm/asdf.git ~/.asdf
-fi
-EOF
-    echo "Done cloning..."
+    local uri_prefix=$1
+
+    local latest=$(
+        $CURL -s "${uri_prefix}/reverse-tunnel-server-latest.tgz"
+          )
+    local node_user_dir=$(
+        $GETENT passwd "$NODE_USER" |
+            $CUT -d: -f6
+          )
+
+    $CURL -Lo "${node_user_dir}/${latest}" "${uri_prefix}/${latest}"
+    $TAR -C "$node_user_dir" -zxf "${node_user_dir}/reverse-tunnel-server"*.tgz
+    $INSTALL -m 0644 "${node_user_dir}/package/config/reverse-tunnel"  \
+             /etc/default
+    $INSTALL -m 0644 "${node_user_dir}/package/scripts/reverse-tunnel@.service"  \
+             /lib/systemd/system
+    $MKDIR -p ~/.ssh
+
+    local statedir=$(
+        $AWK  '/^API_STATE_DIR/ { print $NF }' /etc/default/reverse-tunnel
+            )
+
+    $MKDIR -p "${statedir}"/{certs,config,secrets}
+    $CHOWN -R ${NODE_USER}:${NODE_GROUP} "${statedir}"
+    $CHMOD 0700 "${statedir}/secrets"
+
+    $RM -rf "${node_user_dir}/package"
 }
 
-init_asdf_in_bashrc ()
+fetch_asdf ()
 {
-    echo "Appending to bashrc..."
-    $CAT >>"${homedir}/.bashrc" <<'EOF'
+    if test -d ~/.asdf; then
+        $GIT -C ~/.asdf pull
+    else
+        $GIT clone https://github.com/asdf-vm/asdf.git ~/.asdf
+    fi
+}
+
+source_asdf ()
+{
+    source ~/.asdf/asdf.sh
+    if ! $GREP -q ASDF_DIR ~/.bashrc; then
+        echo "Appending to bashrc..."
+        $CAT >>~/.bashrc <<'EOF'
 
 # Initialize asdf version manager.
 export ASDF_DIR=~/.asdf
@@ -53,53 +85,50 @@ if test -f "${ASDF_DIR}/asdf.sh"; then
     source "${ASDF_DIR}/completions/asdf.bash"
 fi
 EOF
+    fi
 }
 
 install_node ()
 {
-    echo "Installing node..."
-    $CAT <<EOF | $SUDO -i -u "$NODE_USER" $BASH -s
-export ASDF_DIR=~/.asdf
-if test -f "\${ASDF_DIR}/asdf.sh"; then
-    . "\${ASDF_DIR}/asdf.sh"
     if type asdf >/dev/null 2>&1; then
+        echo "Installing node..."
         asdf plugin add nodejs || true
-        node_lts=\$(asdf latest nodejs "$NODE_BASE")
-        asdf install nodejs "\$node_lts"
-        asdf global  nodejs "\$node_lts"
-        \${ASDF_DIR}/shims/npm i -g npm
-        asdf reshim nodejs
+
+        local node_lts=$(
+            asdf latest nodejs "$NODE_BASE"
+                )
+
+        asdf install nodejs "$node_lts"
+        asdf global  nodejs "$node_lts"
+        # npm i -g npm
+        # asdf reshim nodejs
     fi
-fi
-EOF
 }
 
 install_remote_access_server ()
 {
-    if test -f "${homedir}/reverse-tunnel-server"*.tgz; then
-        $SUDO mkdir ~/.ssh
-        $CAT <<EOF | $SUDO -i -u "$NODE_USER" $BASH -s
-export ASDF_DIR=~/.asdf
-if test -f "\${ASDF_DIR}/asdf.sh"; then
-    . "\${ASDF_DIR}/asdf.sh"
-    \${ASDF_DIR}/shims/npm i -g "${homedir}/reverse-tunnel-server"*.tgz
-    asdf reshim nodejs
-    srcdir=\$(npm prefix -g)/lib/node_modules/reverse-tunnel-server
-    $SUDO install -m 0644 "\${srcdir}/config/reverse-tunnel"  /etc/default
-    $SUDO install -m 0644 "\${srcdir}/scripts/reverse-tunnel@.service"  /lib/systemd/system/
-    mkdir -p ~/.ssh
-    statedir=\$(awk  '/^API_STATE_DIR/ { print \$NF }' /etc/default/reverse-tunnel)
-    $SUDO mkdir -p "\${statedir}"/{certs,config,secrets}
-    $SUDO chown -R ${NODE_USER}:${NODE_GROUP} "\${statedir}"
-    $SUDO chmod 700 "\${statedir}/secrets"
-fi
-EOF
+    $MKDIR -p ~/.ssh
+
+    if test -f ~/reverse-tunnel-server*.tgz; then
+        npm i -g ~/reverse-tunnel-server*.tgz
+        asdf reshim nodejs
+
+        $RM -f ~/reverse-tunnel-server*.tgz
     fi
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
-    clone_or_update_asdf_repo
-    init_asdf_in_bashrc
+    if (( EUID == 0 )); then
+        declare uri_prefix=https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_buster_rr01/revo/resources/reverse-tunnel-server
+
+        fetch_remote_access_server "$uri_prefix"
+
+        # Run remainder of script as user $NODE_USER.
+        exec $SUDO -i -u "$NODE_USER" $SCRIPT -qc $($READLINK -e $0) /dev/null
+    fi
+
+    fetch_asdf
+    source_asdf
     install_node
     install_remote_access_server
 fi
