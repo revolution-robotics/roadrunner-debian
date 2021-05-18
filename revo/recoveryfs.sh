@@ -507,12 +507,12 @@ EOF
     fi
 
     # Set PATH and resize serial console window.
-    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/bash.bashrc" \
+    install -m 0755 "${G_VENDOR_PATH}/resources/etc/bash.bashrc" \
             "${RECOVERYFS_BASE}/etc"
-    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/profile" \
+    install -m 0755 "${G_VENDOR_PATH}/resources/etc/profile" \
             "${RECOVERYFS_BASE}/etc"
     install -d -m 0755 "${RECOVERYFS_BASE}/etc/profile.d"
-    install -m 0644 "${G_VENDOR_PATH}/resources/set_window_title.sh" \
+    install -m 0644 "${G_VENDOR_PATH}/resources/etc/profile.d/set_window_title.sh" \
             "${RECOVERYFS_BASE}/etc/profile.d"
 
     # Build and install RS-485 mode configuration utility.
@@ -572,7 +572,8 @@ EOF
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     # Install REVO recover eMMC service.
-    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc" "${RECOVERYFS_BASE}/usr/sbin"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc" \
+            "${RECOVERYFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
     install -d -m 0755 "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"

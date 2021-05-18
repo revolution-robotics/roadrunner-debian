@@ -14,6 +14,8 @@
 # Command paths
 : ${AWK:='/usr/bin/awk'}
 : ${BASH:='/bin/bash'}
+: ${CHMOD:='/bin/chmod'}
+: ${CHOWN:='/bin/chown'}
 : ${CAT:='/bin/cat'}
 : ${CURL:='/usr/bin/curl'}
 : ${CUT:='/usr/bin/cut'}

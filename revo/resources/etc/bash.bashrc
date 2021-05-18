@@ -12,7 +12,9 @@
 shopt -s checkwinsize
 
 # If serial console, resize window.
-[[ $(tty) =~ /dev/ttymxc && -x /usr/bin/resize ]] && /usr/bin/resize
+if [[ $(tty) =~ /dev/ttymxc && -x /usr/bin/resize ]]; then
+     eval $(/usr/bin/resize)
+fi
 
 # set variable identifying the chroot you work in (used in the prompt below)
 if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
