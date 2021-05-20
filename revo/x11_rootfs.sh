@@ -66,16 +66,41 @@ make_debian_x11_rootfs ()
              ${find_args[0]:+"-not \\( ${find_args[@]} \\)"} -delete
     }
 
+    umount-fs ()
+    {
+        local fs_base=$1
+
+        umount -f "${fs_base}"/{sys,proc,dev/pts,dev} 2>/dev/null || true
+    }
+
+    mount-fs ()
+    {
+        local fs_base=$1
+
+        mkdir -p ${fs_base}/{proc,dev/pts,sys}
+
+        if ! findmnt ${fs_base}/proc >/dev/null; then
+            mount -t proc /proc ${fs_base}/proc
+        fi
+
+        for fs in /sys /dev /dev/pts; do
+            if ! findmnt "${fs_base}/${fs}" >/dev/null; then
+                mount -o bind "$fs" "${fs_base}${fs}"
+            fi
+        done
+    }
 
     pr_info "Make debian(${DEB_RELEASE}) rootfs start..."
 
     # umount previus mounts (if fail)
-    umount -f "${ROOTFS_BASE}"/{sys,proc,dev/pts,dev} 2>/dev/null || true
+    umount-fs "$ROOTFS_BASE"
 
     # clear rootfs dir
     rm -rf "${ROOTFS_BASE}"/*
 
     pr_info "rootfs: debootstrap"
+
+    mount-fs "$ROOTFS_BASE"
     debootstrap --verbose  --foreign --arch armhf \
                 --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
                 "${DEB_RELEASE}" "${ROOTFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
@@ -84,28 +109,12 @@ make_debian_x11_rootfs ()
     pr_info "rootfs: debootstrap in rootfs (second-stage)"
     install -m 0755 "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" "${ROOTFS_BASE}/usr/bin/qemu-arm-static"
 
-    umount_rootfs ()
-    {
-        umount -f "${ROOTFS_BASE}"/{sys,proc,dev/pts,dev} 2>/dev/null || true
-        umount -f "${ROOTFS_BASE}/dev" 2>/dev/null || true
-    }
+    trap 'umount-fs "$ROOTFS_BASE"; exit' 0 1 2 15
 
-    trap 'umount_rootfs; exit' 0 1 2 15
-
-    if ! findmnt "${ROOTFS_BASE}/proc" >/dev/null; then
-        mount -t proc /proc "${ROOTFS_BASE}/proc"
-    fi
-
-    for fs in /sys /dev /dev/pts; do
-        if ! findmnt "${ROOTFS_BASE}${fs}" >/dev/null; then
-            mount -o bind "$fs" "${ROOTFS_BASE}${fs}"
-        fi
-    done
-
-    chroot "$ROOTFS_BASE" /debootstrap/debootstrap --second-stage
+    $CHROOTFS "$ROOTFS_BASE" /debootstrap/debootstrap --second-stage
 
     # delete unused folder
-    chroot "$ROOTFS_BASE" rm -rf  "${ROOTFS_BASE}/debootstrap"
+    $CHROOTFS "$ROOTFS_BASE" rm -rf  "${ROOTFS_BASE}/debootstrap"
 
     pr_info "rootfs: generate default configs"
     mkdir -p "${ROOTFS_BASE}/etc/sudoers.d/"
@@ -449,7 +458,7 @@ EOF
 
     pr_info "rootfs: install selected debian packages (third-stage)"
     chmod +x "${ROOTFS_BASE}/third-stage"
-    LANG=C chroot "$ROOTFS_BASE" /third-stage
+    $CHROOTFS "$ROOTFS_BASE" /third-stage
 
     ## Begin packages stage ##
     pr_info "rootfs: install updates and local packages"
@@ -756,7 +765,7 @@ rm -f /user-stage
 EOF
 
         chmod +x "${ROOTFS_BASE}/user-stage"
-        LANG=C chroot "$ROOTFS_BASE" /user-stage
+        LANG=C $CHROOTFS "$ROOTFS_BASE" /user-stage
 
     fi
 
@@ -817,21 +826,13 @@ EOF
     sed -i -e 's/[0-9]\{1,\}Mb/20Mb/' \
         "${ROOTFS_BASE}/etc/pcp/pmlogger/control.d/local"
 
-    # BEGIN -- REVO i.MX7D post-packages stage
-    # Run curl with system root certificates file.
-    # pr_info "rootfs: begin late packages"
+    ## BEGIN -- REVO i.MX7D post-packages stage
+    pr_info "rootfs: begin late packages"
 
+    ## Run curl with system root certificates file.
     # mv "${ROOTFS_BASE}/usr/bin/curl"{,.dist}
     # install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
     #         "${ROOTFS_BASE}/usr/bin/curl"
-
-    # Install nodejs/reverse-tunnel-server installation script.
-    sed -e "s;@NODE_BASE@;${NODE_BASE};" \
-        -e "s;@NODE_GROUP@;${NODE_GROUP};" \
-        -e "s;@NODE_USER@;${NODE_USER};" \
-        "${G_VENDOR_PATH}/resources/reverse-tunnel-server/install-reverse-tunnel-server" \
-        >"${ROOTFS_BASE}/usr/bin/install-reverse-tunnel-server"
-    chmod 0755 "${ROOTFS_BASE}/usr/bin/install-reverse-tunnel-server"
 
     # Redirect all system mail user `revo'.
     sed -i "\$a root: revo" "${ROOTFS_BASE}/etc/aliases"
@@ -862,6 +863,14 @@ EOF
            >>"${ROOTFS_BASE}/etc/crontab"
 
     pr_info "rootfs: install reverse-tunnel-server"
+
+    # Install nodejs/reverse-tunnel-server installation script.
+    sed -e "s;@NODE_BASE@;${NODE_BASE};" \
+        -e "s;@NODE_GROUP@;${NODE_GROUP};" \
+        -e "s;@NODE_USER@;${NODE_USER};" \
+        "${G_VENDOR_PATH}/resources/reverse-tunnel-server/install-reverse-tunnel-server" \
+        >"${ROOTFS_BASE}/usr/bin/install-reverse-tunnel-server"
+    chmod 0755 "${ROOTFS_BASE}/usr/bin/install-reverse-tunnel-server"
 
     ## post-packages command
     cat >"${ROOTFS_BASE}/post-packages" <<EOF
@@ -896,7 +905,7 @@ EOF
     pr_info "rootfs: post-packages stage"
 
     chmod +x ${ROOTFS_BASE}/post-packages
-    chroot "${ROOTFS_BASE}" /post-packages
+    $CHROOTFS "${ROOTFS_BASE}" /post-packages
     # END -- REVO i.MX7D post-packages stage
 
     # BEGIN -- REVO i.MX7D cleanup
@@ -948,7 +957,7 @@ EOF
     rm "${ROOTFS_BASE}/usr/bin/qemu-arm-static"
     # END -- REVO i.MX7D cleanup
 
-    umount_rootfs
+    umount-fs "$ROOTFS_BASE"
     trap - 0 1 2 15
 }
 

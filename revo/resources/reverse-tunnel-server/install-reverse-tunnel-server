@@ -126,7 +126,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
         fetch_remote_access_server "$uri_prefix"
 
         # Run remainder of script as user $NODE_USER.
-        exec $SUDO -i -u "$NODE_USER" $SCRIPT -qc $($READLINK -e $0) /dev/null
+        exec $SUDO -i -u "$NODE_USER" $($READLINK -e $0)
     fi
 
     fetch_asdf

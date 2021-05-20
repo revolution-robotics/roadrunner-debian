@@ -36,6 +36,7 @@ declare -r DEF_USBFS_TARBALL_NAME=usbfs.tar.gz
 declare -r DEF_PROVISIONFS_TARBALL_NAME=provisionfs.tar.gz
 
 # base paths
+declare -r CHROOTFS=${ABSOLUTE_DIRECTORY}/contrib/chrootfs
 declare -r DEF_BUILDENV=$ABSOLUTE_DIRECTORY
 declare -r DEF_SRC_DIR=${DEF_BUILDENV}/src
 declare -r G_ROOTFS_DIR=${DEF_BUILDENV}/rootfs
@@ -75,6 +76,8 @@ declare -r G_USER_MINIMAL_PACKAGES="avahi-daemon bash-completion bc binutils  cu
 # Space-separated list of locales, with default locale first.
 declare -r LOCALES='en_US.UTF-8 UTF-8'
 
+export LANGUAGE=${LOCALES%%_*}
+export LANG=${LOCALES%% *}
 export LC_ALL=${LOCALES%% *}
 
 #### Input params ####

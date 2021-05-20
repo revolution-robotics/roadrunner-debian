@@ -66,15 +66,41 @@ make_debian_recoveryfs ()
              ${find_args[0]:+"-not \\( ${find_args[@]} \\)"} -delete
     }
 
+    umount-fs ()
+    {
+        local fs_base=$1
+
+        umount -f "${fs_base}"/{sys,proc,dev/pts,dev} 2>/dev/null || true
+    }
+
+    mount-fs ()
+    {
+        local fs_base=$1
+
+        mkdir -p ${fs_base}/{proc,dev/pts,sys}
+
+        if ! findmnt ${fs_base}/proc >/dev/null; then
+            mount -t proc /proc ${fs_base}/proc
+        fi
+
+        for fs in /sys /dev /dev/pts; do
+            if ! findmnt "${fs_base}/${fs}" >/dev/null; then
+                mount -o bind "$fs" "${fs_base}${fs}"
+            fi
+        done
+    }
+
     pr_info "Make debian(${DEB_RELEASE}) recoveryfs start..."
 
     # umount previus mounts (if fail)
-    umount -f "${RECOVERYFS_BASE}"/{sys,proc,dev/pts,dev} 2>/dev/null || true
+    umount-fs "${RECOVERYFS_BASE}"
 
     # clear recoveryfs dir
     rm -rf "${RECOVERYFS_BASE}"/*
 
     pr_info "recoveryfs: debootstrap"
+
+    mount-fs "$RECOVERYFS_BASE"
     debootstrap --variant=minbase --verbose  --foreign --arch armhf \
                 --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
                 "${DEB_RELEASE}" "${RECOVERYFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
@@ -83,28 +109,13 @@ make_debian_recoveryfs ()
     pr_info "recoveryfs: debootstrap in recoveryfs (second-stage)"
     install -m 0755 "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" "${RECOVERYFS_BASE}/usr/bin"
 
-    umount_recoveryfs ()
-    {
-        umount -f "${RECOVERYFS_BASE}"/{sys,proc,dev/pts,dev} 2>/dev/null || true
-        umount -f "${RECOVERYFS_BASE}/dev" 2>/dev/null || true
-    }
+    trap 'umount-fs "$RECOVERYFS_BASE"; exit' 0 1 2 15
 
-    trap 'umount_recoveryfs; exit' 0 1 2 15
-
-    if ! findmnt "${RECOVERYFS_BASE}/proc" >/dev/null; then
-        mount -t proc /proc "${RECOVERYFS_BASE}/proc"
-    fi
-
-    for fs in /sys /dev /dev/pts; do
-        if ! findmnt "${RECOVERYFS_BASE}${fs}" >/dev/null; then
-            mount -o bind "$fs" "${RECOVERYFS_BASE}${fs}"
-        fi
-    done
-
-    chroot "$RECOVERYFS_BASE" /debootstrap/debootstrap --second-stage
+    pr_info "recoveryfs: second-stage debootstrap"
+    $CHROOTFS "$RECOVERYFS_BASE" /debootstrap/debootstrap --second-stage
 
     # delete unused folder
-    chroot "$RECOVERYFS_BASE" rm -rf  "${RECOVERYFS_BASE}/debootstrap"
+    $CHROOTFS "$RECOVERYFS_BASE" rm -rf  "${RECOVERYFS_BASE}/debootstrap"
 
     # pr_info "recoveryfs: generate default configs"
     # mkdir -p ${RECOVERYFS_BASE}/etc/sudoers.d/
@@ -455,7 +466,7 @@ EOF
 
     pr_info "recoveryfs: install selected debian packages (third-stage)"
     chmod +x ${RECOVERYFS_BASE}/third-stage
-    LANG=C chroot ${RECOVERYFS_BASE} /third-stage
+    $CHROOTFS ${RECOVERYFS_BASE} /third-stage
 
     ## Begin packages stage ##
     pr_info "recoveryfs: install updates and local packages"
@@ -768,7 +779,7 @@ rm -f /user-stage
 EOF
 
         chmod +x "${RECOVERYFS_BASE}/user-stage"
-        LANG=C chroot "$RECOVERYFS_BASE" /user-stage
+        LANG=C $CHROOTFS "$RECOVERYFS_BASE" /user-stage
 
     fi
 
@@ -830,21 +841,13 @@ EOF
     sed -i -e 's/[0-9]\{1,\}Mb/20Mb/' \
         "${RECOVERYFS_BASE}/etc/pcp/pmlogger/control.d/local"
 
-    # BEGIN -- REVO i.MX7D post-packages stage
-    # Run curl with system root certificates file.
-    # pr_info "recoveryfs: begin late packages"
+    ## BEGIN -- REVO i.MX7D post-packages stage
+    pr_info "recoveryfs: begin late packages"
 
+    ## Run curl with system root certificates file.
     # mv "${RECOVERYFS_BASE}/usr/bin/curl"{,.dist}
     # install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
     #         "${RECOVERYFS_BASE}/usr/bin/curl"
-
-    # Install nodejs/reverse-tunnel-server installation script.
-    sed -e "s;@NODE_BASE@;${NODE_BASE};" \
-        -e "s;@NODE_GROUP@;${NODE_GROUP};" \
-        -e "s;@NODE_USER@;${NODE_USER};" \
-        "${G_VENDOR_PATH}/resources/reverse-tunnel-server/install-reverse-tunnel-server" \
-        >"${RECOVERYFS_BASE}/usr/bin/install-reverse-tunnel-server"
-    chmod 0755 "${RECOVERYFS_BASE}/usr/bin/install-reverse-tunnel-server"
 
     # Redirect all system mail user `revo'.
     sed -i "\$a root: revo" "${RECOVERYFS_BASE}/etc/aliases"
@@ -876,12 +879,20 @@ EOF
 
     pr_info "recoveryfs: install reverse-tunnel-server"
 
+    # Install nodejs/reverse-tunnel-server installation script.
+    sed -e "s;@NODE_BASE@;${NODE_BASE};" \
+        -e "s;@NODE_GROUP@;${NODE_GROUP};" \
+        -e "s;@NODE_USER@;${NODE_USER};" \
+        "${G_VENDOR_PATH}/resources/reverse-tunnel-server/install-reverse-tunnel-server" \
+        >"${RECOVERYFS_BASE}/usr/bin/install-reverse-tunnel-server"
+    chmod 0755 "${RECOVERYFS_BASE}/usr/bin/install-reverse-tunnel-server"
+
     ## post-packages command
     cat >"${RECOVERYFS_BASE}/post-packages" <<EOF
 #!/bin/bash
 
-# Install node via nvm
-# install-node-lts
+# Install reverse-tunnel-server
+install-reverse-tunnel-server
 
 # Remove non-default locales.
 DEBIAN_FRONTEND=noninteractive apt -y install localepurge
@@ -910,7 +921,7 @@ EOF
     pr_info "recoveryfs: post-packages stage"
 
     chmod +x "${RECOVERYFS_BASE}/post-packages"
-    chroot "$RECOVERYFS_BASE" /post-packages
+    $CHROOTFS "$RECOVERYFS_BASE" /post-packages
     # END -- REVO i.MX7D post-packages stage
 
     # BEGIN -- REVO i.MX7D cleanup
@@ -962,7 +973,7 @@ EOF
     rm -f "${RECOVERYFS_BASE}/usr/bin/qemu-arm-static"
     # END -- REVO i.MX7D cleanup
 
-    umount_recoveryfs
+    umount-fs "$RECOVERYFS_BASE"
     trap - 0 1 2 15
 }
 
