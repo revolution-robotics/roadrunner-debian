@@ -9,6 +9,7 @@
 #
 : ${CHROOT:='/usr/sbin/chroot'}
 : ${FINDMNT:='/bin/findmnt'}
+: ${INSTALL:='/usr/bin/install'}
 : ${MKDIR:='/bin/mkdir'}
 : ${MOUNT:='/bin/mount'}
 : ${UMOUNT:='/bin/umount'}
@@ -17,24 +18,27 @@
 
 umount-rootfs ()
 {
-    local rootfs_base=$1
+    local fs_base=$1
 
-    $SUDO $UMOUNT -f "${rootfs_base}/"{sys,proc,dev/pts,dev} 2>/dev/null || true
+    $SUDO $UMOUNT -f "${fs_base}"/{sys,proc,dev/pts} 2>/dev/null || true
+    $SUDO $UMOUNT -f "${fs_base}/dev" 2>/dev/null || true
 }
 
 mount-rootfs ()
 {
-    local rootfs_base=$1
+    local fs_base=$1
 
-    $SUDO $MKDIR -p ${rootfs_base}/{proc,dev/pts,sys}
+    $SUDO $INSTALL -d -m 0755 -o root -g root "${fs_base}"
+    $SUDO $INSTALL -d -m 0555 -o root -g root "${fs_base}"/{dev,proc,sys}
+    $SUDO $INSTALL -d -m 0755 -o root -g root "${fs_base}/dev/pts"
 
-    if ! $FINDMNT ${rootfs_base}/proc >/dev/null; then
-        $SUDO $MOUNT -t proc /proc ${rootfs_base}/proc
+    if ! $FINDMNT "${fs_base}/proc" >/dev/null; then
+        $SUDO $MOUNT -t proc /proc "${fs_base}/proc"
     fi
 
     for fs in /sys /dev /dev/pts; do
-        if ! $FINDMNT "${rootfs_base}/${fs}" >/dev/null; then
-            $SUDO $MOUNT -o bind "$fs" "${rootfs_base}${fs}"
+        if ! $FINDMNT "${fs_base}/${fs}" >/dev/null; then
+            $SUDO $MOUNT -o bind "$fs" "${fs_base}${fs}"
         fi
     done
 }

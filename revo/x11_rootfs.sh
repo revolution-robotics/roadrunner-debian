@@ -70,17 +70,20 @@ make_debian_x11_rootfs ()
     {
         local fs_base=$1
 
-        umount -f "${fs_base}"/{sys,proc,dev/pts,dev} 2>/dev/null || true
+        umount -f "${fs_base}"/{sys,proc,dev/pts} 2>/dev/null || true
+        umount -f "${fs_base}/dev" 2>/dev/null || true
     }
 
     mount-fs ()
     {
         local fs_base=$1
 
-        mkdir -p ${fs_base}/{proc,dev/pts,sys}
+        install -d -m 0755 -o root -g root "${fs_base}"
+        install -d -m 0555 -o root -g root "${fs_base}"/{dev,proc,sys}
+        install -d -m 0755 -o root -g root "${fs_base}/dev/pts"
 
-        if ! findmnt ${fs_base}/proc >/dev/null; then
-            mount -t proc /proc ${fs_base}/proc
+        if ! findmnt "${fs_base}/proc" >/dev/null; then
+            mount -t proc /proc "${fs_base}/proc"
         fi
 
         for fs in /sys /dev /dev/pts; do
@@ -96,7 +99,7 @@ make_debian_x11_rootfs ()
     umount-fs "$ROOTFS_BASE"
 
     # clear rootfs dir
-    rm -rf "${ROOTFS_BASE}"/*
+    rm -rf "${ROOTFS_BASE}"
 
     pr_info "rootfs: debootstrap"
 
@@ -106,13 +109,13 @@ make_debian_x11_rootfs ()
                 "${DEB_RELEASE}" "${ROOTFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
 
 
-    # install /etc/passwd, et al.
+    # Install /etc/passwd, et al.
     install -m 0644 "${G_VENDOR_PATH}/resources/etc"/{passwd,group} \
             "${ROOTFS_BASE}/etc"
     install -m 0640 -g shadow "${G_VENDOR_PATH}/resources/etc/shadow" \
             "${ROOTFS_BASE}/etc"
 
-    # prepare qemu
+    # Prepare qemu.
     pr_info "rootfs: debootstrap in rootfs (second-stage)"
     install -m 0755 "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" \
             "${ROOTFS_BASE}/usr/bin/qemu-arm-static"
@@ -121,7 +124,7 @@ make_debian_x11_rootfs ()
 
     $CHROOTFS "$ROOTFS_BASE" /debootstrap/debootstrap --second-stage
 
-    # delete unused folder
+    # Delete unused folder.
     $CHROOTFS "$ROOTFS_BASE" rm -rf  "${ROOTFS_BASE}/debootstrap"
 
     pr_info "rootfs: generate default configs"
@@ -204,11 +207,12 @@ EOF
 # " > etc/network/interfaces
 
     cat >"${ROOTFS_BASE}/debconf.set" <<EOF
+dash dash/sh boolean true
+keyboard-configuration keyboard-configuration/variant select 'English (US)'
 locales locales/locales_to_be_generated multiselect $LOCALES
 locales locales/default_environment_locale select ${LOCALES%% *}
-console-common	console-data/keymap/policy	select	Select keymap from full list
-keyboard-configuration keyboard-configuration/variant select 'English (US)'
 openssh-server openssh-server/permit-root-login select true
+tzdata tzdata/Zones/Etc select UTC
 EOF
 
     pr_info "rootfs: prepare install packages in rootfs"
