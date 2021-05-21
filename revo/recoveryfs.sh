@@ -309,7 +309,7 @@ protected_install openssh-server
 protected_install dosfstools
 
 ## Fix config for sshd (permit root login).
-# sed -i -e 's/#PermitRootLogin.*/PermitRootLogin\tyes/g' /etc/ssh/sshd_config
+sed -i -e 's/#PermitRootLogin.*/PermitRootLogin\tyes/g' /etc/ssh/sshd_config
 
 ## Hardware-based random-number generation daemon.
 protected_install rng-tools
