@@ -216,6 +216,7 @@ locales locales/locales_to_be_generated multiselect $LOCALES
 locales locales/default_environment_locale select ${LOCALES%% *}
 keyboard-configuration keyboard-configuration/variant select 'English (US)'
 openssh-server openssh-server/permit-root-login select true
+tzdata tzdata/Areas select Etc
 tzdata tzdata/Zones/Etc select UTC
 EOF
 
@@ -245,7 +246,8 @@ protected_install ()
     local RET_CODE=1
 
     for (( c=0; c < \${repeated_cnt}; c++ )); do
-        apt -y install \${_name} && {
+        DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \\
+                       apt -y install \${_name} && {
             RET_CODE=0
             break
         }
@@ -562,10 +564,6 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/var-log.conf" \
             "${RECOVERYFS_BASE}/usr/lib/tmpfiles.d"
 
-    # Mount systemd journal on tmpfs, /run/log/journal.
-    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
-            "${RECOVERYFS_BASE}/etc/systemd"
-
     # Install REVO U-Boot boot script.
     install -d -m 0755 "${RECOVERYFS_BASE}/usr/share/boot"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/u-boot/boot.sh" \
@@ -794,6 +792,10 @@ EOF
 
     # recoveryfs startup patches
     pr_info "recoveryfs: begin startup patches"
+
+    # Mount systemd journal on tmpfs, /run/log/journal.
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
+            "${RECOVERYFS_BASE}/etc/systemd"
 
     install -m 0644 "${G_VENDOR_PATH}/resources/etc/"{motd,rc.local,hostapd.conf} \
              "${RECOVERYFS_BASE}/etc/"

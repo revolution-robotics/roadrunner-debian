@@ -213,6 +213,7 @@ locales locales/locales_to_be_generated multiselect $LOCALES
 locales locales/default_environment_locale select ${LOCALES%% *}
 openssh-server openssh-server/permit-root-login select true
 tzdata tzdata/Zones/Etc select UTC
+tzdata tzdata/Areas select Etc
 EOF
 
     pr_info "rootfs: prepare install packages in rootfs"
@@ -241,7 +242,8 @@ protected_install ()
     local RET_CODE=1
 
     for (( c=0; c < \${repeated_cnt}; c++ )); do
-        apt -y install \${_name} && {
+        DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \\
+                       apt -y install \${_name} && {
             RET_CODE=0
             break
         }
@@ -557,10 +559,6 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/var-log.conf" \
             "${ROOTFS_BASE}/usr/lib/tmpfiles.d"
 
-    # Mount systemd journal on tmpfs, /run/log/journal.
-    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
-            "${ROOTFS_BASE}/etc/systemd"
-
     # Install REVO U-Boot boot script.
     install -d -m 0755 "${ROOTFS_BASE}/usr/share/boot"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/u-boot/"{Makefile,boot.sh} \
@@ -783,6 +781,10 @@ EOF
 
     # rootfs startup patches
     pr_info "rootfs: begin startup patches"
+
+    # Mount systemd journal on tmpfs, /run/log/journal.
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
+            "${ROOTFS_BASE}/etc/systemd"
 
     install -m 0644 "${G_VENDOR_PATH}/resources/etc/"{motd,rc.local,hostapd.conf} \
             "${ROOTFS_BASE}/etc/"
