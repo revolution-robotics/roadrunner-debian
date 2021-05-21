@@ -277,7 +277,7 @@ protected_install local-apt-repository
 
 ## Update packages and install base.
 apt update
-apt -y full-upgrade
+# apt -y full-upgrade
 
 # Downgrade libcurl3-gnutls from 7.74.0-1.2~bpo10+1 to 7.64.0-4+deb10u2.
 apt install libcurl3-gnutls=7.64.0-4+deb10u2 <<<'y'
