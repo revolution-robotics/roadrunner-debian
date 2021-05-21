@@ -105,6 +105,12 @@ make_debian_recoveryfs ()
                 --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
                 "${DEB_RELEASE}" "${RECOVERYFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
 
+    # install /etc/passwd, et al.
+    install -m 0644 "${G_VENDOR_PATH}/resources/etc"/{passwd,group} \
+            "${RECOVERYFS_BASE}/etc"
+    install -m 0640 -g shadow "${G_VENDOR_PATH}/resources/etc/shadow" \
+            "${RECOVERYFS_BASE}/etc"
+
     # prepare qemu
     pr_info "recoveryfs: debootstrap in recoveryfs (second-stage)"
     install -m 0755 "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" "${RECOVERYFS_BASE}/usr/bin"

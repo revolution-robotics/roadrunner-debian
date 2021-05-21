@@ -105,9 +105,17 @@ make_debian_x11_rootfs ()
                 --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
                 "${DEB_RELEASE}" "${ROOTFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
 
+
+    # install /etc/passwd, et al.
+    install -m 0644 "${G_VENDOR_PATH}/resources/etc"/{passwd,group} \
+            "${ROOTFS_BASE}/etc"
+    install -m 0640 -g shadow "${G_VENDOR_PATH}/resources/etc/shadow" \
+            "${ROOTFS_BASE}/etc"
+
     # prepare qemu
     pr_info "rootfs: debootstrap in rootfs (second-stage)"
-    install -m 0755 "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" "${ROOTFS_BASE}/usr/bin/qemu-arm-static"
+    install -m 0755 "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" \
+            "${ROOTFS_BASE}/usr/bin/qemu-arm-static"
 
     trap 'umount-fs "$ROOTFS_BASE"; exit' 0 1 2 15
 
