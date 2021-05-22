@@ -153,7 +153,6 @@ make_debian_x11_rootfs ()
         install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
            "${ROOTFS_BASE}/srv/local-apt-repository"
     done
-
     # END -- REVO i.MX7D security
 
     # add mirror to source list
@@ -770,6 +769,9 @@ pip3 install pystemd
 pip3 install pytz
 
 update-ca-certificates
+
+# Allow Python to load root CA certificate bundle.
+ln -s /etc/ssl/certs/ca-certificates.crt /usr/lib/ssl/cert.pem
 
 rm -f /user-stage
 EOF

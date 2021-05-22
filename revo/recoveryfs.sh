@@ -782,6 +782,9 @@ pip3 install pytz
 
 update-ca-certificates
 
+# Allow Python to load root CA certificate bundle.
+ln -s /etc/ssl/certs/ca-certificates.crt /usr/lib/ssl/cert.pem
+
 rm -f /user-stage
 EOF
 
