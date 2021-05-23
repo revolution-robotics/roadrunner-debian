@@ -29,11 +29,15 @@
 : ${SED:='/bin/sed'}
 : ${SCRIPT:='/usr/bin/script'}
 : ${SORT:='/usr/bin/sort'}
+: ${STEP:='/usr/bin/step-cli'}
 : ${SUDO:='/usr/bin/sudo'}
 : ${TAIL:='/usr/bin/tail'}
 : ${TAR:='/bin/tar'}
 
-fetch_remote_access_server ()
+: ${LOCK:=''}
+
+# fetch-remote-access-server: Must be called by user `root'.
+fetch-remote-access-server ()
 {
     local uri_prefix=$1
 
@@ -64,7 +68,7 @@ fetch_remote_access_server ()
     $RM -rf "${node_user_dir}/package"
 }
 
-fetch_asdf ()
+fetch-asdf ()
 {
     if test -d ~/.asdf; then
         $GIT -C ~/.asdf pull
@@ -73,7 +77,7 @@ fetch_asdf ()
     fi
 }
 
-source_asdf ()
+source-asdf ()
 {
     source ~/.asdf/asdf.sh
     if ! $GREP -q ASDF_DIR ~/.bashrc; then
@@ -90,7 +94,7 @@ EOF
     fi
 }
 
-install_node ()
+install-node ()
 {
     if type asdf >/dev/null 2>&1; then
         echo "Installing node..."
@@ -102,12 +106,12 @@ install_node ()
 
         asdf install nodejs "$node_lts"
         asdf global  nodejs "$node_lts"
-        # npm i -g npm
-        # asdf reshim nodejs
+        npm i -g npm
+        asdf reshim nodejs
     fi
 }
 
-install_remote_access_server ()
+install-remote-access-server ()
 {
     $MKDIR -p ~/.ssh
 
@@ -119,18 +123,40 @@ install_remote_access_server ()
     fi
 }
 
+bootstrap-ca ()
+{
+    local ca_url=$1
+    local fingerprint=$2
+
+    $STEP ca bootstrap --ca-url "$ca_url" \
+          --fingerprint "$fingerprint"
+    $MKDIR -p ~/.step/secrets
+    $CHMOD 700 ~/.step/secrets
+}
+
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
-    if (( EUID == 0 )); then
+    declare script=$($READLINK -e $0)
+    declare ca_url=https://ca.revo.io:14727
+    declare fingerprint=a460ed8a86453e8f281a89c9457edf3e5497622eb38b0b0a4b3d3bcb0fefc009
+
+    if test ."$LOCKED" != ."$script"; then
+        if (( EUID != 0 )); then
+            echo "${script##*/}: Must be run by user root" >&2
+            exit 1
+        fi
+
         declare uri_prefix=https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_buster_rr01/revo/resources/reverse-tunnel-server
 
-        fetch_remote_access_server "$uri_prefix"
+        fetch-remote-access-server "$uri_prefix"
 
         # Run remainder of script as user $NODE_USER.
-        exec $SUDO -i -u "$NODE_USER" $($READLINK -e $0)
+        exec env LOCKED="$script" $SUDO -i -u "$NODE_USER" \
+             --preserve-env=LOCKED "$script"
     fi
 
-    fetch_asdf
-    source_asdf
-    install_node
-    install_remote_access_server
+    fetch-asdf
+    source-asdf
+    install-node
+    install-remote-access-server
+    bootstrap-ca "$ca_url" "$fingerprint"
 fi
