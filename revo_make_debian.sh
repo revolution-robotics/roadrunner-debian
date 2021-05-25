@@ -309,21 +309,21 @@ pr_elapsed_time ()
 # $1 - printing string
 pr_error ()
 {
-    echo "E: $1"
+    echo "E: $@"
 }
 
 # print warning message
 # $1 - printing string
 pr_warning ()
 {
-    echo "W: $1"
+    echo "W: $@"
 }
 
 # print info message
 # $1 - printing string
 pr_info ()
 {
-    echo "I: $1"
+    echo "I: $@"
 }
 
 # print debug message
@@ -988,6 +988,7 @@ cmd_make_rootfs ()
 cmd_make_recoveryfs ()
 {
     if $USE_ALT_RECOVERYFS; then
+        pr_info 'Building recoveryfs from rootfs!'
         ./revo/alt-recoveryfs.sh "$G_ROOTFS_DIR" "$G_RECOVERYFS_DIR"
     else
         if test ."$MACHINE" = .'imx6ul-var-dart' ||
@@ -1298,7 +1299,7 @@ cmd_flash_diskimage ()
 
     if ! $ZCAT "$LPARAM_DISK_IMAGE" | dd of="$LPARAM_BLOCK_DEVICE" bs=1M; then
         pr_error "Flash did not complete successfully."
-        echo "*** Please check media and try again! ***"
+        pr_error "*** Please check media and try again! ***"
     fi
 }
 
@@ -1345,7 +1346,7 @@ cmd_make_clean ()
 
 # test for root access support
 if [[ "$PARAM_CMD" != "deploy"  && "$EUID" != 0 ]]; then
-    pr_error "This command must be run as root (or sudo/su)"
+    pr_error "$SCRIPT_NAME: Run as user root."
     exit 1
 fi
 

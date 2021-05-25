@@ -309,7 +309,7 @@ protected_install openssh-server
 protected_install dosfstools
 
 ## Fix config for sshd (permit root login).
-sed -i -e 's/#PermitRootLogin.*/PermitRootLogin\tyes/g' /etc/ssh/sshd_config
+sed -i -e 's/^#* *\\(PermitRootLogin\\).*/\\1\tyes/g' /etc/ssh/sshd_config
 
 ## Hardware-based random-number generation daemon.
 protected_install rng-tools
@@ -339,29 +339,28 @@ protected_install udisks2
 protected_install ed
 
 ## Fix lightdm config (added autologin x_user).
-# sed -i -e 's/\#autologin-user=/autologin-user=x_user/g' /etc/lightdm/lightdm.conf
-# sed -i -e 's/\#autologin-user-timeout=0/autologin-user-timeout=0/g' /etc/lightdm/lightdm.conf
-
-## Disable default lightdm seat.
-# sed -i -e 's/^#start-default-seat=.*/start-default-seat=false/' \\
-#     -e 's/^#greeter-user=.*/greeter-user=lightdm/' \\
+# sed -i -e 's/^#* *\\(autologin-user=\\)/\\1x_user/g' \\
+#     -e 's/^#* *\\(autologin-user-timeout=0\\)/\\1/g' \\
 #     /etc/lightdm/lightdm.conf
 
 ## Enable remote login to via XDMCP.
-# ed -s /etc/lightdm/lightdm.conf <<'EOT'
-# /^#*\\(start-default-seat=\\).*/s//\\1false/
-# /^#*\\(greeter-user=\\).*/s//\\1lightdm/
-# /^#*\\(xserver-allow-tcp=\\).*/s//\\1true/
-# /^\\[XDMCPServer\\]/;+1,+2c
-# enabled=true
-# port=177
-# .
-# wq
-# EOT
+ed -s /etc/lightdm/lightdm.conf <<'EOT'
+/^#* *\\(start-default-seat=\\).*/s//\\1false/
+/^#* *\\(greeter-user=\\).*/s//\\1lightdm/
+/^#* *\\(xserver-allow-tcp=\\).*/s//\\1true/
+/^\\[XDMCPServer\\]/;+1,+2c
+enabled=true
+port=177
+.
+wq
+EOT
 
 ## lightdm-gtk-greeter wants to launch at-spi-bus-launcher via an old path
-# mkdir -p /usr/lib/at-spi2-core/
-# ln -sf /usr/libexec/at-spi-bus-launcher /usr/lib/at-spi2-core/
+mkdir -p /usr/lib/at-spi2-core/
+ln -sf /usr/libexec/at-spi-bus-launcher /usr/lib/at-spi2-core/
+
+# Create missing data directory.
+mkdir -p /var/lib/lightdm/data
 
 ## Add ALSA & ALSA utilites.
 # protected_install alsa-utils
@@ -959,14 +958,16 @@ deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
     # Limit kernel messages to the console.
-    sed -i -e '/^#kernel.printk/s/^#*//' "${RECOVERYFS_BASE}/etc/sysctl.conf"
+    sed -i -e '/^#* *kernel.printk/s/^#* *//' "${RECOVERYFS_BASE}/etc/sysctl.conf"
 
     # Allow non-root users to run ping.
-    echo 'net.ipv4.ping_group_range = 0 2147483647' >"${ROOTFS_BASE}/etc/sysctl.d/99-ping.conf"
+    echo 'net.ipv4.ping_group_range = 0 2147483647' >"${RECOVERYFS_BASE}/etc/sysctl.d/99-ping.conf"
 
     # Enable colorized `ls' and alias h='history 50' for `root'.
-    sed -i -e '/export LS/s/^# *//' -e '/eval.*dircolors/s/^# *//' \
-        -e '/alias ls/s/^# *//' -e '/alias l=/a alias h="history 50"' \
+    sed -i -e '/export LS/s/^# *//' \
+        -e '/eval.*dircolors/s/^# *//' \
+        -e '/alias ls/s/^# *//' \
+        -e '/alias l=/a alias h="history 50"' \
         "${RECOVERYFS_BASE}/root/.bashrc"
 
     # Remove misc. artifacts.

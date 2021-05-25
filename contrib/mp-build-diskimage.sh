@@ -143,7 +143,6 @@ case "$system" in
         : ${SCUTIL:='/usr/sbin/scutil'}
 
         if test ! -x "$MULTIPASS"; then
-
             declare uri='https://github.com/canonical/multipass'
             declare tag=$(get-current-tag "$uri")
             declare release="releases/download/${tag}/multipass-${tag#v}+mac-Darwin.pkg"
@@ -298,35 +297,48 @@ $SUDO $APT install -qy --no-install-recommends autoconf automake autopoint \\
     lib32ncurses5-dev libarchive-dev libelf-dev libgl1-mesa-dev \\
     libglib2.0-dev libglu1-mesa-dev libsdl1.2-dev libssl-dev libtool lzop \\
     m4 make python3-git python3-m2crypto qemu qemu-user-static socat \\
-    texi2html texinfo u-boot-tools unzip upx-ucl |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
-$SUDO $APT install -qy binutils-arm-linux-gnueabihf |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
-$SUDO $APT install -qy cpp-arm-linux-gnueabihf |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
-$SUDO $APT install -qy gcc-arm-linux-gnueabihf |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
-$SUDO $APT install -qy g++-arm-linux-gnueabihf |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
+    texi2html texinfo u-boot-tools unzip upx-ucl |&
+    $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
+$SUDO $APT install -qy binutils-arm-linux-gnueabihf |&
+    $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
+$SUDO $APT install -qy cpp-arm-linux-gnueabihf |&
+    $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
+$SUDO $APT install -qy gcc-arm-linux-gnueabihf |&
+    $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
+$SUDO $APT install -qy g++-arm-linux-gnueabihf |&
+    $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
 $CURL -sL https://ftp-master.debian.org/keys/release-10.asc |
     $SUDO $GPG --import --no-default-keyring \\
         --keyring /usr/share/keyrings/debian-buster-release.gpg
 echo "Cloning build suite..."
 $GIT init |& $TEE "/home/ubuntu/${OUTPUT_DIR}/git.log"
-$GIT remote add origin https://github.com/revolution-robotics/roadrunner-debian.git |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
+$GIT remote add origin https://github.com/revolution-robotics/roadrunner-debian.git |&
+    $TEE -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
 $GIT fetch |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
 if test ."$build_suite_commit" != .''; then
-    $GIT checkout -b "commit-${build_suite_commit:0:6}" "$build_suite_commit" |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
+    $GIT checkout -b "commit-${build_suite_commit:0:6}" "$build_suite_commit" |&
+        $TEE -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
 else
-    $GIT checkout "$BUILD_SUITE_BRANCH_DEFAULT" |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
+    $GIT checkout "$BUILD_SUITE_BRANCH_DEFAULT" |&
+        $TEE -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
 fi
 echo "Deploying sources..."
 MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c deploy |& $TEE "/home/ubuntu/${OUTPUT_DIR}/deploy.log"
 echo "Building all..."
 if $use_alt_recoveryfs; then
-    $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -a -j "$NPROC" $DEBIAN_PROXY -c all |& $TEE "/home/ubuntu/${OUTPUT_DIR}/all.log"
+    $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -a -j "$NPROC" $DEBIAN_PROXY -c all |&
+        $TEE "/home/ubuntu/${OUTPUT_DIR}/all.log"
 else
-    $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -j "$NPROC" $DEBIAN_PROXY -c all |& $TEE "/home/ubuntu/${OUTPUT_DIR}/all.log"
+    $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -j "$NPROC" $DEBIAN_PROXY -c all |&
+        $TEE "/home/ubuntu/${OUTPUT_DIR}/all.log"
 fi
 echo "Creating disk image..."
-echo | $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage |& $TEE "/home/ubuntu/${OUTPUT_DIR}/diskimage.log"
-echo | $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c usbimage |& $TEE "/home/ubuntu/${OUTPUT_DIR}/usbimage.log"
-echo | $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c provisionimage |& $TEE "/home/ubuntu/${OUTPUT_DIR}/provisionimage.log"
+echo | $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage |&
+    $TEE "/home/ubuntu/${OUTPUT_DIR}/diskimage.log"
+echo | $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c usbimage |&
+    $TEE "/home/ubuntu/${OUTPUT_DIR}/usbimage.log"
+echo | $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c provisionimage |&
+    $TEE "/home/ubuntu/${OUTPUT_DIR}/provisionimage.log"
 uptime >"/home/ubuntu/${OUTPUT_DIR}/runtime.log"
 EOF
 
