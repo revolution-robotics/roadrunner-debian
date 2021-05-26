@@ -121,6 +121,9 @@ rm -rf /usr/share/man/*
 userdel revo
 rm -rf /home/revo
 rm -f /pare-fs.sh
+for list in $purge_lists; do
+    rm -f "/\$list"
+done
 EOF
     chmod +x "${fs}/pare-fs.sh"
     echo "chroot ${fs} /pare-fs.sh"
@@ -168,7 +171,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
 
     # Extract and apply patch at the end of this script to create
     # `residual-to-remove.list'.
-    sed -n '/BEGIN patch/,$s/^#//p' "${G_VENDOR_PATH}/${script_name}" |
+    sed -n '/BEGIN patch/,$s/^#//p' "$ABSOLUTE_FILENAME" |
         patch -p0
 
     # To produce recoveryfs, copy rootfs and remove from it all
