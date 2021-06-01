@@ -2,10 +2,20 @@
 #
 # @(#) install-reverse-tunnel-server
 #
-# This script installs version manager `asdf', then with asdf, the
-# latest node version of the $node_base series and finally the npm
-# package `reverse-tunnel-server'.
+# SYNOPSIS
+#     install-reverse-tunnel-server [ca-url fingerprint]
 #
+# DESCRIPTION
+#     This script installs in the home directory of user $NODE_USER:
+#        1) version manager `asdf',
+#        2) the latest version of nodejs in the $NODE_BASE series,
+#        3) npm package `reverse-tunnel-server',
+#     and finally, if a CA-URL and associated FINGERPRINT are
+#     specified, the given certificate authority is bootstraped,
+#     otherwise ca.revo.io is bootstraped.
+#
+declare script=$($READLINK -e $0)
+
 # Edit these ...
 : ${NODE_BASE:='@NODE_BASE@'}
 : ${NODE_GROUP:='@NODE_GROUP@'}
@@ -23,7 +33,6 @@
 : ${GIT:='/usr/bin/git'}
 : ${GREP:='/bin/grep'}
 : ${INSTALL:='/usr/bin/install'}
-: ${MKDIR:='/bin/mkdir'}
 : ${READLINK:='/bin/readlink'}
 : ${RM:='/bin/rm'}
 : ${SED:='/bin/sed'}
@@ -55,15 +64,16 @@ fetch-remote-access-server ()
              /etc/default
     $INSTALL -m 0644 "${node_user_dir}/package/scripts/reverse-tunnel@.service"  \
              /lib/systemd/system
-    $MKDIR -p ~/.ssh
+    $INSTALL -d -m 0755 ~/.ssh
 
     local statedir=$(
         $AWK  '/^API_STATE_DIR/ { print $NF }' /etc/default/reverse-tunnel
             )
 
-    $MKDIR -p "${statedir}"/{certs,config,secrets}
-    $CHOWN -R ${NODE_USER}:${NODE_GROUP} "${statedir}"
-    $CHMOD 0700 "${statedir}/secrets"
+    $INSTALL -d -m 0755 -o "$NODE_USER" -g "$NODE_GROUP" \
+             "${statedir}"/{certs,config}
+    $INSTALL -d -m 0700 -o "$NODE_USER" -g "$NODE_GROUP" \
+             "${statedir}/secrets"
 
     $RM -rf "${node_user_dir}/package"
 }
@@ -113,7 +123,7 @@ install-node ()
 
 install-remote-access-server ()
 {
-    $MKDIR -p ~/.ssh
+    $INSTALL -d -m 0755 ~/.ssh
 
     if test -f ~/reverse-tunnel-server*.tgz; then
         npm i -g ~/reverse-tunnel-server*.tgz
@@ -130,14 +140,12 @@ bootstrap-ca ()
 
     $STEP ca bootstrap --ca-url "$ca_url" \
           --fingerprint "$fingerprint"
-    $MKDIR -p ~/.step/secrets
-    $CHMOD 700 ~/.step/secrets
+    $INSTALL -d -m 0700 ~/.step/secrets
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
-    declare script=$($READLINK -e $0)
-    declare ca_url=https://ca.revo.io:14727
-    declare fingerprint=a460ed8a86453e8f281a89c9457edf3e5497622eb38b0b0a4b3d3bcb0fefc009
+    declare ca_url=${1:-'https://ca.revo.io:14727'}
+    declare fingerprint=${2:-'a460ed8a86453e8f281a89c9457edf3e5497622eb38b0b0a4b3d3bcb0fefc009'}
 
     if test ."$LOCKED" != ."$script"; then
         if (( EUID != 0 )); then
