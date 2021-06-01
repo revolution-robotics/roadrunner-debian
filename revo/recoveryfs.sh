@@ -95,10 +95,10 @@ make_debian_recoveryfs ()
 
     pr_info "Make debian(${DEB_RELEASE}) recoveryfs start..."
 
-    # umount previus mounts (if fail)
+    ## umount previus mounts (if fail)
     umount-fs "${RECOVERYFS_BASE}"
 
-    # clear recoveryfs dir
+    ## clear recoveryfs dir
     rm -rf "${RECOVERYFS_BASE}"
 
     pr_info "recoveryfs: debootstrap"
@@ -108,13 +108,13 @@ make_debian_recoveryfs ()
                 --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
                 "${DEB_RELEASE}" "${RECOVERYFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
 
-    # Install /etc/passwd, et al.
+    ## Install /etc/passwd, et al.
     install -m 0644 "${G_VENDOR_PATH}/resources/etc"/{passwd,group} \
             "${RECOVERYFS_BASE}/etc"
     install -m 0640 -g shadow "${G_VENDOR_PATH}/resources/etc/shadow" \
             "${RECOVERYFS_BASE}/etc"
 
-    # Prepare qemu.
+    ## Prepare qemu.
     pr_info "recoveryfs: debootstrap in recoveryfs (second-stage)"
     install -m 0755 "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" "${RECOVERYFS_BASE}/usr/bin"
 
@@ -123,7 +123,7 @@ make_debian_recoveryfs ()
     pr_info "recoveryfs: second-stage debootstrap"
     $CHROOTFS "$RECOVERYFS_BASE" /debootstrap/debootstrap --second-stage
 
-    # Delete unused folder.
+    ## Delete unused folder.
     $CHROOTFS "$RECOVERYFS_BASE" rm -rf  "${RECOVERYFS_BASE}/debootstrap"
 
     # pr_info "recoveryfs: generate default configs"
@@ -131,18 +131,18 @@ make_debian_recoveryfs ()
     # echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > ${RECOVERYFS_BASE}/etc/sudoers.d/user
     # chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/user
 
-    # install local Debian packages
+    ## install local Debian packages
     mkdir -p "${RECOVERYFS_BASE}/srv/local-apt-repository"
 
-    # udisk2
+    ## udisk2
     cp -r "${G_VENDOR_PATH}/deb/udisks2"/* \
        "${RECOVERYFS_BASE}/srv/local-apt-repository"
 
-    # gstreamer-imx
+    ## gstreamer-imx
     # cp -r ${G_VENDOR_PATH}/deb/gstreamer-imx/* \
     #    ${RECOVERYFS_BASE}/srv/local-apt-repository
 
-    # shared-mime-info
+    ## shared-mime-info
     # cp -r ${G_VENDOR_PATH}/deb/shared-mime-info/* \
     #    ${RECOVERYFS_BASE}/srv/local-apt-repository
 
@@ -161,7 +161,7 @@ make_debian_recoveryfs ()
     done
     # END -- REVO i.MX7D security
 
-    # add mirror to source list
+    ## add mirror to source list
     cat >"${RECOVERYFS_BASE}/etc/apt/sources.list" <<EOF
 deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
 deb ${PARAM_DEB_LOCAL_MIRROR%/}-security/ ${DEB_RELEASE}/updates main contrib non-free
@@ -173,14 +173,14 @@ deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 # deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
-    # raise backports priority
+    ## raise backports priority
     cat >"${RECOVERYFS_BASE}/etc/apt/preferences.d/backports" <<EOF
 Package: *
 Pin: release n=${DEB_RELEASE}-backports
 Pin-Priority: 500
 EOF
 
-    # maximize local repo priority
+    ## maximize local repo priority
     cat >"${RECOVERYFS_BASE}/etc/apt/preferences.d/local" <<EOF
 Package: *
 Pin: origin ""
@@ -192,10 +192,10 @@ EOF
 # /dev/mmcblk0p1  /boot           vfat    defaults        0       0
 EOF
 
-    # Unique hostname generated on boot (see below).
+    ## Unique hostname generated on boot (see below).
     # echo "$MACHINE" > etc/hostname
 
-    # "127.0.1.1 $hostname"  added when hostname generated on boot
+    ## "127.0.1.1 $hostname"  added when hostname generated on boot
     cat >"${RECOVERYFS_BASE}/etc/hosts" <<EOF
 127.0.0.1	localhost
 
@@ -222,7 +222,7 @@ EOF
 
     pr_info "recoveryfs: prepare install packages in recoveryfs"
 
-    # Run apt install without invoking daemons.
+    ## Run apt install without invoking daemons.
     cat >"${RECOVERYFS_BASE}/usr/sbin/policy-rc.d" <<EOF
 #!/bin/bash
 exit 101
@@ -230,7 +230,7 @@ EOF
 
     chmod +x "${RECOVERYFS_BASE}/usr/sbin/policy-rc.d"
 
-    # third packages stage
+    ## third packages stage
     cat >"${RECOVERYFS_BASE}/third-stage" <<EOF
 #!/bin/bash
 # apply debconfig options
@@ -483,51 +483,51 @@ EOF
 
     # BEGIN -- REVO i.MX7D updates
 
-    # Update logrotate
+    ## Update logrotate
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/logrotate/logrotate.conf" \
             "${RECOVERYFS_BASE}/etc"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/logrotate/rsyslog" \
             "${RECOVERYFS_BASE}/etc/logrotate.d"
 
-    # Install REVO update-hostname script
+    ## Install REVO update-hostname script
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/update-hostname" \
             "${RECOVERYFS_BASE}/usr/sbin"
 
-    # Install REVO tls-generate-self-signed script
+    ## Install REVO tls-generate-self-signed script
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/tls-generate-self-signed" \
             "${RECOVERYFS_BASE}/usr/sbin"
 
-    # Install REVO hostname-commit service to generate unique hostname
+    ## Install REVO hostname-commit service to generate unique hostname
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/hostname-commit.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
     install -d -m 0755 "${RECOVERYFS_BASE}/etc/systemd/system/network.target.wants"
     ln -sf '/lib/systemd/system/hostname-commit.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/network.target.wants"
 
-    # Install REVO commit-hostname script
+    ## Install REVO commit-hostname script
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/commit-hostname" "${RECOVERYFS_BASE}/usr/sbin"
 
-    # Remove machine ID and hostname to force generation of unique ones
+    ## Remove machine ID and hostname to force generation of unique ones
     rm -f "${RECOVERYFS_BASE}/etc/machine-id" \
        "${RECOVERYFS_BASE}/var/lib/dbus/machine-id" \
        "${RECOVERYFS_BASE}/etc/hostname"
 
-    # Exim mailname is updated when hostname generated
+    ## Exim mailname is updated when hostname generated
     # echo "$MACHINE" > "${RECOVERYFS_BASE}/etc/mailname"
 
-    # Regenerate SSH keys on first boot
+    ## Regenerate SSH keys on first boot
     # install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/regenerate-ssh-host-keys.service" \
     #         "${RECOVERYFS_BASE}/lib/systemd/system"
     # ln -sf '/lib/systemd/system/regenerate-ssh-host-keys.service' \
     #    "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    # Support resizing a serial console - taken from Debian xterm package.
+    ## Support resizing a serial console - taken from Debian xterm package.
     if test ! -f "${RECOVERYFS_BASE}/usr/bin/resize"; then
         install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/resize \
                 ${RECOVERYFS_BASE}/usr/bin
     fi
 
-    # Set PATH and resize serial console window.
+    ## Set PATH and resize serial console window.
     install -m 0755 "${G_VENDOR_PATH}/resources/etc/bash.bashrc" \
             "${RECOVERYFS_BASE}/etc"
     install -m 0755 "${G_VENDOR_PATH}/resources/etc/profile" \
@@ -536,26 +536,26 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/resources/etc/profile.d/set_window_title.sh" \
             "${RECOVERYFS_BASE}/etc/profile.d"
 
-    # Build and install RS-485 mode configuration utility.
+    ## Build and install RS-485 mode configuration utility.
     make -C "${G_VENDOR_PATH}/resources/rs485" clean all
     install -m 0755 "${G_VENDOR_PATH}/resources/rs485/rs485" \
             "${RECOVERYFS_BASE}/usr/bin"
 
-    # Install and enable serial initialization systemd service
+    ## Install and enable serial initialization systemd service
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/serial-init.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
     ln -sf '/lib/systemd/system/serial-init.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    # Install serial initialization default
+    ## Install serial initialization default
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/etc/default/serial" \
             "${RECOVERYFS_BASE}/etc/default"
 
-    # Install utitlity to download Yandex shares.
+    ## Install utitlity to download Yandex shares.
     install -m 0755 "${G_VENDOR_PATH}/resources/fetch-yandex" \
             "${RECOVERYFS_BASE}/usr/bin"
 
-    # Mount /tmp, /var/tmp and /var/log on tmpfs.
+    ## Mount /tmp, /var/tmp and /var/log on tmpfs.
     install -m 0644 "${RECOVERYFS_BASE}/usr/share/systemd/tmp.mount" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/var-"{log,tmp}.mount \
@@ -563,12 +563,12 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/var-log.conf" \
             "${RECOVERYFS_BASE}/usr/lib/tmpfiles.d"
 
-    # Install REVO U-Boot boot script.
+    ## Install REVO U-Boot boot script.
     install -d -m 0755 "${RECOVERYFS_BASE}/usr/share/boot"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/u-boot/boot.sh" \
                 "${RECOVERYFS_BASE}/usr/share/boot"
 
-    # Install support for /boot/cmdline.txt
+    ## Install support for /boot/cmdline.txt
     case "${ACCESS_CONTROL,,}" in
         apparmor)
             echo 'security=apparmor apparmor=1' \
@@ -588,7 +588,7 @@ EOF
     ln -sf '/lib/systemd/system/kernel-cmdline.path' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    # Install REVO recover eMMC service.
+    ## Install REVO recover eMMC service.
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc" \
             "${RECOVERYFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc.service" \
@@ -598,7 +598,7 @@ EOF
        "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"
     ln -sf "$G_IMAGES_DIR" "${RECOVERYFS_BASE}/system-update"
 
-    # Install REVO eMMC-recovery monitor service
+    ## Install REVO eMMC-recovery monitor service
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor" \
             "${RECOVERYFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor.service" \
@@ -606,87 +606,87 @@ EOF
     ln -sf '/lib/systemd/system/recover-emmc-monitor.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    # Enable NetworkManager dispatcher
+    ## Enable NetworkManager dispatcher
     ln -sf '/lib/systemd/system/NetworkManager-dispatcher.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/dbus-org.freedesktop.nm-dispatcher.service"
 
-    # Fix NetworkManager dispatch permissions set by Git
+    ## Fix NetworkManager dispatch permissions set by Git
     chmod -R g-w "${G_VENDOR_PATH}/resources/NetworkManager/"*
     chmod 750 "${G_VENDOR_PATH}/resources/NetworkManager/etc/NetworkManager/dispatcher.d/30-link-led"
 
-    # Install REVO NetworkManager scripts
+    ## Install REVO NetworkManager scripts
     tar -C "${G_VENDOR_PATH}/resources/NetworkManager" -cf - . |
         tar -C "${RECOVERYFS_BASE}" -oxf -
 
     rm -f "${RECOVERYFS_BASE}/etc/NetworkManager/dispatcher.d/"*ifupdown
 
-    # Update NetworkManager udev rule.
+    ## Update NetworkManager udev rule.
     install -m 0644 "${G_VENDOR_PATH}/resources/udev/84-nm-drivers.rules" \
             "${RECOVERYFS_BASE}/usr/lib/udev/rules.d"
 
-    # Add REVO default firewalld configuration.
+    ## Add REVO default firewalld configuration.
     install -m 0644 "${G_VENDOR_PATH}/resources/firewalld/revo-web-ui.xml" \
             "${RECOVERYFS_BASE}/etc/firewalld/services"
     install -m 0644 "${G_VENDOR_PATH}/resources/firewalld/public.xml" \
             "${RECOVERYFS_BASE}/etc/firewalld/zones"
 
-    # Add Random Number Generator daemon (rngd) service
+    ## Add Random Number Generator daemon (rngd) service
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/rngd.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
     ln -sf '/lib/systemd/system/rngd.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    # Add Exim4 service
+    ## Add Exim4 service
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/exim4.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
 
     # ln -sf '/lib/systemd/system/exim4.service' \
     #    "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    # Disable Exim4 service
+    ## Disable Exim4 service
     rm -f "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/exim4.service"
 
-    # Update systemd dbus socket
+    ## Update systemd dbus socket
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/dbus.socket" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
 
-    # Add headless Xorg config
+    ## Add headless Xorg config
     install -m 0644 "${G_VENDOR_PATH}/resources/10-headless.conf" \
             "${RECOVERYFS_BASE}/usr/share/X11/xorg.conf.d"
 
-    # Install MIME databases
+    ## Install MIME databases
     tar -C "$RECOVERYFS_BASE" -Jxf "${G_VENDOR_PATH}/resources/mime.txz"
 
-    # Create /var/www/html. TODO: Add index.html.
+    ## Create /var/www/html. TODO: Add index.html.
     install -d -m 0755 "${RECOVERYFS_BASE}/var/www/html"
 
-    # Build and install REVO web dispatch.
+    ## Build and install REVO web dispatch.
     make -C "${G_REVO_WEB_DISPATCH_SRC_DIR}" clean all
     install -m 0755 "${G_REVO_WEB_DISPATCH_SRC_DIR}/revo-web-dispatch" \
             "${RECOVERYFS_BASE}/usr/sbin"
 
-    # Install REVO web dispatch config
+    ## Install REVO web dispatch config
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/etc/default/web-dispatch" \
             "${RECOVERYFS_BASE}/etc/default"
 
-    # Install REVO web dispatch service
+    ## Install REVO web dispatch service
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-web-dispatch.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
     ln -sf '/lib/systemd/system/revo-web-dispatch.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    # Install redirect-web-ports.
+    ## Install redirect-web-ports.
     install -m 0755 "${G_VENDOR_PATH}/resources/redirect-web-ports" \
             "${RECOVERYFS_BASE}/usr/sbin"
 
     # END -- REVO i.MX7D update
 
-    # Build and install brcm_patchram_plus utility.
+    ## Build and install brcm_patchram_plus utility.
     make -C "${G_VENDOR_PATH}/resources/bluetooth" clean all
     install -m 0755 "${G_VENDOR_PATH}/resources/bluetooth/brcm_patchram_plus" \
             "${RECOVERYFS_BASE}/usr/bin"
 
-    # Install bluetooth service
+    ## Install bluetooth service
     install -d -m 0755 "${RECOVERYFS_BASE}/etc/bluetooth"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/etc/bluetooth/revo-bluetooth.conf" \
             "${RECOVERYFS_BASE}/etc/bluetooth"
@@ -697,13 +697,13 @@ EOF
     ln -sf /lib/systemd/system/revo-bluetooth.service \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    # Install BT audio and main config
+    ## Install BT audio and main config
     install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/audio.conf" \
             "${RECOVERYFS_BASE}/etc/bluetooth/"
     install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/main.conf" \
             "${RECOVERYFS_BASE}/etc/bluetooth/"
 
-    # Install obexd configuration
+    ## Install obexd configuration
     install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obexd.conf" \
             "${RECOVERYFS_BASE}/etc/dbus-1/system.d"
 
@@ -712,16 +712,16 @@ EOF
     # ln -sf /lib/systemd/system/obex.service \
     #    "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service"
 
-    # Disable obex service
+    ## Disable obex service
     rm -f "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service"
 
-    # Install pulse audio configuration
+    ## Install pulse audio configuration
     install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
     # ln -sf /lib/systemd/system/pulseaudio.service \
     #    "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service"
 
-    # Disable pulse audio service
+    ## Disable pulse audio service
     rm -f "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service"
 
     install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf" \
@@ -729,13 +729,13 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/system.pa" \
             "${RECOVERYFS_BASE}/etc/pulse/"
 
-    # Add alsa default configs
+    ## Add alsa default configs
     install -m 0644 "${G_VENDOR_PATH}/resources/asound.state" \
             "${RECOVERYFS_BASE}/var/lib/alsa/"
     install -m 0644 "${G_VENDOR_PATH}/resources/asound.conf" \
             "${RECOVERYFS_BASE}/etc/"
 
-    # Install WiFi service
+    ## Install WiFi service
     install -d "${RECOVERYFS_BASE}/etc/wifi"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/etc/wifi/blacklist.conf" \
             "${RECOVERYFS_BASE}/etc/wifi"
@@ -750,7 +750,7 @@ EOF
     ln -sf /lib/systemd/system/revo-wifi.service \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    # Remove pm-utils default scripts and install WiFi / Bluetooth scripts
+    ## Remove pm-utils default scripts and install WiFi / Bluetooth scripts
     rm -rf "${RECOVERYFS_BASE}/usr/lib/pm-utils/sleep.d/"
     rm -rf "${RECOVERYFS_BASE}/usr/lib/pm-utils/module.d/"
     rm -rf "${RECOVERYFS_BASE}/usr/lib/pm-utils/power.d/"
@@ -792,10 +792,10 @@ EOF
 
     fi
 
-    # recoveryfs startup patches
+    ## recoveryfs startup patches
     pr_info "recoveryfs: begin startup patches"
 
-    # Mount systemd journal on tmpfs, /run/log/journal.
+    ## Mount systemd journal on tmpfs, /run/log/journal.
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
             "${RECOVERYFS_BASE}/etc/systemd"
 
@@ -807,17 +807,17 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/wallpaper.png" \
             "${RECOVERYFS_BASE}/usr/share/images/desktop-base/default"
 
-    # Disable LightDM session locking
+    ## Disable LightDM session locking
     # install -m 0755 "${G_VENDOR_PATH}/resources/disable-lightlocker" \
     #         "${RECOVERYFS_BASE}/usr/local/bin/"
     # install -m 0644 "${G_VENDOR_PATH}/resources/disable-lightlocker.desktop" \
     #         "${RECOVERYFS_BASE}/etc/xdg/autostart/"
 
-    # Revert regular booting
+    ## Revert regular booting
     rm -f ${RECOVERYFS_BASE}/usr/sbin/policy-rc.d
 
-    # Installing kernel modules to recoveryfs is redundant. This is
-    # already done by cmd_make_kmodules.
+    ## Installing kernel modules to recoveryfs is redundant. This is
+    ## already done by cmd_make_kmodules.
 
     # pr_info "recoveryfs: install kernel modules"
 
@@ -827,14 +827,14 @@ EOF
     #     "${RECOVERYFS_BASE}"
 
 
-    # Install kernel headers to rootfs
+    ## Install kernel headers to rootfs
     # mkdir -p "${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi"
     # cp "${G_LINUX_KERNEL_SRC_DIR}/drivers/staging/android/uapi/"* \
     #    "${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi"
     # cp -r "${G_LINUX_KERNEL_SRC_DIR}/include" \
     #    "${RECOVERYFS_BASE}/usr/local/src/linux-imx/"
 
-    # Install U-Boot environment editor
+    ## Install U-Boot environment editor
     pr_info "recoveryfs: install U-Boot environment editor"
 
     install -m 0755 "${PARAM_OUTPUT_DIR}/fw_printenv-mmc" \
@@ -862,29 +862,29 @@ EOF
     # install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
     #         "${RECOVERYFS_BASE}/usr/bin/curl"
 
-    # Redirect all system mail user `revo'.
+    ## Redirect all system mail user `revo'.
     sed -i "\$a root: revo" "${RECOVERYFS_BASE}/etc/aliases"
 
-    # Remove /etc/init.d/rng-tools (started by rngd.service)
+    ## Remove /etc/init.d/rng-tools (started by rngd.service)
     rm -f "${RECOVERYFS_BASE}/etc/init.d/rng-tools"
 
-    # Configure /etc/default/zramswap
+    ## Configure /etc/default/zramswap
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/zramswap" \
             "${RECOVERYFS_BASE}/etc/default"
 
-    # Enable zramswap service
+    ## Enable zramswap service
     ln -sf '/lib/systemd/system/zramswap.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/"
 
-    # Mask e2scrub_{all,reap} services.
+    ## Mask e2scrub_{all,reap} services.
     ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_all.timer"
     ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_all.service"
     ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_reap.service"
 
-    # Enable sysstat data collection
+    ## Enable sysstat data collection
     sed -i -e 's;^\(ENABLED=\).*;\1"true";' "${RECOVERYFS_BASE}/etc/default/sysstat"
 
-    # Keep 12 hours of pmlogger logs.
+    ## Keep 12 hours of pmlogger logs.
     install -m 0755 "${G_VENDOR_PATH}/resources/pmlogger_rotate" \
             "${RECOVERYFS_BASE}/usr/lib/pcp/bin"
     printf "30 */6\t* * *\troot\t/usr/lib/pcp/bin/pmlogger_rotate" \
@@ -907,12 +907,12 @@ EOF
 # Install reverse-tunnel-server
 install-reverse-tunnel-server
 
-# Remove non-default locales.
+## Remove non-default locales.
 DEBIAN_FRONTEND=noninteractive apt -y install localepurge
 sed -i -e 's/^USE_DPKG/#USE_DPKG/' /etc/locale.nopurge
 localepurge
 
-# XXX: Why is 'linux-image*' installed???
+## XXX: Why is 'linux-image*' installed???
 apt -y purge 'linux-image*' initramfs-tools{,-core} \\
     cryptsetup cryptsetup-bin cryptsetup-initramfs cryptsetup-run \\
     dmeventd dmraid dracut dracut-core lvm2 \\
@@ -945,7 +945,7 @@ EOF
     rm -rf "${RECOVERYFS_BASE}/usr/share/doc/"*
     rm -rf "${RECOVERYFS_BASE}/var/lib/apt/lists/"*
 
-    # Restore APT source list to default Debian mirror.
+    ## Restore APT source list to default Debian mirror.
     cat >"${RECOVERYFS_BASE}/etc/apt/sources.list" <<EOF
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
 deb ${DEF_DEBIAN_MIRROR%/}-security/ ${DEB_RELEASE}/updates main contrib non-free
@@ -957,29 +957,29 @@ deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 # deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
-    # Limit kernel messages to the console.
+    ## Limit kernel messages to the console.
     sed -i -e '/^#* *kernel.printk/s/^#* *//' "${RECOVERYFS_BASE}/etc/sysctl.conf"
 
-    # Allow non-root users to run ping.
+    ## Allow non-root users to run ping.
     echo 'net.ipv4.ping_group_range = 0 2147483647' >"${RECOVERYFS_BASE}/etc/sysctl.d/99-ping.conf"
 
-    # Enable colorized `ls' and alias h='history 50' for `root'.
+    ## Enable colorized `ls' and alias h='history 50' for `root'.
     sed -i -e '/export LS/s/^# *//' \
         -e '/eval.*dircolors/s/^# *//' \
         -e '/alias ls/s/^# *//' \
         -e '/alias l=/a alias h="history 50"' \
         "${RECOVERYFS_BASE}/root/.bashrc"
 
-    # Remove misc. artifacts.
+    ## Remove misc. artifacts.
     find "${RECOVERYFS_BASE}/usr/local/include" -name ..install.cmd -delete
     find "${RECOVERYFS_BASE}/usr/local/include" -name .install -delete
 
-    # Prepare /var/log to be mounted as tmpfs.
-    # NB: *~ is excluded from recoveryfs tarball.
+    ## Prepare /var/log to be mounted as tmpfs.
+    ## NB: *~ is excluded from recoveryfs tarball.
     rm -rf "${RECOVERYFS_BASE}/var/log"
     install -d -m 755 "${RECOVERYFS_BASE}/var/log"
 
-    # kill latest dbus-daemon instance due to qemu-arm-static
+    ## kill latest dbus-daemon instance due to qemu-arm-static
     QEMU_PROC_ID=$(ps axf | grep dbus-daemon | grep qemu-arm-static | awk '{print $1}')
     if test -n "$QEMU_PROC_ID"; then
         kill -9 "$QEMU_PROC_ID"

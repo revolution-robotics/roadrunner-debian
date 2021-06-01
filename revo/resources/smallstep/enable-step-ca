@@ -2,30 +2,27 @@
 #
 # @(#) install-step-ca
 #
-# This script installs Debian packages `step-cli' and
-# `step-certificates' on Ubuntu x86_64. On both x86_64 and Arm
-# architectures, step-ca is initialized.
+# This script initializes Smallstep's certificate authority and issues
+# TLS certificates for the host system.
 #
 # Exit immediately on error.
 set -e -o pipefail
 
-declare script_name=${0##*/}
-declare script_dir=$(readlink -e "$0")
-
-script_dir=${script_dir%/*}
+declare script=$(readlink -e $0)
+declare script_name=${script##*/}
+declare script_dir=${script%/*}
 
 : ${STEP_CLI:='/usr/bin/step'}
 : ${STEP_CA:='/usr/bin/step-ca'}
 
-if test ! -f /usr/lib/NetworkManager/ip-funcs; then
-    cd /usr/lib/NetworkManager && {
-        sudo curl -C - -LO https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_buster_rr01/revo/resources/NetworkManager/usr/lib/NetworkManager/ip-funcs
-        sudo chmod 644 ip-funcs
-        cd -
-    }
+declare ipfuncs=/usr/lib/NetworkManager/ip-funcs
+
+if test ! -f "$ipfuncs"; then
+    sudo curl -Lo "$ipfuncs" \
+         "https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_buster_rr01/revo/resources/NetworkManager/${ipfuncs}"
 fi
 
-source /usr/lib/NetworkManager/ip-funcs
+source "$ipfuncs"
 
 usage ()
 {
@@ -66,75 +63,6 @@ where OPTIONS are:
              Set name of certificate authority owner.
              (default: ${argv[username]})
 EOF
-}
-
-# Return latest GIT repository tag of the form vX.Y.Z.
-get-current-tag ()
-{
-    local uri=$1
-
-    # GIT output format:
-    #     f8bc862f1f40000864555374c08f59670f2cf6b9	refs/tags/v0.14.2
-    #     3137b01136102d36f7631c0ecbd344bfe60090b3	refs/tags/v0.14.2-rc.1
-    #     1b757d26aa177e1ad816b51f74cbfbdd5d69d73a	refs/tags/v0.14.3
-    #     ea17bc44bce8630e93a997fd5de41d22a0fa061e	refs/tags/v0.14.4-rc.1
-    #
-    # After filtering and sorting:
-    #     v0.14.2
-    #     v0.14.3
-    git ls-remote --tags "$uri" |
-        grep -v -- '-rc[-.0-9]*' |
-        sed 's;.*refs/tags/;;' |
-        sort --version-sort -k1.2 |
-        tail -1
-}
-
-fetch-and-install-step-pkg ()
-{
-    local uri=$1
-
-    local pkg
-    local tag=$(get-current-tag "$uri")
-    local extension=${uri##*/}
-    local machine=amd64
-
-    if test ."$extension" = .'certificates'; then
-        extension=-ca
-    else
-        extension=''
-    fi
-
-    if test ."$(uname --machine)" = .'armv7l'; then
-        machine=armv7
-    fi
-
-    if test -f /etc/fedora-release -o -f /etc/centos-release; then
-        pkg=step${extension}_linux_${tag#v}_${machine}.tar.gz
-    else
-        pkg=step${extension}_${tag#v}_${machine}.deb
-    fi
-
-    local tmpdir=$(mktemp -d "/tmp/${FUNCNAME[0]}.XXXXX")
-
-    trap 'rm -rf "$tmpdir"; exit' 0 1 2 15
-
-    cd "$tmpdir"
-    curl -C - -LO "${uri}/releases/download/${tag}/${pkg}"
-
-    if test -f /etc/fedora-release -o -f /etc/centos-release; then
-        tar --strip-components=1 -zxf "./${pkg}"
-        sudo install -m 0755 ./bin/* /usr/bin/
-        if test -d "./autocomplete"; then
-            sudo install -m 0644 autocomplete/bash* /usr/share/bash-completion/completions
-        fi
-    else
-        sudo apt install "./${pkg}"
-    fi
-
-    cd -
-
-    rm -rf "$tmpdir"
-    trap - 0 1 2 15
 }
 
 resolve-fqdn ()
@@ -417,14 +345,6 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     if test ! -f "${param[template]}"; then
         sed -n '/BEGIN patch/,$s/^# //p' "${script_dir}/${script_name}" |
             patch -p0
-    fi
-
-    if test ! -x "$STEP_CLI"; then
-        fetch-and-install-step-pkg "$cli_uri"
-    fi
-
-    if test ! -x "$STEP_CA"; then
-        fetch-and-install-step-pkg "$certificates_uri"
     fi
 
     resolve-fqdn 'param'
