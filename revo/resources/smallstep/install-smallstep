@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+#
+# @(#) fetch-and-install-smallstep
+#
+# This script downloads and installs the latest Smallstep certificates
+# and CLI packages for the current system.
+#
+# Supported platforms:
+#     Centos/Fedora
+#     Debian/Ubuntu
+#
+# Supported architectures:
+#     armv7l
+#     x86_64
+#
+: ${APT:='/usr/bin/apt'}
+: ${CURL:='/usr/bin/curl'}
+: ${GIT:='/usr/bin/git'}
+: ${GREP:='/bin/grep'}
+: ${INSTALL:='/usr/bin/install'}
+: ${MKTEMP:='/bin/mktemp'}
+: ${RM:='/bin/rm'}
+: ${SED:='/bin/sed'}
+: ${SORT:='/usr/bin/sort'}
+: ${SUDO:='/usr/bin/sudo'}
+: ${TAIL:='/usr/bin/tail'}
+: ${TAR:='/bin/tar'}
+: ${UNAME:='/bin/uname'}
+
+# Return latest GIT repository tag of the form vX.Y.Z.
+get-current-tag ()
+{
+    local uri=$1
+
+    # GIT output format:
+    #     f8bc862f1f40000864555374c08f59670f2cf6b9	refs/tags/v0.14.2
+    #     3137b01136102d36f7631c0ecbd344bfe60090b3	refs/tags/v0.14.2-rc.1
+    #     1b757d26aa177e1ad816b51f74cbfbdd5d69d73a	refs/tags/v0.14.3
+    #     ea17bc44bce8630e93a997fd5de41d22a0fa061e	refs/tags/v0.14.4-rc.1
+    #
+    # After filtering and sorting:
+    #     v0.14.2
+    #     v0.14.3
+    $GIT ls-remote --tags "$uri" |
+        $GREP -v -- '-rc[-.0-9]*' |
+        $SED 's;.*refs/tags/;;' |
+        $SORT --version-sort -k1.2 |
+        $TAIL -1
+}
+
+fetch-and-install-step-pkg ()
+{
+    local uri=$1
+
+    local pkg
+    local tag=$(get-current-tag "$uri")
+    local extension=${uri##*/}
+    local machine=amd64
+
+    if test ."$($UNAME --machine)" = .'armv7l'; then
+        machine=armv7
+    fi
+
+    if test ."$extension" = .'certificates'; then
+        extension=-ca
+    elif test -f /etc/debian_version -a ."$machine" = .'x86_64'; then
+        extension='-cli'
+    else
+        extension=''
+    fi
+
+    if test ! -f /etc/debian_version -o ."$machine" != .'x86_64'; then
+        pkg=step${extension}_linux_${tag#v}_${machine}.tar.gz
+    else
+        pkg=step${extension}_${tag#v}_${machine}.deb
+    fi
+
+    local tmpdir=$($MKTEMP -d "/tmp/${FUNCNAME[0]}.XXXXX")
+
+    trap '$RM -rf "$tmpdir"; exit' 0 1 2 15
+
+    $CURL -o "${tmpdir}/${pkg}" -LC - \
+          "${uri}/releases/download/${tag}/${pkg}"
+
+    if test ! -f /etc/debian_version -o ."$machine" != .'x86_64'; then
+        $TAR -C "$tmpdir" --strip-components=1 -zxf "${tmpdir}/${pkg}"
+        $SUDO $INSTALL -m 0755 "${tmpdir}/bin"/* /usr/bin/
+        if test -d "${tmpdir}/autocomplete"; then
+            $SUDO $INSTALL -m 0644 "${tmpdir}/autocomplete"/bash* \
+                  /usr/share/bash-completion/completions
+        fi
+    else
+        $SUDO $APT install "${tmpdir}/${pkg}"
+    fi
+
+    $RM -rf "$tmpdir"
+    trap - 0 1 2 15
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare cli_uri=https://github.com/smallstep/cli
+    declare certificates_uri=https://github.com/smallstep/certificates
+
+    fetch-and-install-step-pkg "$cli_uri"
+    fetch-and-install-step-pkg "$certificates_uri"
+fi
