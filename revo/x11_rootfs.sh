@@ -7,7 +7,6 @@ make_debian_x11_rootfs ()
 {
     local ROOTFS_BASE=$1
 
-
     remove-charmaps ()
     {
         # Remove non-essential charmaps from /usr/share/i18n/charmaps
@@ -149,13 +148,13 @@ make_debian_x11_rootfs ()
     echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > "${ROOTFS_BASE}/etc/sudoers.d/revo"
     chmod 0440 "${ROOTFS_BASE}/etc/sudoers.d/revo"
 
-    for pkg in smallstep firewalld iptables libcurl libedit libnftnl nftables; do
+    for pkg in firewalld iptables libcurl libedit libnftnl nftables; do
         install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
            "${ROOTFS_BASE}/srv/local-apt-repository"
     done
     # END -- REVO i.MX7D security
 
-    # add mirror to source list
+    ## add mirror to source list
     cat >"${ROOTFS_BASE}/etc/apt/sources.list" <<EOF
 deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
 deb ${PARAM_DEB_LOCAL_MIRROR%/}-security/ ${DEB_RELEASE}/updates main contrib non-free
@@ -420,9 +419,6 @@ protected_install firewalld
 ## Switch firewalld backend to nftables.
 sed -i -e '/^\(FirewallBackend=\).*$/s//\1nftables/' \\
     /etc/firewalld/firewalld.conf
-
-protected_install step-ca
-protected_install step-cli
 
 ## ifupdown is superceded by Network Manager...
 apt -y purge ifupdown
@@ -748,6 +744,17 @@ EOF
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/etc/pm/sleep.d/bluetooth.sh" \
             "${ROOTFS_BASE}/etc/pm/sleep.d"
 
+    # Derive CA root certificate name from CA URL, e.g.,
+    #     https://ca.revo.io:14727 -> RevoIO_Root_CA
+    declare -a tld=( $(sed -E -e 's/^.*\.([^.]+)\.([^.]+):.*/\1 \2/' <<<"$CA_URL") )
+    declare ca_root_cert=${tld[0]^}${tld[1]^^}_Root_CA.crt
+
+    ## Bootstrap local certificate authority and install root certificate.
+    step ca bootstrap --ca-url "$CA_URL" --fingerprint "$CA_FINGERPRINT"
+    install -d -m 0755 "${ROOTFS_BASE}/usr/local/share/ca-certificates"
+    install -m 0644 ~/".step/certs/root_ca.crt" \
+            "${ROOTFS_BASE}/usr/local/share/ca-certificates/${ca_root_cert}"
+
     ## End packages stage ##
     if test ."${G_USER_PACKAGES}" != .''; then
 
@@ -879,7 +886,11 @@ EOF
 
     pr_info "rootfs: install reverse-tunnel-server"
 
-    # Install nodejs/reverse-tunnel-server installation script.
+    ## Install Smallstep CA installation script
+    install -m 0755 "${G_VENDOR_PATH}/resources/smallstep/install-smallstep" \
+            "${ROOTFS_BASE}/usr/bin"
+
+    ## Install nodejs/reverse-tunnel-server installation script.
     sed -e "s;@NODE_BASE@;${NODE_BASE};" \
         -e "s;@NODE_GROUP@;${NODE_GROUP};" \
         -e "s;@NODE_USER@;${NODE_USER};" \
@@ -891,8 +902,11 @@ EOF
     cat >"${ROOTFS_BASE}/post-packages" <<EOF
 #!/bin/bash
 
-# Install reverse-tunnel-server
-install-reverse-tunnel-server
+## Install Smallstep CA
+install-smallstep
+
+## Install reverse-tunnel-server
+install-reverse-tunnel-server "$CA_URL" "$CA_FINGERPRINT"
 
 ## Remove non-default locales.
 DEBIAN_FRONTEND=noninteractive apt -y install localepurge

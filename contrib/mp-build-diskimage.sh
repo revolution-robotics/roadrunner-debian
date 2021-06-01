@@ -48,6 +48,7 @@ shopt -s extglob
 : ${AWK:='/usr/bin/awk'}
 : ${BASH:='/bin/bash'}
 : ${CAT:='/bin/cat'}
+: ${CHMOD:='/bin/chmod'}
 : ${CURL:='/usr/bin/curl'}
 : ${EGREP:='/usr/bin/egrep'}
 : ${FLOCK:='/usr/bin/flock'}
@@ -307,6 +308,10 @@ $SUDO $APT install -qy gcc-arm-linux-gnueabihf |&
     $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
 $SUDO $APT install -qy g++-arm-linux-gnueabihf |&
     $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
+$SUDO $CURL -sLo /usr/bin/install-smallstep \\
+    "https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_buster_rr01/revo/resources/smallstep/install-smallstep"
+$SUDO $CHMOD 0755 /usr/bin/install-smallstep
+install-smallstep
 $CURL -sL https://ftp-master.debian.org/keys/release-10.asc |
     $SUDO $GPG --import --no-default-keyring \\
         --keyring /usr/share/keyrings/debian-buster-release.gpg

@@ -14,8 +14,6 @@
 #     specified, the given certificate authority is bootstraped,
 #     otherwise ca.revo.io is bootstraped.
 #
-declare script=$($READLINK -e $0)
-
 # Edit these ...
 : ${NODE_BASE:='@NODE_BASE@'}
 : ${NODE_GROUP:='@NODE_GROUP@'}
@@ -38,12 +36,14 @@ declare script=$($READLINK -e $0)
 : ${SED:='/bin/sed'}
 : ${SCRIPT:='/usr/bin/script'}
 : ${SORT:='/usr/bin/sort'}
-: ${STEP:='/usr/bin/step-cli'}
+: ${STEP_CLI:='/usr/bin/step'}
 : ${SUDO:='/usr/bin/sudo'}
 : ${TAIL:='/usr/bin/tail'}
 : ${TAR:='/bin/tar'}
 
 : ${LOCK:=''}
+
+declare script=$($READLINK -e $0)
 
 # fetch-remote-access-server: Must be called by user `root'.
 fetch-remote-access-server ()
@@ -138,7 +138,7 @@ bootstrap-ca ()
     local ca_url=$1
     local fingerprint=$2
 
-    $STEP ca bootstrap --ca-url "$ca_url" \
+    $STEP_CLI ca bootstrap --ca-url "$ca_url" \
           --fingerprint "$fingerprint"
     $INSTALL -d -m 0700 ~/.step/secrets
 }

@@ -60,3 +60,7 @@ declare -r G_REVO_WEB_DISPATCH_REV="6aa8f314b80f515309a18840dc2f8c5591c8e9c8"
 declare -r NODE_BASE=14.
 declare -r NODE_GROUP=revo
 declare -r NODE_USER=revo
+
+# Smallstep certificate authority bootstrap parameters
+declare -r CA_URL=https://ca.revo.io:14727
+declare -r CA_FINGERPRINT=a460ed8a86453e8f281a89c9457edf3e5497622eb38b0b0a4b3d3bcb0fefc009
