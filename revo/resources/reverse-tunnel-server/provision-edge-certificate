@@ -6,7 +6,6 @@
 #     provision-edge-certificate ssh-host [certificate-lifetime]
 #
 # DESCRIPTION
-#
 #     This script issues and installs revo.io certificates to a
 #     connected edge device. The device and certificate must be separately
 #     added to revo.io's database before connecting to revo.io.
