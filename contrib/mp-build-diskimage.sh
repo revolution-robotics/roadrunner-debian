@@ -2,7 +2,7 @@
 #
 # @(#) mp-build-diskimage
 #
-# Copyright © 2020 Revolution Robotics, Inc.
+# Copyright © 2021 Revolution Robotics, Inc.
 #
 # This script builds a REVO i.MX7D SD disk image in a multipass VM.
 # The resulting image is written to $DEST_DIR on the local host.
@@ -21,13 +21,13 @@
 #
 #     See the function `mpip' below for a way of defining of `vm_ipv4'.
 #
-declare script_name=${0##*/}
-declare use_alt_recoveryfs=${1:-'false'}
-declare build_suite_commit=$2
-
 # Exit immediately on errors
 set -eE -o pipefail
 shopt -s extglob
+
+declare script_name=${0##*/}
+declare use_alt_recoveryfs=${1:-'false'}
+declare build_suite_commit=$2
 
 # Edit these ...
 : ${VMNAME:='roadrunner'}
@@ -40,7 +40,6 @@ shopt -s extglob
 : ${BUILD_DIR:='roadrunner_debian'}
 : ${OUTPUT_DIR:="${BUILD_DIR}/output"}
 : ${DEST_DIR:="${HOME}/output"}
-: ${ACNG_PROXY_URL:="http://${HOSTNAME}:3142/deb.debian.org/debian/"}
 
 # Command paths
 : ${APT:='/usr/bin/apt'}
@@ -56,6 +55,7 @@ shopt -s extglob
 : ${GPG:='/usr/bin/gpg'}
 : ${GREP:='/usr/bin/grep'}
 : ${HEAD:='/usr/bin/head'}
+: ${HOSTNAME_CMD:='/bin/hostname'}
 : ${LN:='/bin/ln'}
 : ${LS:='/bin/ls'}
 : ${LSOF:='/usr/bin/lsof'}
@@ -136,6 +136,17 @@ case "$system" in
                 exit 1
             fi
         fi
+        if test ! -x "$NMCLI"; then
+            echo "$script_name: NetworkManager: Not running" >&2
+            exit 1
+        fi
+        declare host_gw_if=$(
+            $NMCLI |
+                $AWK -F':' '/^[^[:blank:]/]+:/ { iface=$1 }
+                   /ip4 default/ { exit }
+                   END { print iface }'
+                  )
+        declare host_gw_ipv4=$($NMCLI --get-values 'ip4.address' device show "$host_gw_if")
         ;;
     Darwin)
 
@@ -174,12 +185,19 @@ continue or CTRL + C to cancel ..."
             # Add `multipass' to command-line PATH.
             $SUDO $LN -sf "$MULTIPASS" /usr/bin
         fi
+        declare host_gw_ipv4=$(
+            $SCUTIL --nwi |
+                $AWK '/address/ { print $3 }' |
+                $HEAD -1
+                  )
         ;;
     *)
         echo "$script_name: $system: Unsupported system" >&2
         exit 1
         ;;
 esac
+
+: ${ACNG_PROXY_URL:="http://${host_gw_ipv4%/*}:3142/deb.debian.org/debian/"}
 
 # If both `pgrep' and `lsof' are available ...
 if test -x "$PGREP" -a -x "$LSOF"; then
@@ -249,24 +267,6 @@ if test -f "$SSH_PUBKEY"; then
 fi
 
 # Add host to guest's /etc/hosts
-case "$system" in
-    Linux)
-        declare host_gw_if=$(
-            $NMCLI |
-                $AWK -F':' '/^[^[:blank:]/]+:/ { iface=$1 }
-                   /ip4 default/ { exit }
-                   END { print iface }'
-                  )
-        declare host_gw_ipv4=$($NMCLI --get-values 'ip4.address' device show "$host_gw_if")
-        ;;
-    Darwin)
-        declare host_gw_ipv4=$(
-            $SCUTIL --nwi |
-                $AWK '/address/ { print $3 }' |
-                $HEAD -1
-                  )
-        ;;
-esac
 $CAT <<EOF | "$MULTIPASS" exec "$VMNAME" -- $SUDO $BASH -c "$CAT >>/etc/hosts"
 # localhosts
 ${host_gw_ipv4%/*} $HOSTNAME
