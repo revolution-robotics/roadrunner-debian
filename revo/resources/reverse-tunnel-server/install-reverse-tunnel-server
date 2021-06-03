@@ -144,8 +144,8 @@ bootstrap-ca ()
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
-    declare ca_url=${1:-'https://ca.revo.io:14727'}
-    declare fingerprint=${2:-'a460ed8a86453e8f281a89c9457edf3e5497622eb38b0b0a4b3d3bcb0fefc009'}
+    declare ca_url=$1
+    declare fingerprint=$2
 
     if test ."$LOCKED" != ."$script"; then
         if (( EUID != 0 )); then

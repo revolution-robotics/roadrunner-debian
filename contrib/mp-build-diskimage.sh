@@ -120,6 +120,7 @@ declare acng_proxy=''
 declare prompt
 declare status
 declare system=$($UNAME -s)
+declare toplevel_dir=$(git rev-parse --show-toplevel)
 
 case "$system" in
     Linux)
@@ -275,7 +276,7 @@ EOF
 # If apt-cacher-ng proxy available, add it to the VM's apt configuration.
 if [[ ."$DEBIAN_PROXY" =~ \..*3142 ]]; then
     $CAT <<EOF | "$MULTIPASS" exec "$VMNAME" -- $SUDO $BASH -c "$CAT >>/etc/apt/apt.conf.d/10acng-proxy"
-Acquire::http::Proxy "http://${HOSTNAME}:3142";
+Acquire::http::Proxy "http://${host_gw_ipv4%/*}:3142";
 EOF
 fi
 
@@ -328,27 +329,29 @@ else
         $TEE -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
 fi
 echo "Deploying sources..."
-MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c deploy |& $TEE "/home/ubuntu/${OUTPUT_DIR}/deploy.log"
+CA_URL=\$CA_URL CA_FINGERPRINT=\$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c deploy |& $TEE "/home/ubuntu/${OUTPUT_DIR}/deploy.log"
 echo "Building all..."
 if $use_alt_recoveryfs; then
-    $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -a -j "$NPROC" $DEBIAN_PROXY -c all |&
+    $SUDO -E CA_URL=\$CA_URL CA_FINGERPRINT=\$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -a -j "$NPROC" $DEBIAN_PROXY -c all |&
         $TEE "/home/ubuntu/${OUTPUT_DIR}/all.log"
 else
-    $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -j "$NPROC" $DEBIAN_PROXY -c all |&
+    $SUDO -E CA_URL=\$CA_URL CA_FINGERPRINT=\$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -j "$NPROC" $DEBIAN_PROXY -c all |&
         $TEE "/home/ubuntu/${OUTPUT_DIR}/all.log"
 fi
 echo "Creating disk image..."
-echo | $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage |&
+echo | $SUDO -E MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage |&
     $TEE "/home/ubuntu/${OUTPUT_DIR}/diskimage.log"
-echo | $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c usbimage |&
+echo | $SUDO -E MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c usbimage |&
     $TEE "/home/ubuntu/${OUTPUT_DIR}/usbimage.log"
-echo | $SUDO MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c provisionimage |&
+echo | $SUDO -E MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c provisionimage |&
     $TEE "/home/ubuntu/${OUTPUT_DIR}/provisionimage.log"
 uptime >"/home/ubuntu/${OUTPUT_DIR}/runtime.log"
 EOF
 
 # Run build script.
-"$MULTIPASS" exec "$VMNAME" -- $BASH -c 'chmod +x build_script; ./build_script'
+"$MULTIPASS" exec "$VMNAME" -- $BASH -c 'chmod +x build_script'
+sops exec-env "${toplevel_dir}/config/secrets.enc.json" \
+     "$MULTIPASS exec $VMNAME -- $BASH -c \"env CA_URL=\$CA_URL CA_FINGERPRINT=\$CA_FINGERPRINT ./build_script\""
 echo "Build complete!"
 echo "$LS -l $DEST_DIR"
 $LS -l "$DEST_DIR"

@@ -62,5 +62,7 @@ declare -r NODE_GROUP=revo
 declare -r NODE_USER=revo
 
 # Smallstep certificate authority bootstrap parameters
-declare -r CA_URL=https://ca.revo.io:14727
-declare -r CA_FINGERPRINT=a460ed8a86453e8f281a89c9457edf3e5497622eb38b0b0a4b3d3bcb0fefc009
+: ${CA_URL:=''}
+: ${CA_FINGERPRINT:=''}
+
+echo "I: CA_URL: $CA_URL"

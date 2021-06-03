@@ -111,7 +111,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
         [fqdn]=$($HOSTNAME_CMD --fqdn)
         [provisioner]=step
         [provisioner_password_file]=provisioner.pwd
-        [duration]=1h
+        [duration]=9552h
     )
 
     opts=$(
