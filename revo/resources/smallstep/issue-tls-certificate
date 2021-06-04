@@ -93,9 +93,17 @@ declare token=$(
     --password-file "$($STEP_CLI path)/secrets/${provisioner_password_file}"
         )
 eval cd ~$USER
-$STEP_CLI ca certificate "$fqdn" "${fqdn}.crt" "${fqdn}.key" \
-    --token "$token" --not-after "$duration" --ca-url "$ca_url" &&
-    $CHMOD 640 "${fqdn}.crt" "${fqdn}.key"
+if $STEP_CLI ca certificate "$fqdn" "${fqdn}.crt" "${fqdn}.key" \
+    --token "$token" --not-after "$duration" --ca-url "$ca_url"; then
+    $CHMOD 640 "${fqdn}.crt"
+    $CHMOD 600 "${fqdn}.key"
+    if test -f ~/".step/issued/${fqdn}.crt"; then
+        echo "WARNING: Overwriting previous"
+        mv ~/".step/issued/${fqdn}.crt"{,~}
+        mv ~/".step/issued/${fqdn}.key"{,~}
+    fi
+    mv "${fqdn}".* ~/.step/issued/
+fi
 EOF
 }
 

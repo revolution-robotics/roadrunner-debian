@@ -138,8 +138,7 @@ bootstrap-ca ()
     local ca_url=$1
     local fingerprint=$2
 
-    $STEP_CLI ca bootstrap --ca-url "$ca_url" \
-          --fingerprint "$fingerprint"
+    $STEP_CLI ca bootstrap --ca-url "$ca_url" --fingerprint "$fingerprint"
     $INSTALL -d -m 0700 ~/.step/secrets
 }
 
@@ -159,7 +158,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
 
         # Run remainder of script as user $NODE_USER.
         exec env LOCKED="$script" $SUDO -i -u "$NODE_USER" \
-             --preserve-env=LOCKED "$script"
+             --preserve-env=LOCKED "$script" "$@"
     fi
 
     fetch-asdf
