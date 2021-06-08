@@ -134,8 +134,8 @@ make_debian_recoveryfs ()
     mkdir -p "${RECOVERYFS_BASE}/srv/local-apt-repository"
 
     ## udisk2
-    cp -r "${G_VENDOR_PATH}/deb/udisks2"/* \
-       "${RECOVERYFS_BASE}/srv/local-apt-repository"
+    # cp -r "${G_VENDOR_PATH}/deb/udisks2"/* \
+    #    "${RECOVERYFS_BASE}/srv/local-apt-repository"
 
     ## gstreamer-imx
     # cp -r ${G_VENDOR_PATH}/deb/gstreamer-imx/* \

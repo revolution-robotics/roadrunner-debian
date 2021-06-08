@@ -133,11 +133,13 @@ make_debian_x11_rootfs ()
     mkdir -p "${ROOTFS_BASE}/srv/local-apt-repository"
 
     ## udisk2
-    cp -r "${G_VENDOR_PATH}/deb/udisks2"/* \
-       "${ROOTFS_BASE}/srv/local-apt-repository"
+    # cp -r "${G_VENDOR_PATH}/deb/udisks2"/* \
+    #    "${ROOTFS_BASE}/srv/local-apt-repository"
+
     ## gstreamer-imx
     cp -r "${G_VENDOR_PATH}/deb/gstreamer-imx"/* \
        "${ROOTFS_BASE}/srv/local-apt-repository"
+
     ## shared-mime-info
     # cp -r "${G_VENDOR_PATH}/deb/shared-mime-info"/* \
     #    "${ROOTFS_BASE}/srv/local-apt-repository"
