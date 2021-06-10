@@ -18,10 +18,10 @@ cap-pmlogger-history ()
     # $PMLOGGER status does not return if not running...
     # declare status=$($PMLOGGER status | $AWK '{ print $NF }')
     # if test ."$status" = .'running'; then
-        $PMLOGGER stop
+        $PMLOGGER stop >/dev/null 2>&1
         $FIND "${PCP_LOG_DIR}/pmlogger/${HOSTNAME}" -name '[0-9]*' \
              ! -newermt "$MAX_AGE" -delete
-        $PMLOGGER start
+        $PMLOGGER start >/dev/null 2>&1
     # fi
 }
 

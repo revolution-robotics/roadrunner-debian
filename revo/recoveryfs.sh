@@ -926,7 +926,7 @@ localepurge
 ## XXX: Why is 'linux-image*' installed???
 apt -y purge 'linux-image*' initramfs-tools{,-core} \\
     cryptsetup cryptsetup-bin cryptsetup-initramfs cryptsetup-run \\
-    dmeventd dmraid dracut dracut-core lvm2 \\
+    dmeventd dmraid dracut dracut-core lvm2 mdadm \\
     thin-provisioning-tools
 
 apt -y purge build-essential gcc-8 libx11-6 manpages{,-dev}
