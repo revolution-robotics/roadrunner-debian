@@ -126,7 +126,7 @@ install-remote-access-server ()
     $INSTALL -d -m 0755 ~/.ssh
 
     if test -f ~/reverse-tunnel-server*.tgz; then
-        npm i -g ~/reverse-tunnel-server*.tgz
+        NODE_ENV=production npm i -g ~/reverse-tunnel-server*.tgz
         asdf reshim nodejs
 
         $RM -f ~/reverse-tunnel-server*.tgz
