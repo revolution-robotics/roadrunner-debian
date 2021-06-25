@@ -855,8 +855,8 @@ EOF
     # ln -sf 'fw_printenv' "${RECOVERYFS_BASE}/usr/bin/fw_printenv-nand"
 
     ## Restrict pmlogger volume size
-    sed -i -e 's/[0-9]\{1,\}Mb/20Mb/' \
-        "${RECOVERYFS_BASE}/etc/pcp/pmlogger/control.d/local"
+    # sed -i -e 's/[0-9]\{1,\}Mb/20Mb/' \
+    #     "${RECOVERYFS_BASE}/etc/pcp/pmlogger/control.d/local"
 
     ## BEGIN -- REVO i.MX7D post-packages stage
     pr_info "recoveryfs: begin late packages"
@@ -867,7 +867,9 @@ EOF
     #         "${RECOVERYFS_BASE}/usr/bin/curl"
 
     ## Redirect all system mail user `revo'.
-    sed -i "\$a root: revo" "${RECOVERYFS_BASE}/etc/aliases"
+    if test -f "${RECOVERYFS_BASE}/etc/aliases"; then
+        sed -i "\$a root: revo" "${RECOVERYFS_BASE}/etc/aliases"
+    fi
 
     ## Remove /etc/init.d/rng-tools (started by rngd.service)
     rm -f "${RECOVERYFS_BASE}/etc/init.d/rng-tools"
@@ -886,13 +888,13 @@ EOF
     ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_reap.service"
 
     ## Enable sysstat data collection
-    sed -i -e 's;^\(ENABLED=\).*;\1"true";' "${RECOVERYFS_BASE}/etc/default/sysstat"
+    # sed -i -e 's;^\(ENABLED=\).*;\1"true";' "${RECOVERYFS_BASE}/etc/default/sysstat"
 
     ## Keep 12 hours of pmlogger logs.
-    install -m 0755 "${G_VENDOR_PATH}/resources/pmlogger_rotate" \
-            "${RECOVERYFS_BASE}/usr/lib/pcp/bin"
-    printf "30 */6\t* * *\troot\t/usr/lib/pcp/bin/pmlogger_rotate" \
-           >>"${RECOVERYFS_BASE}/etc/crontab"
+    # install -m 0755 "${G_VENDOR_PATH}/resources/pmlogger_rotate" \
+    #         "${RECOVERYFS_BASE}/usr/lib/pcp/bin"
+    # printf "30 */6\t* * *\troot\t/usr/lib/pcp/bin/pmlogger_rotate" \
+    #        >>"${RECOVERYFS_BASE}/etc/crontab"
 
     pr_info "recoveryfs: install reverse-tunnel-server"
 
