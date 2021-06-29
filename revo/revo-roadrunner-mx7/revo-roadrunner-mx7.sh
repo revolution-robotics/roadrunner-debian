@@ -20,7 +20,7 @@ declare -r G_LINUX_KERNEL_GIT=https://github.com/revolution-robotics/roadrunner-
 # declare -r G_LINUX_KERNEL_BRANCH=imx_4.14.78_1.0.0_ga_var01_rr01
 # declare -r G_LINUX_KERNEL_REV=4d80804d8759fe5a31535a4e56e8125b2cc736fa
 declare -r G_LINUX_KERNEL_BRANCH=imx_5.4.85_1.0.0_revo
-declare -r G_LINUX_KERNEL_REV=b2298b4555dc779f73149696b7f84c809518e7cf
+declare -r G_LINUX_KERNEL_REV=58a933272d3816c2b9aadfd35e2de104cae43d85
 declare -r G_LINUX_KERNEL_DEF_CONFIG=imx_v7_roadrunner_defconfig
 declare -r G_LINUX_DTB='imx7d-roadrunner-gpio16.dtb imx7d-roadrunner-iomix.dtb'
 
