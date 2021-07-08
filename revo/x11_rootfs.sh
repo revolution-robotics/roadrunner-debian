@@ -1066,10 +1066,16 @@ make_x11_image ()
                 sed -n -e '/^[[:space:]]*#/d' \
                     -e '/^[[:space:]]*$/d' \
                     -e '/[[:alnum:]]/{s/^[[:space:]]*//;p;q}' \
-                    "$P2_MOUNT_DIR/boot/cmdline.txt"
+                    "${P2_MOUNT_DIR}/boot/cmdline.txt"
                    )
-            sed -e "/^setenv kernelargs/s;\$; ${cmdline};" \
-                "${P2_MOUNT_DIR}/usr/share/boot/boot.sh" >"${G_TMP_DIR}/boot.sh"
+            if test ."$cmdline" != .''; then
+                pr_info "Kernel args from: ${P2_MOUNT_DIR}/boot/cmdline.txt: $cmdline"
+                sed -e "/^setenv kernelargs/s;\$; ${cmdline};" \
+                    "${P2_MOUNT_DIR}/usr/share/boot/boot.sh" >"${G_TMP_DIR}/boot.sh"
+            else
+                cp "${P2_MOUNT_DIR}/usr/share/boot/boot.sh" \
+                   "${G_TMP_DIR}/boot.sh"
+            fi
             make -C "$G_TMP_DIR" -f "${P2_MOUNT_DIR}/usr/share/boot/Makefile" \
                  clean all
         fi
@@ -1082,6 +1088,7 @@ make_x11_image ()
                         "${P1_MOUNT_DIR}/${UBOOT_SCRIPT}"
             fi
         elif test -f "${G_TMP_DIR}/boot.scr"; then
+            pr_info "Installing new boot script"
             install -m 0644 "${G_TMP_DIR}/boot.scr" "$P1_MOUNT_DIR"
         elif test -f "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}"; then
             install -m 0644 "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}" \
@@ -1232,8 +1239,8 @@ EOF
     sync
 
     # Mount the partitions
-    mkdir -p "$P1_MOUNT_DIR"
-    mkdir -p "$P2_MOUNT_DIR"
+    install -d -m 0755 "$P1_MOUNT_DIR"
+    install -d -m 0755 "$P2_MOUNT_DIR"
     sync
 
     mount -t vfat "${LPARAM_BLOCK_DEVICE}${part}1"  "$P1_MOUNT_DIR" >/dev/null 2>&1 || return 1

@@ -1079,14 +1079,21 @@ make_recovery_image ()
                     -e '/[[:alnum:]]/{s/^[[:space:]]*//;p;q}' \
                     "$P2_MOUNT_DIR/boot/cmdline.txt"
                    )
-            sed -e "/^setenv kernelargs/s;\$; ${cmdline};" \
-                "${P2_MOUNT_DIR}/usr/share/boot/boot.sh" >"${G_TMP_DIR}/boot.sh"
+            if test ."$cmdline" != .''; then
+                pr_info "Kernel args from: ${P2_MOUNT_DIR}/boot/cmdline.txt: $cmdline"
+                sed -e "/^setenv kernelargs/s;\$; ${cmdline};" \
+                    "${P2_MOUNT_DIR}/usr/share/boot/boot.sh" >"${G_TMP_DIR}/boot.sh"
+            else
+                cp "${P2_MOUNT_DIR}/usr/share/boot/boot.sh" \
+                   "${G_TMP_DIR}/boot.sh"
+            fi
             make -C "$G_TMP_DIR" -f "${P2_MOUNT_DIR}/usr/share/boot/Makefile" \
                  clean all
         fi
 
         pr_info "Flashing \"BOOT\" partition"
         if test -f "${G_TMP_DIR}/boot.scr"; then
+            pr_info "Installing new boot script"
             install -m 0644 "${G_TMP_DIR}/boot.scr" "$P1_MOUNT_DIR"
         elif test -f "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}"; then
             install -m 0644 "${LPARAM_OUTPUT_DIR}/${UBOOT_SCRIPT}" \
