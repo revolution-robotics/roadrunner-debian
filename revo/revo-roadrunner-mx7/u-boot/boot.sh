@@ -81,7 +81,9 @@ elif test $status49 -eq 0; then
 
 # Otherwise...
 else
-    echo 'Expansion board not detected'
+    echo 'REVO Blade detected'
+    setenv fdt_file imx7d-roadrunner-blade.dtb
+    setenv kernelargs "$kernelargs REVO_BLADE_v1.1"
 fi
 
 usb start
