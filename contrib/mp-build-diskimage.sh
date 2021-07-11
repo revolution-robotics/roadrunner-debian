@@ -32,9 +32,9 @@ declare build_suite_commit=$2
 # Edit these ...
 : ${VMNAME:='roadrunner'}
 : ${CODENAME:='groovy'}
-: ${NPROC:='2'}
+: ${NPROC:='4'}
 : ${DISK_SIZE:='30G'}
-: ${MEMORY_SIZE:='2G'}
+: ${MEMORY_SIZE:='4G'}
 : ${SSH_PUBKEY:="${HOME}/.ssh/id_rsa.pub"}
 : ${BUILD_SUITE_BRANCH_DEFAULT:='debian_buster_rr01'}
 : ${BUILD_DIR:='roadrunner_debian'}
@@ -80,16 +80,16 @@ if test -t 0; then
     # And `flock' available ...
     if test -x "$FLOCK" -a ."$0" != ."$LOCKED"; then
 
-        #  Avoid running multiple instances of this script.
-        exec env LOCKED=$0 $FLOCK -en "$0" "$0" "$@" || true
+	#  Avoid running multiple instances of this script.
+	exec env LOCKED=$0 $FLOCK -en "$0" "$0" "$@" || true
     fi
 else
 
     # TTY not exported ...
     if [[ ! ."$TTY" =~ \./dev/ ]]; then
-        echo "$script_name: TTY must be exported before running this script:"
-        echo "export TTY=\$(tty);"
-        exit 1
+	echo "$script_name: TTY must be exported before running this script:"
+	echo "export TTY=\$(tty);"
+	exit 1
     fi
 fi
 
@@ -110,10 +110,10 @@ get-current-tag ()
     #     v1.2.1
     #     v1.3.0
     $GIT ls-remote --tags "$uri" |
-        $EGREP -v -- '-|\{\}|/[0-9]'  |
-        $SED -e 's;.*refs/tags/;;' |
-        $SORT --version-sort -k1.2 |
-        $TAIL -1
+	$EGREP -v -- '-|\{\}|/[0-9]'  |
+	$SED -e 's;.*refs/tags/;;' |
+	$SORT --version-sort -k1.2 |
+	$TAIL -1
 }
 
 declare acng_proxy=''
@@ -124,78 +124,78 @@ declare toplevel_dir=$(git rev-parse --show-toplevel)
 
 case "$system" in
     Linux)
-        : ${MULTIPASS:='/snap/bin/multipass'}
-        : ${NMCLI:='/usr/bin/nmcli'}
-        : ${SNAP:='/usr/bin/snap'}
+	: ${MULTIPASS:='/snap/bin/multipass'}
+	: ${NMCLI:='/usr/bin/nmcli'}
+	: ${SNAP:='/usr/bin/snap'}
 
-        if test ! -x "$MULTIPASS"; then
-            if test -x "$SNAP"; then
-                echo "Installing multipass ..."
-                $SUDO $SNAP install multipass --classic
-            else
-                echo "$script_name: multipass: Command not available" >&2
-                exit 1
-            fi
-        fi
-        if test ! -x "$NMCLI"; then
-            echo "$script_name: NetworkManager: Not running" >&2
-            exit 1
-        fi
-        declare host_gw_if=$(
-            $NMCLI |
-                $AWK -F':' '/^[^[:blank:]/]+:/ { iface=$1 }
-                   /ip4 default/ { exit }
-                   END { print iface }'
-                  )
-        declare host_gw_ipv4=$($NMCLI --get-values 'ip4.address' device show "$host_gw_if")
-        ;;
+	if test ! -x "$MULTIPASS"; then
+	    if test -x "$SNAP"; then
+		echo "Installing multipass ..."
+		$SUDO $SNAP install multipass --classic
+	    else
+		echo "$script_name: multipass: Command not available" >&2
+		exit 1
+	    fi
+	fi
+	if test ! -x "$NMCLI"; then
+	    echo "$script_name: NetworkManager: Not running" >&2
+	    exit 1
+	fi
+	declare host_gw_if=$(
+	    $NMCLI |
+		$AWK -F':' '/^[^[:blank:]/]+:/ { iface=$1 }
+		   /ip4 default/ { exit }
+		   END { print iface }'
+		  )
+	declare host_gw_ipv4=$($NMCLI --get-values 'ip4.address' device show "$host_gw_if")
+	;;
     Darwin)
 
-        : ${MULTIPASS:='/Library/Application Support/com.canonical.multipass/bin/multipass'}
-        : ${OPEN:='/usr/bin/open'}
-        : ${SCUTIL:='/usr/sbin/scutil'}
+	: ${MULTIPASS:='/Library/Application Support/com.canonical.multipass/bin/multipass'}
+	: ${OPEN:='/usr/bin/open'}
+	: ${SCUTIL:='/usr/sbin/scutil'}
 
-        if test ! -x "$MULTIPASS"; then
-            declare uri='https://github.com/canonical/multipass'
-            declare tag=$(get-current-tag "$uri")
-            declare release="releases/download/${tag}/multipass-${tag#v}+mac-Darwin.pkg"
-            declare tmpdir=$($MKTEMP -d "/tmp/${script_name}.XXXXX")
+	if test ! -x "$MULTIPASS"; then
+	    declare uri='https://github.com/canonical/multipass'
+	    declare tag=$(get-current-tag "$uri")
+	    declare release="releases/download/${tag}/multipass-${tag#v}+mac-Darwin.pkg"
+	    declare tmpdir=$($MKTEMP -d "/tmp/${script_name}.XXXXX")
 
-            trap 'rm -rf "$tmpdir"; exit' 0 1 2 15
+	    trap 'rm -rf "$tmpdir"; exit' 0 1 2 15
 
-            echo "Initiating Multipass install ..."
-            cd "$tmpdir"
+	    echo "Initiating Multipass install ..."
+	    cd "$tmpdir"
 
-            $CURL -sS -C - -LO "${uri}/${release}"
-            $OPEN "${release##*/}"
+	    $CURL -sS -C - -LO "${uri}/${release}"
+	    $OPEN "${release##*/}"
 
-            prompt="After completing install, please return here, and then press any key to
+	    prompt="After completing install, please return here, and then press any key to
 continue or CTRL + C to cancel ..."
 
-            read -p "$prompt" -n 1 <"$TTY"
-            cd "$OLDPWD"
-            $RM -r "$tmpdir"
+	    read -p "$prompt" -n 1 <"$TTY"
+	    cd "$OLDPWD"
+	    $RM -r "$tmpdir"
 
-            trap - 0 1 2 15
+	    trap - 0 1 2 15
 
-            if test ! -x "$MULTIPASS"; then
-                echo "$script_name: multipass: Command not available" >&2
-                exit 1
-            fi
+	    if test ! -x "$MULTIPASS"; then
+		echo "$script_name: multipass: Command not available" >&2
+		exit 1
+	    fi
 
-            # Add `multipass' to command-line PATH.
-            $SUDO $LN -sf "$MULTIPASS" /usr/bin
-        fi
-        declare host_gw_ipv4=$(
-            $SCUTIL --nwi |
-                $AWK '/address/ { print $3 }' |
-                $HEAD -1
-                  )
-        ;;
+	    # Add `multipass' to command-line PATH.
+	    $SUDO $LN -sf "$MULTIPASS" /usr/bin
+	fi
+	declare host_gw_ipv4=$(
+	    $SCUTIL --nwi |
+		$AWK '/address/ { print $3 }' |
+		$HEAD -1
+		  )
+	;;
     *)
-        echo "$script_name: $system: Unsupported system" >&2
-        exit 1
-        ;;
+	echo "$script_name: $system: Unsupported system" >&2
+	exit 1
+	;;
 esac
 
 : ${ACNG_PROXY_URL:="http://${host_gw_ipv4%/*}:3142/deb.debian.org/debian/"}
@@ -205,40 +205,47 @@ if test -x "$PGREP" -a -x "$LSOF"; then
 
     # If `apt-cacher-ng' is listening on localhost:3142
     if  $PGREP apt-cacher-ng >/dev/null && $SUDO $LSOF -ti :3142 >/dev/null; then
-        acng_proxy="-p $ACNG_PROXY_URL"
+	acng_proxy="-p $ACNG_PROXY_URL"
     fi
 fi
 
 : ${DEBIAN_PROXY:="$acng_proxy"}
 
 # If a $VMNAME instance exists ...
-if "$MULTIPASS" list  | $AWK 'NR > 1 { print $1 }' | $GREP -q "$VMNAME"; then
+declare -a vmstate=( $($MULTIPASS list | $AWK '/^'$VMNAME' / { print $1, $2 }') )
+
+if (( ${#vmstate[*]} == 2 )) && test ."${vmstate[1]}" != .'Deleted'; then
 
     # Prompt whether to overwrite.
     prompt="$VMNAME: Virtual machine instance already exists. Overwrite [y/N]? "
     read -t 10 -n 1 -p "$prompt" <"$TTY"
     status=$?
     if (( status == 0 )) && [[  ."$REPLY" =~ \.[yY] ]]; then
-        "$MULTIPASS" umount "$VMNAME"
-        "$MULTIPASS" stop "$VMNAME"
-        "$MULTIPASS" delete --purge "$VMNAME"
-        "$MULTIPASS" launch --cpus "$NPROC" --disk "$DISK_SIZE" \
-                     --mem "$MEMORY_SIZE" --name "$VMNAME" "$CODENAME"
+	if test ."${vmstate[1]}" = .'Running'; then
+	    "$MULTIPASS" umount "$VMNAME"
+	    "$MULTIPASS" stop "$VMNAME"
+	fi
+	"$MULTIPASS" delete --purge "$VMNAME"
+	"$MULTIPASS" launch --cpus "$NPROC" --disk "$DISK_SIZE" \
+		     --mem "$MEMORY_SIZE" --name "$VMNAME" "$CODENAME"
     else
-        echo
-        prompt="$VMNAME will not be overwritten. Proceed with build [y/N]? "
-        read -t 10 -n 1 -p "$prompt" <"$TTY"
-        status=$?
-        if (( status != 0 )) || [[  ! ."$REPLY" =~ \.[yY] ]]; then
-             printf "\nTerminating build.\n" >&2
-            exit
-        fi
+	echo
+	prompt="$VMNAME will not be overwritten. Proceed with build [y/N]? "
+	read -t 10 -n 1 -p "$prompt" <"$TTY"
+	status=$?
+	if (( status != 0 )) || [[  ! ."$REPLY" =~ \.[yY] ]]; then
+	     printf "\nTerminating build.\n" >&2
+	    exit
+	fi
     fi
 
 # Launch VM and mount local $DEST_DIR on VM's $OUTPUT_DIR via SSHFS.
 else
+    if test ."${vmstate[1]}" = .'Deleted'; then
+	"$MULTIPASS" purge
+    fi
     "$MULTIPASS" launch --cpus "$NPROC" --disk "$DISK_SIZE" \
-                 --mem "$MEMORY_SIZE" --name "$VMNAME" "$CODENAME"
+		 --mem "$MEMORY_SIZE" --name "$VMNAME" "$CODENAME"
 fi
 
 # Multipass evidently consumes/flushes stdin here, so redirect $TTY as
@@ -259,12 +266,12 @@ $MKDIR -p "$DEST_DIR"
 if test ! -f "$SSH_PUBKEY"; then
     echo "Generating SSH certificate"
     $SSH_KEYGEN -t rsa -b 4096 -C "${USER}@${HOSTNAME}" -P '' \
-        -f "${SSH_PUBKEY%.pub}"
+	-f "${SSH_PUBKEY%.pub}"
 fi
 
 if test -f "$SSH_PUBKEY"; then
     $CAT "$SSH_PUBKEY" |
-        "$MULTIPASS" exec "$VMNAME" -- $BASH -c "$CAT >>.ssh/authorized_keys"
+	"$MULTIPASS" exec "$VMNAME" -- $BASH -c "$CAT >>.ssh/authorized_keys"
 fi
 
 # Add host to guest's /etc/hosts
@@ -282,7 +289,7 @@ fi
 
 # Add bash aliases...
 echo "alias h='history 50'" |
-        "$MULTIPASS" exec "$VMNAME" -- $BASH -c "$CAT >>.bashrc"
+	"$MULTIPASS" exec "$VMNAME" -- $BASH -c "$CAT >>.bashrc"
 
 # Install build script.
 $CAT <<EOF | "$MULTIPASS" exec "${VMNAME}" -- $BASH -c "$CAT >build_script"
@@ -315,7 +322,7 @@ $SUDO $CHMOD 0755 /usr/bin/install-smallstep
 install-smallstep
 $CURL -sL https://ftp-master.debian.org/keys/release-10.asc |
     $SUDO $GPG --import --no-default-keyring \\
-        --keyring /usr/share/keyrings/debian-buster-release.gpg
+	--keyring /usr/share/keyrings/debian-buster-release.gpg
 echo "Cloning build suite..."
 $GIT init |& $TEE "/home/ubuntu/${OUTPUT_DIR}/git.log"
 $GIT remote add origin https://github.com/revolution-robotics/roadrunner-debian.git |&
@@ -323,20 +330,20 @@ $GIT remote add origin https://github.com/revolution-robotics/roadrunner-debian.
 $GIT fetch |& $TEE -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
 if test ."$build_suite_commit" != .''; then
     $GIT checkout -b "commit-${build_suite_commit:0:6}" "$build_suite_commit" |&
-        $TEE -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
+	$TEE -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
 else
     $GIT checkout "$BUILD_SUITE_BRANCH_DEFAULT" |&
-        $TEE -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
+	$TEE -a "/home/ubuntu/${OUTPUT_DIR}/git.log"
 fi
 echo "Deploying sources..."
 CA_URL=\$CA_URL CA_FINGERPRINT=\$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c deploy |& $TEE "/home/ubuntu/${OUTPUT_DIR}/deploy.log"
 echo "Building all..."
 if $use_alt_recoveryfs; then
     $SUDO -E CA_URL=\$CA_URL CA_FINGERPRINT=\$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -a -j "$NPROC" $DEBIAN_PROXY -c all |&
-        $TEE "/home/ubuntu/${OUTPUT_DIR}/all.log"
+	$TEE "/home/ubuntu/${OUTPUT_DIR}/all.log"
 else
     $SUDO -E CA_URL=\$CA_URL CA_FINGERPRINT=\$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -j "$NPROC" $DEBIAN_PROXY -c all |&
-        $TEE "/home/ubuntu/${OUTPUT_DIR}/all.log"
+	$TEE "/home/ubuntu/${OUTPUT_DIR}/all.log"
 fi
 echo "Creating disk image..."
 echo | $SUDO -E MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c diskimage |&
