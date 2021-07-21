@@ -25,9 +25,9 @@ the command line):
 ```shell
 sudo apt update
 sudo apt install -y autoconf automake autopoint binfmt-support \
-    binutils bison build-essential chrpath cmake coreutils debootstrap \
-    dialog device-tree-compiler diffstat docbook-utils flex \
-    g++ gcc gcc-multilib git-core golang gpart groff help2man \
+    binutils bison build-essential chrpath cmake coreutils curl \
+    debootstrap dialog device-tree-compiler diffstat docbook-utils flex \
+    g++ gcc gcc-multilib git-core gpart groff help2man \
     lib32ncurses5-dev libarchive-dev libgl1-mesa-dev libglib2.0-dev \
     libglu1-mesa-dev libsdl1.2-dev libssl-dev libtool lzop m4 make \
     mtd-utils python3-git python3-m2crypto qemu qemu-user-static \
