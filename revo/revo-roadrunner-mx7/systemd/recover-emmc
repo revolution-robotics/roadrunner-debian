@@ -190,7 +190,7 @@ partition_emmc ()
     # Sizes in MiB
     # RECOVERYFS_SIZE must match that in flash-emmc.
     # local RECOVERYFS_SIZE=1792
-    local RECOVERYFS_SIZE=1600
+    local RECOVERYFS_SIZE=2000
     local BOOTLOAD_RESERVE_SIZE=4
     local SPARE_SIZE=12
 
