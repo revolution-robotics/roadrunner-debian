@@ -115,13 +115,16 @@ make_debian_x11_rootfs ()
             "${ROOTFS_BASE}/etc"
 
     ## Prepare qemu.
-    pr_info "rootfs: debootstrap in rootfs (second-stage)"
     install -m 0755 "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" \
             "${ROOTFS_BASE}/usr/bin/qemu-arm-static"
 
     trap 'umount-fs "$ROOTFS_BASE"; exit' 0 1 2 15
 
-    $CHROOTFS "$ROOTFS_BASE" /debootstrap/debootstrap --second-stage
+    echo "${PARAM_DEB_LOCAL_MIRROR}" > "${ROOTFS_BASE}/debootstrap/mirror"
+
+    pr_info "rootfs: debootstrap in rootfs (second-stage)"
+    $CHROOTFS "$ROOTFS_BASE" /debootstrap/debootstrap --verbose \
+              --second-stage
 
     ## Delete unused folder.
     $CHROOTFS "$ROOTFS_BASE" rm -rf  "${ROOTFS_BASE}/debootstrap"

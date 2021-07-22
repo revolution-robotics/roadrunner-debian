@@ -114,13 +114,16 @@ make_debian_recoveryfs ()
             "${RECOVERYFS_BASE}/etc"
 
     ## Prepare qemu.
-    pr_info "recoveryfs: debootstrap in recoveryfs (second-stage)"
-    install -m 0755 "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" "${RECOVERYFS_BASE}/usr/bin"
+    install -m 0755 "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" \
+            "${RECOVERYFS_BASE}/usr/bin"
 
     trap 'umount-fs "$RECOVERYFS_BASE"; exit' 0 1 2 15
 
-    pr_info "recoveryfs: second-stage debootstrap"
-    $CHROOTFS "$RECOVERYFS_BASE" /debootstrap/debootstrap --second-stage
+    echo "${PARAM_DEB_LOCAL_MIRROR}" > "${RECOVERYFS_BASE}/debootstrap/mirror"
+
+    pr_info "recoveryfs: debootstrap in recoveryfs (second-stage)"
+    $CHROOTFS "$RECOVERYFS_BASE" /debootstrap/debootstrap --verbose \
+              --second-stage
 
     ## Delete unused folder.
     $CHROOTFS "$RECOVERYFS_BASE" rm -rf  "${RECOVERYFS_BASE}/debootstrap"
