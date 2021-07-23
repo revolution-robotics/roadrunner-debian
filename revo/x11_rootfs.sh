@@ -69,8 +69,11 @@ make_debian_x11_rootfs ()
     {
         local fs_base=$1
 
-        umount -f "${fs_base}"/{sys,proc,dev/pts} 2>/dev/null || true
-        umount -f "${fs_base}/dev" 2>/dev/null || true
+        for fs in /proc /sys /dev/pts /dev; do
+            if findmnt "${fs_base}${fs}" >/dev/null; then
+                umount -f "${fs_base}${fs}" 2>/dev/null
+            fi
+        done
     }
 
     mount-fs ()
@@ -86,7 +89,7 @@ make_debian_x11_rootfs ()
         fi
 
         for fs in /sys /dev /dev/pts; do
-            if ! findmnt "${fs_base}/${fs}" >/dev/null; then
+            if ! findmnt "${fs_base}${fs}" >/dev/null; then
                 mount -o bind "$fs" "${fs_base}${fs}"
             fi
         done
@@ -788,7 +791,7 @@ rm -f /user-stage
 EOF
 
         chmod +x "${ROOTFS_BASE}/user-stage"
-        LANG=C $CHROOTFS "$ROOTFS_BASE" /user-stage
+        $CHROOTFS "$ROOTFS_BASE" /user-stage
 
     fi
 

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 #
 # SYNOPSIS
-#     chrootfs rootfs cmd [arg ...]
+#     chrootfs fs cmd [arg ...]
 #
 # DESCRIPTION
 #     This script mounts /proc, /sys, /dev and /dev/pts on a given
-#     root filesystem, rootfs, then chroots and runs a command.
+#     filesystem, FS, then chroots to FS and runs a command, CMD. The
+#     mounted filesystems are unmounted on exit.
 #
 : ${CHROOT:='/usr/sbin/chroot'}
 : ${FINDMNT:='/bin/findmnt'}
@@ -16,15 +17,18 @@
 : ${READLINK:='/bin/readlink'}
 : ${SUDO:='/usr/bin/sudo'}
 
-umount-rootfs ()
+umount-fs ()
 {
     local fs_base=$1
 
-    $SUDO $UMOUNT -f "${fs_base}"/{sys,proc,dev/pts} 2>/dev/null || true
-    $SUDO $UMOUNT -f "${fs_base}/dev" 2>/dev/null || true
+    for fs in /proc /sys /dev/pts /dev; do
+        if $FINDMNT "${fs_base}${fs}" >/dev/null; then
+            $SUDO $UMOUNT -f "${fs_base}${fs}" 2>/dev/null
+        fi
+    done
 }
 
-mount-rootfs ()
+mount-fs ()
 {
     local fs_base=$1
 
@@ -46,14 +50,14 @@ mount-rootfs ()
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare script=$($READLINK -e $0)
     declare script_dir=${script%/*}
-    declare rootfs_base=${1:-"${script_dir}/../rootfs"}
+    declare fs_base=${1:-"${script_dir}/../rootfs"}
 
     if test ."$2" = .''; then
         declare cmd=/bin/bash
     fi
 
-    trap 'umount-rootfs "$rootfs_base"; exit' 0 1 2 15
+    trap 'umount-fs "$fs_base"; exit' 0 1 2 15
 
-    mount-rootfs "$rootfs_base"
-    $SUDO $CHROOT "$rootfs_base" ${cmd-"${@:2}"}
+    mount-fs "$fs_base"
+    $SUDO $CHROOT "$fs_base" ${cmd-"${@:2}"}
 fi
