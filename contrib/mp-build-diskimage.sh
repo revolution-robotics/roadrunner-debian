@@ -202,8 +202,8 @@ case "$system" in
         declare host_gw_ipv4=$($NMCLI --get-values 'ip4.address' device show "$host_gw_if")
 
         if [[ ."$(< /etc/redhat-release)" =~ ^\.Fedora ]]; then
-            initialize-multipass-zone
-            populate-multipass-zone mpqemubr0
+            : initialize-multipass-zone
+            : populate-multipass-zone mpqemubr0
         fi
         ;;
     Darwin)
