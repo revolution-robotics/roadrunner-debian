@@ -27,10 +27,10 @@ sudo apt update
 sudo apt install -y autoconf automake autopoint binfmt-support \
     binutils bison build-essential chrpath cmake coreutils curl \
     debootstrap dialog device-tree-compiler diffstat docbook-utils flex \
-    g++ gcc gcc-multilib git-core gpart groff help2man \
-    lib32ncurses5-dev libarchive-dev libgl1-mesa-dev libglib2.0-dev \
-    libglu1-mesa-dev libsdl1.2-dev libssl-dev libtool lzop m4 make \
-    mtd-utils python3-git python3-m2crypto qemu qemu-user-static \
+    g++ gcc git-core gpart groff help2man lib32ncurses5-dev \
+    libarchive-dev libgl1-mesa-dev libglib2.0-dev libglu1-mesa-dev \
+    libsdl1.2-dev libssl-dev libtool lzop m4 make mtd-utils \
+    python3-git python3-m2crypto qemu qemu-user-static \
     socat sudo texi2html texinfo u-boot-tools unzip
 sudo apt install -y binutils-arm-linux-gnueabihf
 sudo apt install -y cpp-arm-linux-gnueabihf
@@ -81,10 +81,16 @@ sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c kernel
 ## Bootstrap root filesystem
 
 To bootstrap Debian buster and install firmware to the filesystem
-_rootfs_, use:
+_rootfs_, if Debian caching proxy server, [Apt-Cacher NG](https://www.unix-ag.uni-kl.de/~bloch/acng/), is installed and configured on localhost, use:
 
 ```shell
-sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c rootfs
+sops exec-env config/secrets.enc.json 'sudo -E CA_URL=$CA_URL CA_FINGERPRINT=$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -a -j $(nproc) -p http://$(hostname):3142/deb.debian.org/debian/ -c rootfs'
+```
+
+Otherwise, use:
+
+```shell
+sops exec-env config/secrets.enc.json 'sudo -E CA_URL=$CA_URL CA_FINGERPRINT=$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -a -j $(nproc) -c rootfs'
 ```
 
 To install kernel modules and headers to _rootfs_, use:
@@ -106,10 +112,21 @@ kernel modules (and headers) and firmware. See the
 script
 [express_recoveryfs.sh](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_buster_rr01/contrib/express-recoveryfs/express-recoveryfs.sh) for
 details. Choose which method to use by setting the variable
-`USE_ALT_RECOVERYFS` in the script *revo_make_debian.sh*. Then run:
+`USE_ALT_RECOVERYFS` in the script *revo_make_debian.sh*. Then, if
+Debian caching proxy
+server, [Apt-Cacher NG](https://www.unix-ag.uni-kl.de/~bloch/acng/),
+is installed and configured on localhost, run:
+
 
 ```shell
+sops exec-env config/secrets.enc.json 'sudo -E CA_URL=$CA_URL CA_FINGERPRINT=$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -a -j $(nproc) -p http://$(hostname):3142/deb.debian.org/debian/ -c recoveryfs'
 sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c recoveryfs
+```
+
+Otherwise, run:
+
+```shell
+sops exec-env config/secrets.enc.json 'sudo -E CA_URL=$CA_URL CA_FINGERPRINT=$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -a -j $(nproc) -c recoveryfs
 ```
 
 To install kernel modules and headers to _recoveryfs_, use:
