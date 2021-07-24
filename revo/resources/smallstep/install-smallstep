@@ -87,7 +87,7 @@ fetch-and-install-step-pkg ()
         $SUDO $INSTALL -m 0755 "${tmpdir}/bin"/* /usr/bin/
         if test -d "${tmpdir}/autocomplete"; then
             $SUDO $INSTALL -m 0644 "${tmpdir}/autocomplete"/bash* \
-                  /usr/share/bash-completion/completions
+                  /usr/share/bash-completion/completions/step
         fi
     else
         $SUDO $APT install "${tmpdir}/${pkg}"
