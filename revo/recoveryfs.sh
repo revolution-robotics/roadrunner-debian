@@ -129,12 +129,12 @@ make_debian_recoveryfs ()
     $CHROOTFS "$RECOVERYFS_BASE" rm -rf  "${RECOVERYFS_BASE}/debootstrap"
 
     # pr_info "recoveryfs: generate default configs"
-    # mkdir -p ${RECOVERYFS_BASE}/etc/sudoers.d/
+    # install -d -m 0750 ${RECOVERYFS_BASE}/etc/sudoers.d/
     # echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > ${RECOVERYFS_BASE}/etc/sudoers.d/user
     # chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/user
 
     ## install local Debian packages
-    mkdir -p "${RECOVERYFS_BASE}/srv/local-apt-repository"
+    install -d -m 0755 "${RECOVERYFS_BASE}/srv/local-apt-repository"
 
     ## udisk2
     # cp -r "${G_VENDOR_PATH}/deb/udisks2"/* \
@@ -148,9 +148,10 @@ make_debian_recoveryfs ()
     # cp -r ${G_VENDOR_PATH}/deb/shared-mime-info/* \
     #    ${RECOVERYFS_BASE}/srv/local-apt-repository
 
+    install -d -m 0755 "${ROOTFS_BASE}/var/lib/usbmux"
+
     # BEGIN -- REVO i.MX7D security
     pr_info "recoveryfs: security infrastructure"
-    mkdir -p "${RECOVERYFS_BASE}/etc/sudoers.d/"
     echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${RECOVERYFS_BASE}/etc/sudoers.d/revo
     chmod 0440 "${RECOVERYFS_BASE}/etc/sudoers.d/revo"
 
@@ -354,11 +355,11 @@ wq
 EOT
 
 ## lightdm-gtk-greeter wants to launch at-spi-bus-launcher via an old path
-mkdir -p /usr/lib/at-spi2-core/
+install -d -m 0755 /usr/lib/at-spi2-core/
 ln -sf /usr/libexec/at-spi-bus-launcher /usr/lib/at-spi2-core/
 
 # Create missing data directory.
-mkdir -p /var/lib/lightdm/data
+install -d -m 0755 /var/lib/lightdm/data
 
 ## Add ALSA & ALSA utilites.
 # protected_install alsa-utils
@@ -834,7 +835,7 @@ EOF
 
 
     ## Install kernel headers to rootfs
-    # mkdir -p "${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi"
+    # install -d -m 0755 "${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi"
     # cp "${G_LINUX_KERNEL_SRC_DIR}/drivers/staging/android/uapi/"* \
     #    "${RECOVERYFS_BASE}/usr/local/src/linux-imx/drivers/staging/android/uapi"
     # cp -r "${G_LINUX_KERNEL_SRC_DIR}/include" \
@@ -1109,7 +1110,7 @@ make_recovery_image ()
 
     copy_debian_images ()
     {
-        mkdir -p "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
+        install -d -m 0750 "${P2_MOUNT_DIR}/${G_IMAGES_DIR}"
 
         pr_info "Copying Debian images to /${G_IMAGES_DIR}"
         if test -f "${G_TMP_DIR}/boot.scr"; then
