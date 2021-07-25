@@ -52,11 +52,11 @@ update-hosts ()
     local hn=$1
 
     if $GREP -q '^127.0.1.1' /etc/hosts; then
-        $SED -ie '/^127.0.0.1/s;\([[:space:]]\{1,\}\)[^[:space:]].*;\1localhost;' \
+        $SED -i -e '/^127.0.0.1/s;\([[:space:]]\{1,\}\)[^[:space:]].*;\1localhost;' \
              -e '/^127.0.1.1/s;\([[:space:]]\{1,\}\)[^[:space:]].*;\1'"$hn"';' \
              /etc/hosts
     else
-        $SED -ie '/^127.0.0.1/s;\([[:space:]]\{1,\}\)[^[:space:]].*;\1localhost;' \
+        $SED -i -e '/^127.0.0.1/s;\([[:space:]]\{1,\}\)[^[:space:]].*;\1localhost;' \
              -e '/^127.0.0.1/a 127.0.1.1	'"$hn" \
              /etc/hosts
     fi
