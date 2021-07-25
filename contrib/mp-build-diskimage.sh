@@ -82,7 +82,7 @@ if test -t 0; then
     if test -x "$FLOCK" -a ."$0" != ."$LOCKED"; then
 
         #  Avoid running multiple instances of this script.
-        exec env LOCKED=$0 $FLOCK -en "$0" "$0" "$@" || true
+        exec env ACNG_PROXY_URL=$ACNG_PROXY_URL LOCKED=$0 $FLOCK -en "$0" "$0" "$@" || true
     fi
 else
 
@@ -168,7 +168,6 @@ get-current-tag ()
         $TAIL -1
 }
 
-declare acng_proxy=''
 declare prompt
 declare status
 declare system=$($UNAME -s)
@@ -255,18 +254,23 @@ continue or CTRL + C to cancel ..."
         ;;
 esac
 
-: ${ACNG_PROXY_URL:="http://${host_gw_ipv4%/*}:3142/deb.debian.org/debian/"}
+declare debian_proxy=''
 
-# If both `pgrep' and `lsof' are available ...
-if test -x "$PGREP" -a -x "$LSOF"; then
+if test ."${ACNG_PROXY_URL}" != .''; then
+    debian_proxy="-p ${ACNG_PROXY_URL}"
+else
+    ACNG_PROXY_URL=http://${host_gw_ipv4%/*}:3142/deb.debian.org/debian/
 
-    # If `apt-cacher-ng' is listening on localhost:3142
-    if  $PGREP apt-cacher-ng >/dev/null && $SUDO $LSOF -ti :3142 >/dev/null; then
-        acng_proxy="-p $ACNG_PROXY_URL"
+    # If both `pgrep' and `lsof' are available ...
+    if test -x "$PGREP" -a -x "$LSOF"; then
+
+        # If `apt-cacher-ng' is listening on localhost:3142
+        if  $PGREP apt-cacher-ng >/dev/null &&
+                $SUDO $LSOF -ti :3142 >/dev/null; then
+            debian_proxy="-p ${ACNG_PROXY_URL}"
+        fi
     fi
 fi
-
-: ${DEBIAN_PROXY:="$acng_proxy"}
 
 # If a $VMNAME instance exists ...
 declare -a vmstate=( $($MULTIPASS list | $AWK '/^'$VMNAME' / { print $1, $2 }') )
@@ -338,9 +342,9 @@ ${host_gw_ipv4%/*} $HOSTNAME
 EOF
 
 # If apt-cacher-ng proxy available, add it to the VM's apt configuration.
-if [[ ."$DEBIAN_PROXY" =~ \..*3142 ]]; then
+if [[ ."${debian_proxy}" =~ \.-p\ (.*:[0-9]+) ]]; then
     $CAT <<EOF | "$MULTIPASS" exec "$VMNAME" -- $SUDO $BASH -c "$CAT >>/etc/apt/apt.conf.d/10acng-proxy"
-Acquire::http::Proxy "http://${host_gw_ipv4%/*}:3142";
+Acquire::http::Proxy "${BASH_REMATCH[1]}";
 EOF
 fi
 
@@ -395,10 +399,10 @@ echo "Deploying sources..."
 CA_URL=\$CA_URL CA_FINGERPRINT=\$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c deploy |& $TEE "/home/ubuntu/${OUTPUT_DIR}/deploy.log"
 echo "Building all..."
 if $use_alt_recoveryfs; then
-    $SUDO -E CA_URL=\$CA_URL CA_FINGERPRINT=\$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -a -j "$NPROC" $DEBIAN_PROXY -c all |&
+    $SUDO -E CA_URL=\$CA_URL CA_FINGERPRINT=\$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -a -j "$NPROC" ${debian_proxy} -c all |&
         $TEE "/home/ubuntu/${OUTPUT_DIR}/all.log"
 else
-    $SUDO -E CA_URL=\$CA_URL CA_FINGERPRINT=\$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -j "$NPROC" $DEBIAN_PROXY -c all |&
+    $SUDO -E CA_URL=\$CA_URL CA_FINGERPRINT=\$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -j "$NPROC" ${debian_proxy} -c all |&
         $TEE "/home/ubuntu/${OUTPUT_DIR}/all.log"
 fi
 echo "Creating disk image..."
