@@ -365,15 +365,6 @@ make_prepare ()
     # create src dir
     mkdir -p "$DEF_SRC_DIR"
 
-    # create toolchain dir
-    mkdir -p "$G_TOOLS_PATH"
-
-    # create rootfs dir
-    mkdir -p "$G_ROOTFS_DIR"
-
-    # create recoveryfs dir
-    mkdir -p "$G_RECOVERYFS_DIR"
-
     # create out dir
     mkdir -p "$PARAM_OUTPUT_DIR"
 
@@ -899,14 +890,6 @@ make_bcm_fw ()
 
 cmd_make_deploy ()
 {
-    # get toolchain
-    if (( $(ls "$G_CROSS_COMPILER_PATH" 2>/dev/null | wc -l) == 0 )); then
-        pr_info "Get and unpack cross compiler"
-        get_remote_file "$G_EXT_CROSS_COMPILER_LINK" "$DEF_SRC_DIR"
-        tar -jxf "${DEF_SRC_DIR}/${G_CROSS_COMPILER_ARCHIVE}" \
-            -C "$G_TOOLS_PATH"/
-    fi
-
     # get U-Boot repository
     if (( $(ls "$G_UBOOT_SRC_DIR" 2>/dev/null | wc -l) == 0 )); then
         pr_info "Get U-Boot repository"
@@ -920,6 +903,7 @@ cmd_make_deploy ()
         get_git_src "$G_LINUX_KERNEL_GIT" "$G_LINUX_KERNEL_BRANCH" \
                     "$G_LINUX_KERNEL_SRC_DIR" "$G_LINUX_KERNEL_REV"
     fi
+
     if test ! -z "$G_BCM_FW_GIT"; then
         # get bcm firmware repository
         if (( $(ls "$G_BCM_FW_SRC_DIR"  2>/dev/null | wc -l) == 0 )); then
@@ -928,6 +912,7 @@ cmd_make_deploy ()
                         "$G_BCM_FW_SRC_DIR" "$G_BCM_FW_GIT_REV"
         fi
     fi
+
     if test ! -z "$G_IMXBOOT_GIT"; then
         # get IMXBoot Source repository
         if (( $(ls "$G_IMXBOOT_SRC_DIR"  2>/dev/null | wc -l) == 0 )); then
@@ -936,6 +921,7 @@ cmd_make_deploy ()
                         "$G_IMXBOOT_BRACH" "$G_IMXBOOT_SRC_DIR" "$G_IMXBOOT_REV"
         fi
     fi
+
     # get REVO web dispatch
     if (( $(ls "$G_REVO_WEB_DISPATCH_SRC_DIR" 2>/dev/null | wc -l) == 0 )); then
         pr_info "Get REVO web dispatch repository"
@@ -952,7 +938,6 @@ cmd_make_rootfs ()
            test ."$MACHINE" = .'revo-roadrunner-mx7'; then
 
         (
-            cd "$G_ROOTFS_DIR"
             # make debian x11 backend rootfs
             make_debian_x11_rootfs "$G_ROOTFS_DIR"
 
@@ -963,7 +948,6 @@ cmd_make_rootfs ()
         )
     else
         (
-            cd "$G_ROOTFS_DIR"
             make_debian_weston_rootfs "$G_ROOTFS_DIR"
         )
     fi
@@ -996,7 +980,6 @@ cmd_make_recoveryfs ()
                 test ."$MACHINE" = .'revo-roadrunner-mx7'; then
 
             (
-                cd "$G_RECOVERYFS_DIR"
                 # make debian backend recoveryfs
                 make_debian_recoveryfs "$G_RECOVERYFS_DIR"
 
@@ -1007,7 +990,6 @@ cmd_make_recoveryfs ()
             )
         else
             (
-                cd "$G_RECOVERYFS_DIR"
                 make_debian_weston_recoveryfs "$G_RECOVERYFS_DIR"
             )
         fi
@@ -1032,9 +1014,9 @@ cmd_make_recoveryfs ()
 
 cmd_make_usbfs ()
 {
-    # cp -a "$G_ROOTFS_DIR" "$G_USBFS_DIR"
     rm -rf "$G_USBFS_DIR"
     install -d -m 0775 "$G_USBFS_DIR"
+
     tar -C "$G_ROOTFS_DIR" -cf - . |
         tar -C "$G_USBFS_DIR" -xpf -
     ln -s "$G_IMAGES_DIR" "${G_USBFS_DIR}/system-update"
@@ -1047,9 +1029,9 @@ cmd_make_provisionfs ()
 {
     local SD_DEVICE=/dev/mmcblk0
 
-    # cp -a "$G_ROOTFS_DIR" "$G_PROVISIONFS_DIR"
     rm -rf "$G_PROVISIONFS_DIR"
     install -d -m 0775 "$G_PROVISIONFS_DIR"
+
     tar -C "$G_ROOTFS_DIR" -cf - . |
         tar -C "$G_PROVISIONFS_DIR" -xpf -
     ln -s "$G_IMAGES_DIR" "${G_PROVISIONFS_DIR}/system-update"
