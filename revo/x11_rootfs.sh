@@ -330,7 +330,6 @@ protected_install net-tools
 
 ## Enable graphical desktop.
 protected_install xorg
-protected_install xserver-xorg-video-dummy
 protected_install xfce4
 # protected_install xfce4-goodies
 

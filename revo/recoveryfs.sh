@@ -327,7 +327,6 @@ protected_install udisks2
 
 ## Enable graphical desktop.
 # protected_install xorg
-# protected_install xserver-xorg-video-dummy
 # protected_install xfce4
 # protected_install xfce4-goodies
 
@@ -726,10 +725,10 @@ EOF
             "${RECOVERYFS_BASE}/etc/pulse/"
 
     ## Add alsa default configs
-    install -m 0644 "${G_VENDOR_PATH}/resources/asound.state" \
-            "${RECOVERYFS_BASE}/var/lib/alsa/"
-    install -m 0644 "${G_VENDOR_PATH}/resources/asound.conf" \
-            "${RECOVERYFS_BASE}/etc/"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/asound.state" \
+    #         "${RECOVERYFS_BASE}/var/lib/alsa/"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/asound.conf" \
+    #         "${RECOVERYFS_BASE}/etc/"
 
     ## Install WiFi service
     install -d "${RECOVERYFS_BASE}/etc/wifi"
