@@ -360,12 +360,19 @@ set -e
 cd "./$BUILD_DIR"
 echo "Installing toolchains and libraries..."
 $SUDO $APT update |& $TEE "/home/ubuntu/${OUTPUT_DIR}/apt.log"
+# $SUDO $APT install -qy autoconf automake autopoint \\
+#     binfmt-support binutils bison build-essential chrpath cmake \\
+#     coreutils debootstrap device-tree-compiler diffstat docbook-utils \\
+#     flex g++ gcc git-core golang gpart groff help2man lib32ncurses5-dev \\
+#     libarchive-dev libelf-dev libglib2.0-dev libssl-dev libtool lzop \\
+#     m4 make qemu qemu-user-static socat texi2html texinfo \\
+#     u-boot-tools unzip upx-ucl |&
+#     $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
 $SUDO $APT install -qy autoconf automake autopoint \\
-    binfmt-support binutils bison build-essential chrpath cmake \\
-    coreutils debootstrap device-tree-compiler diffstat docbook-utils \\
-    flex g++ gcc git-core golang gpart groff help2man lib32ncurses5-dev \\
-    libarchive-dev libelf-dev libglib2.0-dev libssl-dev libtool lzop \\
-    m4 make qemu qemu-user-static socat texi2html texinfo \\
+    binfmt-support binutils bison build-essential cmake \\
+    coreutils debootstrap device-tree-compiler diffstat \\
+    flex g++ gcc git-core golang gpart groff help2man \\
+    libssl-dev libtool lzop m4 make qemu qemu-user-static socat \\
     u-boot-tools unzip upx-ucl |&
     $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
 $SUDO $APT install -qy binutils-arm-linux-gnueabihf |&
