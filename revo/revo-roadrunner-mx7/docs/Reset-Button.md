@@ -69,8 +69,8 @@ GPIO Keys device declaration is as follows:
 ```
 
 The macro `MX7D_PAD_LCD_DATA14__GPIO3_IO19` is a tuple declared in the file
-*mx7d_pinfunc.h*  under the DTS directory of both U-Boot and Linux -
-respectively,  *uboot/arch/arm/include/asm/arch-mx7/mx7d_pinfunc.h*
+*mx7d-pinfunc.h*  under the DTS directory of both U-Boot and Linux -
+respectively,  *uboot/arch/arm/include/asm/arch-mx7/mx7d-pinfunc.h*
 and *kernel/arch/arm/boot/dts/imx7d-pinfunc.h*.  Though these files are
 not identical, their shared declarations are. The config value,
 `0x32`, maps according to the following table per kernel
