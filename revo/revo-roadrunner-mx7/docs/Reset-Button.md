@@ -95,9 +95,11 @@ documentation [*fsl,imx7d-pinctrl.txt*][1]:
 
 So `0x32` maps to
 ```
-PAD_CTL_PUS_5K_UP | PAD_CTL_PUE | PAD_CTL_DSE_X3
+PAD_CTL_PUS_5K_UP | PAD_CTL_PUE | PAD_CTL_SRE_FAST | PAD_CTL_DSE_X3
 ```
-See also [i.MX7 Dual Reference Manual][2].
+
+See also [i.MX7 Dual Reference Manual][2], for more information, e.g.,
+default values upon reset.
 
 [1]: https://github.com/revolution-robotics/roadrunner-linux-imx/blob/imx_4.14.78_1.0.0_ga_var01_rr01/Documentation/devicetree/bindings/pinctrl/fsl%2Cimx7d-pinctrl.txt
 [2]: http://www.nxp.com/assets/documents/data/en/reference-manuals/IMX7DRM.pdf
