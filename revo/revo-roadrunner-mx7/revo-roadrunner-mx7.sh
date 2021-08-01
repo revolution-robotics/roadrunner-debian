@@ -7,6 +7,8 @@ declare -r G_UBOOT_SRC_DIR=${DEF_SRC_DIR}/uboot
 declare -r G_UBOOT_GIT=https://github.com/revolution-robotics/roadrunner-uboot-imx.git
 declare -r G_UBOOT_BRANCH=imx_v2018.03_4.14.78_1.0.0_ga_var01_rr01
 declare -r G_UBOOT_REV=4efa8e63a6364e484307d8cbb79f053f7e91f4a9
+# declare -r G_UBOOT_BRANCH=imx_4.14.78_blade
+# declare -r G_UBOOT_REV=ff44929407a03e5af02199388e9500af2a69156c
 declare -r G_UBOOT_DEF_CONFIG_MMC=mx7d_roadrunner_defconfig
 declare -r G_UBOOT_DEF_CONFIG_NAND=mx7d_roadrunner_nand_defconfig
 declare -r G_UBOOT_NAME_FOR_EMMC=u-boot.img.mmc
@@ -20,7 +22,7 @@ declare -r G_LINUX_KERNEL_GIT=https://github.com/revolution-robotics/roadrunner-
 # declare -r G_LINUX_KERNEL_BRANCH=imx_4.14.78_1.0.0_ga_var01_rr01
 # declare -r G_LINUX_KERNEL_REV=4d80804d8759fe5a31535a4e56e8125b2cc736fa
 declare -r G_LINUX_KERNEL_BRANCH=imx_5.4.85_1.0.0_revo
-declare -r G_LINUX_KERNEL_REV=0d6a130f6adcb6314280dbe3cfc875f2b470aaec
+declare -r G_LINUX_KERNEL_REV=9292229fa9587f0587541bc2962685a442cbd6db
 declare -r G_LINUX_KERNEL_DEF_CONFIG=imx_v7_roadrunner_defconfig
 declare -r G_LINUX_DTB='imx7d-roadrunner-gpio16.dtb imx7d-roadrunner-iomix.dtb imx7d-roadrunner-blade.dtb'
 
