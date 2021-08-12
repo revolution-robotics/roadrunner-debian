@@ -67,8 +67,7 @@ create-ethernet-profile ()
             if test ."${argv[ipv4_addr]}" = .''; then
                 $NMCLI connection modify "${argv[profile]}" ipv4.method auto
             else
-                $NMCLI connection modify "${argv[profile]}" ipv4.method manual
-                $NMCLI connection modify "${argv[profile]}" \
+                $NMCLI connection modify "${argv[profile]}" ipv4.method manual \
                        ipv4.addresses "${argv[ipv4_addr]}"
                 if test ."${argv[ipv4_gateway]}" != .''; then
                     $NMCLI connection modify "${argv[profile]}" \
@@ -121,8 +120,7 @@ create-wifi-profile ()
             if test ."${argv[ipv4_addr]}" = .''; then
                 $NMCLI connection modify "${argv[profile]}" ipv4.method auto
             else
-                $NMCLI connection modify "${argv[profile]}" ipv4.method manual
-                $NMCLI connection modify "${argv[profile]}" \
+                $NMCLI connection modify "${argv[profile]}" ipv4.method manual \
                        ipv4.addresses "${argv[ipv4_addr]}"
                 if test ."${argv[ipv4_gateway]}" != .''; then
                     $NMCLI connection modify "${argv[profile]}" \
