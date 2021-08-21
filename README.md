@@ -25,13 +25,10 @@ the command line):
 ```shell
 sudo apt update
 sudo apt install -y autoconf automake autopoint binfmt-support \
-    binutils bison build-essential chrpath cmake coreutils curl \
-    debootstrap dialog device-tree-compiler diffstat docbook-utils flex \
-    g++ gcc git-core gpart groff help2man lib32ncurses5-dev \
-    libarchive-dev libgl1-mesa-dev libglib2.0-dev libglu1-mesa-dev \
-    libsdl1.2-dev libssl-dev libtool lzop m4 make mtd-utils \
-    python3-git python3-m2crypto qemu qemu-user-static \
-    socat sudo texi2html texinfo u-boot-tools unzip
+    binutils bison build-essential cmake coreutils debootstrap \
+    device-tree-compiler diffstat flex g++ gcc git golang gpart \
+    groff help2man  libssl-dev libtool lzop m4 make qemu \
+    qemu-user-static u-boot-tools unzip upx-ucl
 sudo apt install -y binutils-arm-linux-gnueabihf
 sudo apt install -y cpp-arm-linux-gnueabihf
 sudo apt install -y gcc-arm-linux-gnueabihf
@@ -81,7 +78,9 @@ sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c kernel
 ## Bootstrap root filesystem
 
 To bootstrap Debian buster and install firmware to the filesystem
-_rootfs_, if Debian caching proxy server, [Apt-Cacher NG](https://www.unix-ag.uni-kl.de/~bloch/acng/), is installed and configured on localhost, use:
+_rootfs_, if Debian caching proxy server,
+[Apt-Cacher NG](https://www.unix-ag.uni-kl.de/~bloch/acng/),
+is installed and configured on localhost, use:
 
 ```shell
 sops exec-env config/secrets.enc.json 'sudo -E CA_URL=$CA_URL CA_FINGERPRINT=$CA_FINGERPRINT MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -a -j $(nproc) -p http://$(hostname):3142/deb.debian.org/debian/ -c rootfs'
@@ -110,12 +109,10 @@ Building _recoveryfs_ from _rootfs_ is fast, but requires some
 preparation, including that _rootfs_ is fully populated with Debian,
 kernel modules (and headers) and firmware. See the
 script
-[express_recoveryfs.sh](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_buster_rr01/contrib/express-recoveryfs/express-recoveryfs.sh) for
-details. Choose which method to use by setting the variable
+[express_recoveryfs.sh](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_buster_rr01/contrib/express-recoveryfs/express-recoveryfs.sh)
+for details. Choose which method to use by setting the variable
 `USE_ALT_RECOVERYFS` in the script *revo_make_debian.sh*. Then, if
-Debian caching proxy
-server, [Apt-Cacher NG](https://www.unix-ag.uni-kl.de/~bloch/acng/),
-is installed and configured on localhost, run:
+using Debian caching proxy server, run:
 
 
 ```shell
