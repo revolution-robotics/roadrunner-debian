@@ -157,10 +157,10 @@ make_debian_x11_rootfs ()
     echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > "${ROOTFS_BASE}/etc/sudoers.d/revo"
     chmod 0440 "${ROOTFS_BASE}/etc/sudoers.d/revo"
 
-    for pkg in firewalld iptables libcurl libedit libnftnl nftables; do
-        install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
-           "${ROOTFS_BASE}/srv/local-apt-repository"
-    done
+    # for pkg in firewalld iptables libcurl libedit libnftnl nftables; do
+    #     install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
+    #        "${ROOTFS_BASE}/srv/local-apt-repository"
+    # done
     # END -- REVO i.MX7D security
 
     ## add mirror to source list
@@ -176,18 +176,18 @@ deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
     ## raise backports priority
-    cat >"${ROOTFS_BASE}/etc/apt/preferences.d/backports" <<EOF
-Package: *
-Pin: release n=${DEB_RELEASE}-backports
-Pin-Priority: 500
-EOF
+#     cat >"${ROOTFS_BASE}/etc/apt/preferences.d/backports" <<EOF
+# Package: *
+# Pin: release n=${DEB_RELEASE}-backports
+# Pin-Priority: 500
+# EOF
 
     ## maximize local repo priority
-    cat >"${ROOTFS_BASE}/etc/apt/preferences.d/local" <<EOF
-Package: *
-Pin: origin ""
-Pin-Priority: 1000
-EOF
+#     cat >"${ROOTFS_BASE}/etc/apt/preferences.d/local" <<EOF
+# Package: *
+# Pin: origin ""
+# Pin-Priority: 1000
+# EOF
 
     cat >"${ROOTFS_BASE}/etc/fstab" <<EOF
 
@@ -293,10 +293,12 @@ apt update
 # apt -y full-upgrade
 
 ## Downgrade libcurl3-gnutls from 7.74.0-1.2~bpo10+1 to 7.64.0-4+deb10u2.
-apt install libcurl3-gnutls=7.64.0-4+deb10u2 <<<'y'
+# apt install libcurl3-gnutls=7.64.0-4+deb10u2 <<<'y'
 
 ## Freeze libcurl3-gnutls version.
-dpkg --set-selections <<<'libcurl3-gnutls hold'
+# dpkg --set-selections <<<'libcurl3-gnutls hold'
+
+protected_install libcurl4
 
 protected_install locales
 
@@ -370,8 +372,8 @@ protected_install gstreamer1.0-alsa
 
 protected_install gstreamer1.0-plugins-bad
 protected_install gstreamer1.0-plugins-base
-protected_install gstreamer1.0-plugins-ugly
 protected_install gstreamer1.0-plugins-good
+protected_install gstreamer1.0-plugins-ugly
 protected_install gstreamer1.0-tools
 
 ## Add gstreamer-imx.
@@ -650,8 +652,8 @@ EOF
             "${ROOTFS_BASE}/lib/systemd/system"
 
     ## Add headless Xorg config
-    install -m 0644 "${G_VENDOR_PATH}/resources/10-headless.conf" \
-            "${ROOTFS_BASE}/usr/share/X11/xorg.conf.d"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/10-headless.conf" \
+    #         "${ROOTFS_BASE}/usr/share/X11/xorg.conf.d"
 
     ## Install MIME databases
     tar -C "$ROOTFS_BASE" -Jxf "${G_VENDOR_PATH}/resources/mime.txz"
