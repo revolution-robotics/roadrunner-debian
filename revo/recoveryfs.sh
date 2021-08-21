@@ -164,11 +164,11 @@ make_debian_recoveryfs ()
     ## add mirror to source list
     cat >"${RECOVERYFS_BASE}/etc/apt/sources.list" <<EOF
 deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
-deb ${PARAM_DEB_LOCAL_MIRROR%/}-security/ ${DEB_RELEASE}/updates main contrib non-free
+deb ${PARAM_DEB_LOCAL_MIRROR%/}-security/ ${DEB_RELEASE}-security main contrib non-free
 deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
 deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 # deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
-# deb-src ${PARAM_DEB_LOCAL_MIRROR%/}-security/ ${DEB_RELEASE}/updates main contrib non-free
+# deb-src ${PARAM_DEB_LOCAL_MIRROR%/}-security/ ${DEB_RELEASE}-security main contrib non-free
 # deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
 # deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
@@ -337,7 +337,7 @@ protected_install udisks2
 # protected_install network-manager-gnome
 
 ## Legacy scripting editor.
-protected_install ed
+# protected_install ed
 
 ## Fix lightdm config (added autologin x_user).
 # sed -i -e 's/^#* *\\(autologin-user=\\)/\\1x_user/g' \\
@@ -653,7 +653,7 @@ EOF
     #         "${RECOVERYFS_BASE}/usr/share/X11/xorg.conf.d"
 
     ## Install MIME databases
-    tar -C "$RECOVERYFS_BASE" -Jxf "${G_VENDOR_PATH}/resources/mime.txz"
+    # tar -C "$RECOVERYFS_BASE" -Jxf "${G_VENDOR_PATH}/resources/mime.txz"
 
     ## Create /var/www/html. TODO: Add index.html.
     install -d -m 0755 "${RECOVERYFS_BASE}/var/www/html"
@@ -966,11 +966,11 @@ EOF
     ## Restore APT source list to default Debian mirror.
     cat >"${RECOVERYFS_BASE}/etc/apt/sources.list" <<EOF
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
-deb ${DEF_DEBIAN_MIRROR%/}-security/ ${DEB_RELEASE}/updates main contrib non-free
+deb ${DEF_DEBIAN_MIRROR%/}-security/ ${DEB_RELEASE}-security main contrib non-free
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
 deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 # deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
-# deb-src ${DEF_DEBIAN_MIRROR%/}-security/ ${DEB_RELEASE}/updates main contrib non-free
+# deb-src ${DEF_DEBIAN_MIRROR%/}-security/ ${DEB_RELEASE}-security main contrib non-free
 # deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
 # deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF

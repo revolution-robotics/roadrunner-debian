@@ -110,7 +110,7 @@ fi
 #--- debian~/changelog	1970-01-01 00:00:00.000000000 +0000
 #+++ debian/changelog	2020-12-22 05:28:15.464585313 +0000
 #@@ -0,0 +1,5 @@
-#+gstreamer-imx (0.13.1-1) UNRELEASED; urgency=low
+#+gstreamer-imx (2.0.0-1) UNRELEASED; urgency=low
 #+
 #+  * Initial release for REVO Roadrunner.
 #+

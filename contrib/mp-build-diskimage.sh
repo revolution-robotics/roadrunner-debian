@@ -31,12 +31,12 @@ declare build_suite_commit=$2
 
 # Edit these ...
 : ${VMNAME:='roadrunner'}
-: ${CODENAME:='groovy'}
+: ${CODENAME:='hirsute'}
 : ${NPROC:='4'}
 : ${DISK_SIZE:='30G'}
 : ${MEMORY_SIZE:='4G'}
 : ${SSH_PUBKEY:="${HOME}/.ssh/id_ed25519.pub"}
-: ${BUILD_SUITE_BRANCH_DEFAULT:='debian_buster_rr01'}
+: ${BUILD_SUITE_BRANCH_DEFAULT:='debian_bullseye_rr01'}
 : ${BUILD_DIR:='roadrunner_debian'}
 : ${OUTPUT_DIR:="${BUILD_DIR}/output"}
 : ${DEST_DIR:="${HOME}/output"}
@@ -377,12 +377,12 @@ $SUDO $APT install -qy gcc-arm-linux-gnueabihf |&
 $SUDO $APT install -qy g++-arm-linux-gnueabihf |&
     $TEE -a "/home/ubuntu/${OUTPUT_DIR}/apt.log"
 $SUDO $CURL -sLo /usr/bin/install-smallstep \\
-    "https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_buster_rr01/revo/resources/smallstep/install-smallstep"
+    "https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_bullseye_rr01/revo/resources/smallstep/install-smallstep"
 $SUDO $CHMOD 0755 /usr/bin/install-smallstep
 install-smallstep
-$CURL -sL https://ftp-master.debian.org/keys/release-10.asc |
+$CURL -sL https://ftp-master.debian.org/keys/release-11.asc |
     $SUDO $GPG --import --no-default-keyring \\
-        --keyring /usr/share/keyrings/debian-buster-release.gpg
+        --keyring /usr/share/keyrings/debian-bullseye-release.gpg
 echo "Cloning build suite..."
 $GIT init |& $TEE "/home/ubuntu/${OUTPUT_DIR}/git.log"
 $GIT remote add origin https://github.com/revolution-robotics/roadrunner-debian.git |&

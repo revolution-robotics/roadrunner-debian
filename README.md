@@ -39,9 +39,9 @@ sudo apt install -y g++-arm-linux-gnueabihf
 Import a Debian GPG-signing key to verify repository integrity:
 
 ```shell
-curl -L https://ftp-master.debian.org/keys/release-10.asc |
+curl -L https://ftp-master.debian.org/keys/release-11.asc |
     sudo gpg --import --no-default-keyring \
-         --keyring /usr/share/keyrings/debian-buster-release.gpg
+         --keyring /usr/share/keyrings/debian-bullseye-release.gpg
 ```
 
 ## Fetch build suite and kernel sources
@@ -49,7 +49,7 @@ Clone the build suite repository under the current directory:
 
 ```shell
 git clone https://github.com/revolution-robotics/roadrunner-debian.git \
-    -b debian_buster_rr01 roadrunner_debian
+    -b debian_bullseye_rr01 roadrunner_debian
 ```
 
 Download U-Boot and Linux kernel sources:
@@ -77,7 +77,7 @@ sudo MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c kernel
 
 ## Bootstrap root filesystem
 
-To bootstrap Debian buster and install firmware to the filesystem
+To bootstrap Debian bullseye and install firmware to the filesystem
 _rootfs_, if Debian caching proxy server,
 [Apt-Cacher NG](https://www.unix-ag.uni-kl.de/~bloch/acng/),
 is installed and configured on localhost, use:
@@ -109,7 +109,7 @@ Building _recoveryfs_ from _rootfs_ is fast, but requires some
 preparation, including that _rootfs_ is fully populated with Debian,
 kernel modules (and headers) and firmware. See the
 script
-[express_recoveryfs.sh](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_buster_rr01/contrib/express-recoveryfs/express-recoveryfs.sh)
+[express_recoveryfs.sh](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_bullseye_rr01/contrib/express-recoveryfs/express-recoveryfs.sh)
 for details. Choose which method to use by setting the variable
 `USE_ALT_RECOVERYFS` in the script *revo_make_debian.sh*. Then, if
 using Debian caching proxy server, run:
