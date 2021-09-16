@@ -854,9 +854,12 @@ EOF
     #         "${ROOTFS_BASE}/usr/bin"
     # ln -sf 'fw_printenv' "${ROOTFS_BASE}/usr/bin/fw_printenv-nand"
 
-    ## Restrict pmlogger volume size
-    sed -i -e 's/[0-9]\{1,\}Mb/20Mb/' \
-        "${ROOTFS_BASE}/etc/pcp/pmlogger/control.d/local"
+    if test -f "${ROOTFS_BASE}/etc/pcp/pmlogger/control.d/local"; then
+
+        ## Restrict pmlogger volume size
+        sed -i -e 's/[0-9]\{1,\}Mb/20Mb/' \
+            "${ROOTFS_BASE}/etc/pcp/pmlogger/control.d/local"
+    fi
 
     ## BEGIN -- REVO i.MX7D post-packages stage
     pr_info "rootfs: begin late packages"
@@ -888,11 +891,14 @@ EOF
     ## Enable sysstat data collection
     sed -i -e 's;^\(ENABLED=\).*;\1"true";' "${ROOTFS_BASE}/etc/default/sysstat"
 
-    ## Keep 12 hours of pmlogger logs.
-    install -m 0755 "${G_VENDOR_PATH}/resources/pmlogger_rotate" \
-            "${ROOTFS_BASE}/usr/lib/pcp/bin"
-    printf "30 */6\t* * *\troot\t/usr/lib/pcp/bin/pmlogger_rotate\n" \
-           >>"${ROOTFS_BASE}/etc/crontab"
+    if test -d "${ROOTFS_BASE}/usr/lib/pcp/bin"; then
+
+        ## Keep 12 hours of pmlogger logs.
+        install -m 0755 "${G_VENDOR_PATH}/resources/pmlogger_rotate" \
+                "${ROOTFS_BASE}/usr/lib/pcp/bin"
+        printf "30 */6\t* * *\troot\t/usr/lib/pcp/bin/pmlogger_rotate\n" \
+               >>"${ROOTFS_BASE}/etc/crontab"
+    fi
 
     pr_info "rootfs: install reverse-tunnel-server"
 
