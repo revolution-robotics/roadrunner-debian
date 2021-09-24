@@ -914,6 +914,12 @@ EOF
         >"${ROOTFS_BASE}/usr/bin/install-reverse-tunnel-server"
     chmod 0755 "${ROOTFS_BASE}/usr/bin/install-reverse-tunnel-server"
 
+    ## Install cppzmq headers
+    curl -L -o "${ROOTFS_BASE}/usr/include/zmq.hpp" \
+         https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp
+    curl -L -o "${ROOTFS_BASE}/usr/include/zmq_addon.hpp" \
+         https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq_addon.hpp
+
     ## post-packages command
     cat >"${ROOTFS_BASE}/post-packages" <<EOF
 #!/bin/bash
