@@ -60,15 +60,6 @@
 # (https://podman.io/getting-started/installation).
 #
 set -x
-real-exec-path ()
-{
-    local exe=$1
-
-    readlink -e $(
-        type "$exe" 2>/dev/null |
-            awk '{ print gensub(/\(([^)]+)\)/, "\\1", 1, $NF) }'
-             )
-}
 
 check-prerequisites ()
 {
@@ -79,7 +70,7 @@ check-prerequisites ()
         exit 1
     fi
 
-    if test ."$(real-exec-path go)" != ."${HOME}/.asdf/shims/go"; then
+    if test ."$(command -v go)" != ."${HOME}/.asdf/shims/go"; then
 
         # asdf golang not available...
         echo 'Please install a private copy of golang using package manager asdf.'
@@ -88,7 +79,7 @@ check-prerequisites ()
 
     export GOPATH=$(go env GOPATH)
 
-    if test ."$(real-exec-path gem)" != ."${HOME}/.asdf/shims/gem"; then
+    if test ."$(command -v gem)" != ."${HOME}/.asdf/shims/gem"; then
 
         # asdf ruby not available
         echo 'Please install a private copy of ruby using package manager asdf.'
@@ -98,12 +89,12 @@ check-prerequisites ()
         asdf reshim ruby
     fi
 
-    if test ."$(real-exec-path python)" != ."${HOME}/.asdf/shims/python"; then
+    if test ."$(command -v python)" != ."${HOME}/.asdf/shims/python"; then
 
         # asdf python not available
         echo 'Please install a private copy of python using package manager asdf.'
         exit 1
-    elif test ."$(real-exec-path sphinx-build)" != ."${HOME}/.asdf/shims/sphinx-build"; then
+    elif test ."$(command -v sphinx-build)" != ."${HOME}/.asdf/shims/sphinx-build"; then
 
         # asdf sphinx-build not available
         cat <<EOF
