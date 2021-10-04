@@ -92,7 +92,7 @@ make_debian_recoveryfs ()
         done
     }
 
-    pr_info "Make debian(${DEB_RELEASE}) recoveryfs start..."
+    pr_info "recoveryfs: Begin Debian(${DEB_RELEASE}) filesystem..."
 
     ## umount previus mounts (if fail)
     umount-fs "${RECOVERYFS_BASE}"
@@ -100,7 +100,7 @@ make_debian_recoveryfs ()
     ## clear recoveryfs dir
     rm -rf "${RECOVERYFS_BASE}"
 
-    pr_info "recoveryfs: debootstrap"
+    pr_info "recoveryfs: First stage debootstrap"
 
     mount-fs "$RECOVERYFS_BASE"
     debootstrap --variant=minbase --verbose  --foreign --arch armhf \
@@ -119,16 +119,18 @@ make_debian_recoveryfs ()
 
     trap 'umount-fs "$RECOVERYFS_BASE"; exit' 0 1 2 15
 
-    echo "${PARAM_DEB_LOCAL_MIRROR}" > "${RECOVERYFS_BASE}/debootstrap/mirror"
+    if test ! -f "${RECOVERYFS_BASE}/debootstrap/mirror"; then
+        echo "${PARAM_DEB_LOCAL_MIRROR}" > "${RECOVERYFS_BASE}/debootstrap/mirror"
+    fi
 
-    pr_info "recoveryfs: debootstrap in recoveryfs (second-stage)"
+    pr_info "recoveryfs: Second stage debootstrap"
     $CHROOTFS "$RECOVERYFS_BASE" /debootstrap/debootstrap --verbose \
               --second-stage
 
     ## Delete unused folder.
     $CHROOTFS "$RECOVERYFS_BASE" rm -rf  "${RECOVERYFS_BASE}/debootstrap"
 
-    # pr_info "recoveryfs: generate default configs"
+    # pr_info "recoveryfs: Generate default configs"
     # install -d -m 0750 ${RECOVERYFS_BASE}/etc/sudoers.d/
     # echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > ${RECOVERYFS_BASE}/etc/sudoers.d/user
     # chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/user
@@ -148,10 +150,10 @@ make_debian_recoveryfs ()
     # cp -r ${G_VENDOR_PATH}/deb/shared-mime-info/* \
     #    ${RECOVERYFS_BASE}/srv/local-apt-repository
 
-    install -d -m 0755 "${ROOTFS_BASE}/var/lib/usbmux"
+    install -d -m 0755 "${RECOVERYFS_BASE}/var/lib/usbmux"
 
-    # BEGIN -- REVO i.MX7D security
-    pr_info "recoveryfs: security infrastructure"
+    ## BEGIN -- REVO i.MX7D security
+    # pr_info "recoveryfs: Install security infrastructure"
     echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${RECOVERYFS_BASE}/etc/sudoers.d/revo
     chmod 0440 "${RECOVERYFS_BASE}/etc/sudoers.d/revo"
 
@@ -159,7 +161,7 @@ make_debian_recoveryfs ()
     #     install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
     #        "${RECOVERYFS_BASE}/srv/local-apt-repository"
     # done
-    # END -- REVO i.MX7D security
+    ## END -- REVO i.MX7D security
 
     ## add mirror to source list
     cat >"${RECOVERYFS_BASE}/etc/apt/sources.list" <<EOF
@@ -192,12 +194,14 @@ EOF
 # /dev/mmcblk0p1  /boot           vfat    defaults        0       0
 EOF
 
-    ## Unique hostname generated on boot (see below).
-    # echo "$MACHINE" > etc/hostname
+    ## Unique hostname generated on boot (see below), but in the mean time,
+    ## hostname needs to be resolvable, e.g., for `sudo'.
+    hostname >"${RECOVERYFS_BASE}/etc/hostname"
 
     ## "127.0.1.1 $hostname"  added when hostname generated on boot
     cat >"${RECOVERYFS_BASE}/etc/hosts" <<EOF
 127.0.0.1	localhost
+127.0.1.1       $(hostname)
 
 # The following lines are desirable for IPv6 capable hosts
 ::1		ip6-localhost ip6-loopback
@@ -220,7 +224,7 @@ tzdata tzdata/Areas select Etc
 tzdata tzdata/Zones/Etc select UTC
 EOF
 
-    pr_info "recoveryfs: prepare install packages in recoveryfs"
+    pr_info "recoveryfs: Prevent Debian from running systemctl"
 
     ## Run apt install without invoking daemons.
     cat >"${RECOVERYFS_BASE}/usr/sbin/policy-rc.d" <<EOF
@@ -472,14 +476,14 @@ useradd -m -s /bin/bash -c "Smallstep PKI" step
 rm -f /third-stage
 EOF
 
-    pr_info "recoveryfs: install selected debian packages (third-stage)"
+    pr_info "recoveryfs: Begin post-bootstrap package installation"
     chmod +x ${RECOVERYFS_BASE}/third-stage
     $CHROOTFS ${RECOVERYFS_BASE} /third-stage
 
     ## Begin packages stage ##
-    pr_info "recoveryfs: install updates and local packages"
+    pr_info "recoveryfs: Install updates and local packages"
 
-    # BEGIN -- REVO i.MX7D updates
+    ## BEGIN -- REVO i.MX7D updates
 
     ## Update logrotate
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/logrotate/logrotate.conf" \
@@ -505,10 +509,7 @@ EOF
     ## Install REVO commit-hostname script
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/commit-hostname" "${RECOVERYFS_BASE}/usr/sbin"
 
-    ## Remove machine ID and hostname to force generation of unique ones
-    rm -f "${RECOVERYFS_BASE}/etc/machine-id" \
-       "${RECOVERYFS_BASE}/var/lib/dbus/machine-id" \
-       "${RECOVERYFS_BASE}/etc/hostname"
+    ## Hostname and machine ID are removed in final cleanup.
 
     ## Exim mailname is updated when hostname generated
     # echo "$MACHINE" > "${RECOVERYFS_BASE}/etc/mailname"
@@ -677,7 +678,7 @@ EOF
     install -m 0755 "${G_VENDOR_PATH}/resources/redirect-web-ports" \
             "${RECOVERYFS_BASE}/usr/sbin"
 
-    # END -- REVO i.MX7D update
+    ## END -- REVO i.MX7D update
 
     ## Build and install brcm_patchram_plus utility.
     make -C "${G_VENDOR_PATH}/resources/bluetooth" clean all
@@ -770,10 +771,10 @@ EOF
             "${RECOVERYFS_BASE}/usr/local/share/ca-certificates/${ca_root_cert}"
 
     ## End packages stage ##
-    if test ."${G_USER_PACKAGES}" != .''; then
+    if test ."${G_USER_MINIMAL_PACKAGES}" != .''; then
 
-        pr_info "recoveryfs: install user defined packages (user-stage)"
-        pr_info "recoveryfs: G_USER_PACKAGES \"${G_USER_PACKAGES}\" "
+        pr_info "recoveryfs: Install user-requested packages:"
+        pr_info "            \"${G_USER_MINIMAL_PACKAGES}\""
 
         cat >"${RECOVERYFS_BASE}/user-stage" <<EOF
 #!/bin/bash
@@ -802,7 +803,7 @@ EOF
     fi
 
     ## recoveryfs startup patches
-    pr_info "recoveryfs: begin startup patches"
+    pr_info "recoveryfs: Adjust start-up scripts and configuration"
 
     ## Mount systemd journal on tmpfs, /run/log/journal.
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
@@ -822,13 +823,53 @@ EOF
     # install -m 0644 "${G_VENDOR_PATH}/resources/disable-lightlocker.desktop" \
     #         "${RECOVERYFS_BASE}/etc/xdg/autostart/"
 
-    ## Revert regular booting
-    rm -f ${RECOVERYFS_BASE}/usr/sbin/policy-rc.d
+    ## Redirect all system mail user `revo'.
+    if test -f "${RECOVERYFS_BASE}/etc/aliases"; then
+        sed -i "\$a root: revo" "${RECOVERYFS_BASE}/etc/aliases"
+    fi
+
+    ## Remove /etc/init.d/rng-tools (started by rngd.service)
+    rm -f "${RECOVERYFS_BASE}/etc/init.d/rng-tools"
+
+    ## Configure /etc/default/zramswap
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/zramswap" \
+            "${RECOVERYFS_BASE}/etc/default"
+
+    ## Enable zramswap service
+    ln -sf '/lib/systemd/system/zramswap.service' \
+       "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/"
+
+    ## Enable sysstat data collection
+    # sed -i -e 's;^\(ENABLED=\).*;\1"true";' "${RECOVERYFS_BASE}/etc/default/sysstat"
+
+    # if test -d "${RECOVERYFS_BASE}/usr/lib/pcp/bin"; then
+
+    #     ## Keep 12 hours of pmlogger logs.
+    #     install -m 0755 "${G_VENDOR_PATH}/resources/pmlogger_rotate" \
+    #             "${RECOVERYFS_BASE}/usr/lib/pcp/bin"
+    #     printf "30 */6\t* * *\troot\t/usr/lib/pcp/bin/pmlogger_rotate" \
+    #            >>"${RECOVERYFS_BASE}/etc/crontab"
+    # fi
+
+    ## Mask e2scrub_{all,reap} services.
+    ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_all.timer"
+    ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_all.service"
+    ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_reap.service"
+
+    ## Allow non-root users to run ping.
+    echo 'net.ipv4.ping_group_range = 0 2147483647' >"${RECOVERYFS_BASE}/etc/sysctl.d/99-ping.conf"
+
+    ## Enable colorized `ls' and alias h='history 50' for `root'.
+    sed -i -e '/export LS/s/^# *//' \
+        -e '/eval.*dircolors/s/^# *//' \
+        -e '/alias ls/s/^# *//' \
+        -e '/alias l=/a alias h="history 50"' \
+        "${RECOVERYFS_BASE}/root/.bashrc"
 
     ## Installing kernel modules to recoveryfs is redundant. This is
     ## already done by cmd_make_kmodules.
 
-    # pr_info "recoveryfs: install kernel modules"
+    # pr_info "recoveryfs: Install kernel modules"
 
     # install_kernel_modules \
     #     "${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
@@ -844,7 +885,7 @@ EOF
     #    "${RECOVERYFS_BASE}/usr/local/src/linux-imx/"
 
     ## Install U-Boot environment editor
-    pr_info "recoveryfs: install U-Boot environment editor"
+    pr_info "recoveryfs: Install U-Boot environment editor"
 
     install -m 0755 "${PARAM_OUTPUT_DIR}/fw_printenv-mmc" \
             "${RECOVERYFS_BASE}/usr/bin"
@@ -867,47 +908,12 @@ EOF
     # fi
 
     ## BEGIN -- REVO i.MX7D post-packages stage
-    pr_info "recoveryfs: begin late packages"
+    pr_info "recoveryfs: Begin late package installation"
 
     ## Run curl with system root certificates file.
     # mv "${RECOVERYFS_BASE}/usr/bin/curl"{,.dist}
     # install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
     #         "${RECOVERYFS_BASE}/usr/bin/curl"
-
-    ## Redirect all system mail user `revo'.
-    if test -f "${RECOVERYFS_BASE}/etc/aliases"; then
-        sed -i "\$a root: revo" "${RECOVERYFS_BASE}/etc/aliases"
-    fi
-
-    ## Remove /etc/init.d/rng-tools (started by rngd.service)
-    rm -f "${RECOVERYFS_BASE}/etc/init.d/rng-tools"
-
-    ## Configure /etc/default/zramswap
-    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/zramswap" \
-            "${RECOVERYFS_BASE}/etc/default"
-
-    ## Enable zramswap service
-    ln -sf '/lib/systemd/system/zramswap.service' \
-       "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/"
-
-    ## Mask e2scrub_{all,reap} services.
-    ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_all.timer"
-    ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_all.service"
-    ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_reap.service"
-
-    ## Enable sysstat data collection
-    # sed -i -e 's;^\(ENABLED=\).*;\1"true";' "${RECOVERYFS_BASE}/etc/default/sysstat"
-
-    # if test -d "${RECOVERYFS_BASE}/usr/lib/pcp/bin"; then
-
-    #     ## Keep 12 hours of pmlogger logs.
-    #     install -m 0755 "${G_VENDOR_PATH}/resources/pmlogger_rotate" \
-    #             "${RECOVERYFS_BASE}/usr/lib/pcp/bin"
-    #     printf "30 */6\t* * *\troot\t/usr/lib/pcp/bin/pmlogger_rotate" \
-    #            >>"${RECOVERYFS_BASE}/etc/crontab"
-    # fi
-
-    pr_info "recoveryfs: install reverse-tunnel-server"
 
     ## Install Smallstep CA installation script
     install -m 0755 "${G_VENDOR_PATH}/resources/smallstep/install-smallstep" \
@@ -955,14 +961,14 @@ apt clean
 
 rm -f /post-packages
 EOF
-    pr_info "recoveryfs: post-packages stage"
+    pr_info "recoveryfs: Install SmallStep and reverse-tunnel server"
 
     chmod +x "${RECOVERYFS_BASE}/post-packages"
     $CHROOTFS "$RECOVERYFS_BASE" /post-packages
-    # END -- REVO i.MX7D post-packages stage
+    ## END -- REVO i.MX7D post-packages stage
 
-    # BEGIN -- REVO i.MX7D cleanup
-    pr_info "recoveryfs: begin final cleanup"
+    ## BEGIN -- REVO i.MX7D cleanup
+    pr_info "recoveryfs: Begin final cleanup"
 
     remove-charmaps
     remove-locales
@@ -981,18 +987,12 @@ deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 # deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
+    pr_info "rootfs: Allow Debian to run systemctl"
+
+    rm -f "${RECOVERYFS_BASE}/usr/sbin/policy-rc.d"
+
     ## Limit kernel messages to the console.
     sed -i -e '/^#* *kernel.printk/s/^#* *//' "${RECOVERYFS_BASE}/etc/sysctl.conf"
-
-    ## Allow non-root users to run ping.
-    echo 'net.ipv4.ping_group_range = 0 2147483647' >"${RECOVERYFS_BASE}/etc/sysctl.d/99-ping.conf"
-
-    ## Enable colorized `ls' and alias h='history 50' for `root'.
-    sed -i -e '/export LS/s/^# *//' \
-        -e '/eval.*dircolors/s/^# *//' \
-        -e '/alias ls/s/^# *//' \
-        -e '/alias l=/a alias h="history 50"' \
-        "${RECOVERYFS_BASE}/root/.bashrc"
 
     ## Remove misc. artifacts.
     find "${RECOVERYFS_BASE}/usr/local/include" -name ..install.cmd -delete
@@ -1003,6 +1003,11 @@ EOF
     rm -rf "${RECOVERYFS_BASE}/var/log"
     install -d -m 755 "${RECOVERYFS_BASE}/var/log"
 
+    ## Remove machine ID and hostname to force generation of unique ones
+    rm -f "${RECOVERYFS_BASE}/etc/machine-id" \
+       "${RECOVERYFS_BASE}/var/lib/dbus/machine-id" \
+       "${RECOVERYFS_BASE}/etc/hostname"
+
     ## kill latest dbus-daemon instance due to qemu-arm-static
     QEMU_PROC_ID=$(ps axf | grep dbus-daemon | grep qemu-arm-static | awk '{print $1}')
     if test -n "$QEMU_PROC_ID"; then
@@ -1010,7 +1015,7 @@ EOF
     fi
 
     rm -f "${RECOVERYFS_BASE}/usr/bin/qemu-arm-static"
-    # END -- REVO i.MX7D cleanup
+    ## END -- REVO i.MX7D cleanup
 
     umount-fs "$RECOVERYFS_BASE"
     trap - 0 1 2 15
@@ -1022,7 +1027,7 @@ EOF
 prepare_recovery_ubifs_recoveryfs ()
 {
     local UBIFS_RECOVERYFS_BASE=$1
-    pr_info "Make debian(${DEB_RELEASE}) recoveryfs for UBIFS start..."
+    pr_info "UBI recoveryfs: Begin Debian(${DEB_RELEASE}) filesystem..."
 
     # Below removals are to free space to fit in a NAND flash
     # Remove foreign man pages and locales

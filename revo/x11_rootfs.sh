@@ -95,7 +95,7 @@ make_debian_x11_rootfs ()
         done
     }
 
-    pr_info "Make debian(${DEB_RELEASE}) rootfs start..."
+    pr_info "rootfs: Begin Debian(${DEB_RELEASE}) filesystem..."
 
     ## umount previus mounts (if fail)
     umount-fs "$ROOTFS_BASE"
@@ -103,7 +103,7 @@ make_debian_x11_rootfs ()
     ## clear rootfs dir
     rm -rf "${ROOTFS_BASE}"
 
-    pr_info "rootfs: debootstrap"
+    pr_info "rootfs: First stage debootstrap"
 
     mount-fs "$ROOTFS_BASE"
     debootstrap --verbose  --foreign --arch armhf \
@@ -123,16 +123,20 @@ make_debian_x11_rootfs ()
 
     trap 'umount-fs "$ROOTFS_BASE"; exit' 0 1 2 15
 
-    echo "${PARAM_DEB_LOCAL_MIRROR}" > "${ROOTFS_BASE}/debootstrap/mirror"
+    if test ! -f "${ROOTFS_BASE}/debootstrap/mirror"; then
+        echo "${PARAM_DEB_LOCAL_MIRROR}" > "${ROOTFS_BASE}/debootstrap/mirror"
+    fi
 
-    pr_info "rootfs: debootstrap in rootfs (second-stage)"
+    pr_info "rootfs: Second stage debootstrap"
+
     $CHROOTFS "$ROOTFS_BASE" /debootstrap/debootstrap --verbose \
               --second-stage
 
     ## Delete unused folder.
     $CHROOTFS "$ROOTFS_BASE" rm -rf  "${ROOTFS_BASE}/debootstrap"
 
-    pr_info "rootfs: generate default configs"
+    pr_info "rootfs: Generate default configs"
+
     install -d -m 0750 "${ROOTFS_BASE}/etc/sudoers.d/"
     echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > "${ROOTFS_BASE}/etc/sudoers.d/user"
     chmod 0440 "${ROOTFS_BASE}/etc/sudoers.d/user"
@@ -152,8 +156,10 @@ make_debian_x11_rootfs ()
 
     install -d -m 0755 "${ROOTFS_BASE}/var/lib/usbmux"
 
-    # BEGIN -- REVO i.MX7D security
-    pr_info "rootfs: security infrastructure"
+    ## BEGIN -- REVO i.MX7D security
+
+    # pr_info "rootfs: Install security infrastructure"
+
     echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > "${ROOTFS_BASE}/etc/sudoers.d/revo"
     chmod 0440 "${ROOTFS_BASE}/etc/sudoers.d/revo"
 
@@ -161,7 +167,7 @@ make_debian_x11_rootfs ()
     #     install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
     #        "${ROOTFS_BASE}/srv/local-apt-repository"
     # done
-    # END -- REVO i.MX7D security
+    ## END -- REVO i.MX7D security
 
     ## add mirror to source list
     cat >"${ROOTFS_BASE}/etc/apt/sources.list" <<EOF
@@ -194,12 +200,14 @@ EOF
 # /dev/mmcblk0p1  /boot           vfat    defaults        0       0
 EOF
 
-    ## Unique hostname generated on boot (see below).
-    # echo "$MACHINE" > etc/hostname
+    ## Unique hostname generated on boot (see below), but in the mean time,
+    ## hostname needs to be resolvable, e.g., for `sudo'.
+    hostname >"${ROOTFS_BASE}/etc/hostname"
 
-    # "127.0.1.1 $hostname"  added when hostname generated on boot
+
     cat >"${ROOTFS_BASE}/etc/hosts" <<EOF
 127.0.0.1	localhost
+127.0.1.1       $(hostname)
 
 # The following lines are desirable for IPv6 capable hosts
 ::1		ip6-localhost ip6-loopback
@@ -223,9 +231,9 @@ tzdata tzdata/Zones/Etc select UTC
 tzdata tzdata/Areas select Etc
 EOF
 
-    pr_info "rootfs: prepare install packages in rootfs"
+    pr_info "rootfs: Prevent Debian from running systemctl"
 
-    # Run apt install without invoking daemons.
+    ## Run apt install without invoking daemons.
     cat >"${ROOTFS_BASE}/usr/sbin/policy-rc.d" <<EOF
 #!/bin/sh
 exit 101
@@ -233,7 +241,7 @@ EOF
 
     chmod +x "${ROOTFS_BASE}/usr/sbin/policy-rc.d"
 
-    # third packages stage
+    ## third packages stage
     cat >"${ROOTFS_BASE}/third-stage" <<EOF
 #!/bin/bash
 ## apply debconfig options
@@ -474,14 +482,14 @@ useradd -m -s /bin/bash -c "Smallstep PKI" step
 rm -f /third-stage
 EOF
 
-    pr_info "rootfs: install selected debian packages (third-stage)"
+    pr_info "rootfs: Begin post-bootstrap package installation"
     chmod +x "${ROOTFS_BASE}/third-stage"
     $CHROOTFS "$ROOTFS_BASE" /third-stage
 
     ## Begin packages stage ##
-    pr_info "rootfs: install updates and local packages"
+    pr_info "rootfs: Install updates and local packages"
 
-    # BEGIN -- REVO i.MX7D updates
+    ## BEGIN -- REVO i.MX7D updates
 
     ## Update logrotate
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/logrotate/logrotate.conf" \
@@ -507,10 +515,7 @@ EOF
     ## Install REVO commit-hostname script
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/commit-hostname" "${ROOTFS_BASE}/usr/sbin"
 
-    ## Remove machine ID and hostname to force generation of unique ones
-    rm -f "${ROOTFS_BASE}/etc/machine-id" \
-       "${ROOTFS_BASE}/var/lib/dbus/machine-id" \
-       "${ROOTFS_BASE}/etc/hostname"
+    ## Hostname and machine ID are removed in final cleanup.
 
     ## Exim mailname is updated when hostname generated
     # echo "$MACHINE" > "${ROOTFS_BASE}/etc/mailname"
@@ -680,7 +685,7 @@ EOF
     install -m 0755 "${G_VENDOR_PATH}/resources/redirect-web-ports" \
             "${ROOTFS_BASE}/usr/sbin"
 
-    # END -- REVO i.MX7D update
+    ## END -- REVO i.MX7D update
 
     ## Build and install brcm_patchram_plus utility.
     make -C "${G_VENDOR_PATH}/resources/bluetooth" clean all
@@ -768,8 +773,8 @@ EOF
     ## End packages stage ##
     if test ."${G_USER_PACKAGES}" != .''; then
 
-        pr_info "rootfs: install user defined packages (user-stage)"
-        pr_info "rootfs: G_USER_PACKAGES \"${G_USER_PACKAGES}\" "
+        pr_info "rootfs: Install user-requested packages:"
+        pr_info "        \"${G_USER_PACKAGES}\""
 
         cat >"${ROOTFS_BASE}/user-stage" <<EOF
 #!/bin/bash
@@ -798,7 +803,7 @@ EOF
     fi
 
     ## rootfs startup patches
-    pr_info "rootfs: begin startup patches"
+    pr_info "rootfs: Adjust start-up scripts and configuration"
 
     ## Mount systemd journal on tmpfs, /run/log/journal.
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
@@ -817,13 +822,51 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/resources/disable-lightlocker.desktop" \
             "${ROOTFS_BASE}/etc/xdg/autostart/"
 
-    ## Revert regular booting
-    rm -f "${ROOTFS_BASE}/usr/sbin/policy-rc.d"
+    ## Redirect all system mail user `revo'.
+    sed -i "\$a root: revo" "${ROOTFS_BASE}/etc/aliases"
+
+    ## Remove /etc/init.d/rng-tools (started by rngd.service)
+    rm -f "${ROOTFS_BASE}/etc/init.d/rng-tools"
+
+    ## Configure /etc/default/zramswap
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/zramswap" \
+            "${ROOTFS_BASE}/etc/default"
+
+    ## Enable zramswap service
+    ln -sf '/lib/systemd/system/zramswap.service' \
+       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/"
+
+    ## Enable sysstat data collection
+    sed -i -e 's;^\(ENABLED=\).*;\1"true";' "${ROOTFS_BASE}/etc/default/sysstat"
+
+    if test -d "${ROOTFS_BASE}/usr/lib/pcp/bin"; then
+
+        ## Keep 12 hours of pmlogger logs.
+        install -m 0755 "${G_VENDOR_PATH}/resources/pmlogger_rotate" \
+                "${ROOTFS_BASE}/usr/lib/pcp/bin"
+        printf "30 */6\t* * *\troot\t/usr/lib/pcp/bin/pmlogger_rotate\n" \
+               >>"${ROOTFS_BASE}/etc/crontab"
+    fi
+
+    ## Mask e2scrub_{all,reap} services.
+    ln -sf /dev/null "${ROOTFS_BASE}/etc/systemd/system/e2scrub_all.timer"
+    ln -sf /dev/null "${ROOTFS_BASE}/etc/systemd/system/e2scrub_all.service"
+    ln -sf /dev/null "${ROOTFS_BASE}/etc/systemd/system/e2scrub_reap.service"
+
+    ## Allow non-root users to run ping.
+    echo 'net.ipv4.ping_group_range = 0 2147483647' >"${ROOTFS_BASE}/etc/sysctl.d/99-ping.conf"
+
+    ## Enable colorized `ls' and alias h='history 50' for `root'
+    sed -i -e '/export LS/s/^#* *//' \
+        -e '/eval.*dircolors/s/^#* *//' \
+        -e '/alias ls/s/^#* *//' \
+        -e '/alias l=/a alias h="history 50"' \
+        "${ROOTFS_BASE}/root/.bashrc"
 
     ## Installing kernel modules to rootfs is redundant. This is
     ## already done by cmd_make_kmodules.
 
-    # pr_info "rootfs: install kernel modules"
+    # pr_info "rootfs: Install kernel modules"
 
     # install_kernel_modules \
     #     "${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
@@ -839,7 +882,7 @@ EOF
     #    "${ROOTFS_BASE}/usr/local/src/linux-imx/"
 
     ## Install U-Boot environment editor
-    pr_info "rootfs: install U-Boot environment editor"
+    pr_info "rootfs: Install U-Boot environment editor"
 
     install -m 0755 "${PARAM_OUTPUT_DIR}/fw_printenv-mmc" \
             "${ROOTFS_BASE}/usr/bin"
@@ -862,45 +905,12 @@ EOF
     fi
 
     ## BEGIN -- REVO i.MX7D post-packages stage
-    pr_info "rootfs: begin late packages"
+    pr_info "rootfs: Begin late package installation"
 
     ## Run curl with system root certificates file.
     # mv "${ROOTFS_BASE}/usr/bin/curl"{,.dist}
     # install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
     #         "${ROOTFS_BASE}/usr/bin/curl"
-
-    ## Redirect all system mail user `revo'.
-    sed -i "\$a root: revo" "${ROOTFS_BASE}/etc/aliases"
-
-    ## Remove /etc/init.d/rng-tools (started by rngd.service)
-    rm -f "${ROOTFS_BASE}/etc/init.d/rng-tools"
-
-    ## Configure /etc/default/zramswap
-    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/zramswap" \
-            "${ROOTFS_BASE}/etc/default"
-
-    ## Enable zramswap service
-    ln -sf '/lib/systemd/system/zramswap.service' \
-       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/"
-
-    ## Mask e2scrub_{all,reap} services.
-    ln -sf /dev/null "${ROOTFS_BASE}/etc/systemd/system/e2scrub_all.timer"
-    ln -sf /dev/null "${ROOTFS_BASE}/etc/systemd/system/e2scrub_all.service"
-    ln -sf /dev/null "${ROOTFS_BASE}/etc/systemd/system/e2scrub_reap.service"
-
-    ## Enable sysstat data collection
-    sed -i -e 's;^\(ENABLED=\).*;\1"true";' "${ROOTFS_BASE}/etc/default/sysstat"
-
-    if test -d "${ROOTFS_BASE}/usr/lib/pcp/bin"; then
-
-        ## Keep 12 hours of pmlogger logs.
-        install -m 0755 "${G_VENDOR_PATH}/resources/pmlogger_rotate" \
-                "${ROOTFS_BASE}/usr/lib/pcp/bin"
-        printf "30 */6\t* * *\troot\t/usr/lib/pcp/bin/pmlogger_rotate\n" \
-               >>"${ROOTFS_BASE}/etc/crontab"
-    fi
-
-    pr_info "rootfs: install reverse-tunnel-server"
 
     ## Install Smallstep CA installation script
     install -m 0755 "${G_VENDOR_PATH}/resources/smallstep/install-smallstep" \
@@ -953,14 +963,14 @@ apt clean
 
 rm -f /post-packages
 EOF
-    pr_info "rootfs: post-packages stage"
+    pr_info "rootfs: Install SmallStep and reverse-tunnel server"
 
     chmod +x ${ROOTFS_BASE}/post-packages
     $CHROOTFS "${ROOTFS_BASE}" /post-packages
-    # END -- REVO i.MX7D post-packages stage
+    ## END -- REVO i.MX7D post-packages stage
 
-    # BEGIN -- REVO i.MX7D cleanup
-    pr_info "rootfs: begin final cleanup"
+    ## BEGIN -- REVO i.MX7D cleanup
+    pr_info "rootfs: Begin final cleanup"
 
     remove-charmaps
     remove-locales
@@ -979,18 +989,12 @@ deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 # deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
+    pr_info "rootfs: Allow Debian to run systemctl"
+
+    rm -f "${ROOTFS_BASE}/usr/sbin/policy-rc.d"
+
     ## Limit kernel messages to the console.
     sed -i -e '/^#* *kernel.printk/s/^#* *//' "${ROOTFS_BASE}/etc/sysctl.conf"
-
-    ## Allow non-root users to run ping.
-    echo 'net.ipv4.ping_group_range = 0 2147483647' >"${ROOTFS_BASE}/etc/sysctl.d/99-ping.conf"
-
-    ## Enable colorized `ls' and alias h='history 50' for `root'
-    sed -i -e '/export LS/s/^#* *//' \
-        -e '/eval.*dircolors/s/^#* *//' \
-        -e '/alias ls/s/^#* *//' \
-        -e '/alias l=/a alias h="history 50"' \
-        "${ROOTFS_BASE}/root/.bashrc"
 
     ## Remove misc. artifacts.
     find "${ROOTFS_BASE}/usr/local/include" -name ..install.cmd -delete
@@ -1001,6 +1005,12 @@ EOF
     rm -rf "${ROOTFS_BASE}/var/log"
     install -d -m 755 "${ROOTFS_BASE}/var/log"
 
+    ## Remove machine ID and hostname to force generation of unique ones
+    rm -f "${ROOTFS_BASE}/etc/machine-id" \
+       "${ROOTFS_BASE}/var/lib/dbus/machine-id" \
+       "${ROOTFS_BASE}/etc/hostname"
+    sed -i -e '/^127.0.1.1/d' "${ROOTFS_BASE}/etc/hosts"
+
     ## kill latest dbus-daemon instance due to qemu-arm-static
     QEMU_PROC_ID=$(ps axf | grep dbus-daemon | grep qemu-arm-static | awk '{print $1}')
     if test -n "$QEMU_PROC_ID"; then
@@ -1008,7 +1018,7 @@ EOF
     fi
 
     rm "${ROOTFS_BASE}/usr/bin/qemu-arm-static"
-    # END -- REVO i.MX7D cleanup
+    ## END -- REVO i.MX7D cleanup
 
     umount-fs "$ROOTFS_BASE"
     trap - 0 1 2 15
@@ -1020,7 +1030,7 @@ EOF
 prepare_x11_ubifs_rootfs ()
 {
     local UBIFS_ROOTFS_BASE=$1
-    pr_info "Make debian(${DEB_RELEASE}) rootfs for UBIFS start..."
+    pr_info "UBI rootfs: Begin Debian(${DEB_RELEASE}) filesystem..."
 
     # Below removals are to free space to fit in a NAND flash
     # Remove foreign man pages and locales
