@@ -948,7 +948,7 @@ apt -y purge 'linux-image*' initramfs-tools{,-core} \\
     dmeventd dmraid dracut dracut-core lvm2 mdadm \\
     thin-provisioning-tools
 
-apt -y purge build-essential gcc-8 libx11-6 manpages{,-dev}
+apt -y purge build-essential g++-10 gcc-10 libx11-6 manpages{,-dev}
 apt -y autoremove --purge
 
 # apt -y install apparmor-profiles-extra
