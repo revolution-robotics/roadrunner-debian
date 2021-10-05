@@ -460,6 +460,9 @@ install_kernel_modules ()
     pr_info "Installing kernel modules to $4"
     make ARCH="$ARCH_ARGS" CROSS_COMPILE="$1" $G_CROSS_COMPILER_JOPTION -C "$3" \
          INSTALL_MOD_PATH="$4" modules_install
+
+    local kernel_version=$(< "${3}/include/config/kernel.release")
+    $CHROOTFS "$4" depmod "$kernel_version"
 }
 
 # make U-Boot
