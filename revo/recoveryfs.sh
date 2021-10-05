@@ -1007,6 +1007,7 @@ EOF
     rm -f "${RECOVERYFS_BASE}/etc/machine-id" \
        "${RECOVERYFS_BASE}/var/lib/dbus/machine-id" \
        "${RECOVERYFS_BASE}/etc/hostname"
+    sed -i -e '/^127.0.1.1/d' "${RECOVERYFS_BASE}/etc/hosts"
 
     ## kill latest dbus-daemon instance due to qemu-arm-static
     QEMU_PROC_ID=$(ps axf | grep dbus-daemon | grep qemu-arm-static | awk '{print $1}')
