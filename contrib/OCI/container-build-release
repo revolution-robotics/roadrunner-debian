@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+#
+# @(#) container-build-release
+#
+: ${SUDO:='command sudo'}
+
+declare script=$(readlink -e "$0")
+declare script_name=${script##*/}
+declare script_dir=${script%/*}
+
+enable-qemu-arm ()
+{
+    local qemu_arm=/proc/sys/fs/binfmt_misc/qemu-arm
+
+    if ! $SUDO systemctl enable --now binfmt-support &>/dev/null; then
+        echo "${script_name}: binfmt-support not available" >&2
+        return 1
+    elif test ! -f "$qemu_arm" -o ."$(head -1 $qemu_arm)" != .'enabled'; then
+        echo "${script_name}: qemu-arm: QEMU ARM interpreter not available" >&2
+        return 2
+    fi
+}
+
+get-external-ip ()
+{
+    local gateway_device=$(
+        ip route |
+            awk '/^default/ { print gensub(/^.* dev ([^ ]+) .*$/, "\\1", 1) }'
+          )
+    local ipv4_address=$(
+        nmcli -t --fields ip4.address d show "$gateway_device" |
+            awk '{ print gensub(/.*:([^/]+)\/.*/, "\\1", 1) }'
+          )
+
+    echo "$ipv4_address"
+}
+
+get-secret ()
+{
+    local key=$1
+
+    local toplevel_dir=$(git -C "$script_dir" rev-parse --show-toplevel)
+
+    sops exec-env "${toplevel_dir}/config/secrets.enc.json" "echo \$$key"
+}
+
+build-builder ()
+{
+    local image=$1
+    local tag=$2
+    local name=$3
+    local build_script=$4
+
+    if ! $SUDO buildah images "localhost/${name}" &>/dev/null; then
+        local container=$($SUDO buildah from "${image}:${tag}")
+        local mountpoint=$($SUDO buildah mount "$container")
+
+        sed -e "s;@GW_IPV4@;$(get-external-ip);"  \
+            -e "s;@CA_URL@;$(get-secret CA_URL);" \
+            -e "s;@CA_FINGERPRINT@;$(get-secret CA_FINGERPRINT);" \
+            "$build_script" |
+            $SUDO tee "${mountpoint}/root/${build_script##*/}" >/dev/null
+        $SUDO chmod +x "${mountpoint}/root/${build_script##*/}"
+        $SUDO buildah unmount "$container" >&2
+        $SUDO buildah config --cmd "/root/${build_script##*/}" \
+             --label name="$name" "$container" >&2
+        $SUDO buildah commit "$container" "$name" >&2
+        $SUDO buildah rm "$container" >&2
+    fi
+
+    $SUDO buildah inspect "localhost/${name}" |
+        jq -r '.FromImageID'
+}
+
+create-external-volume ()
+{
+    local host_dir=$1
+    local volume_name=$2
+
+    local src_dir=${host_dir}/${volume_name}
+
+    local fs_mount=$($SUDO df "$host_dir" | awk 'NR > 1 { print $NF }')
+    local fs_type=$($SUDO findmnt -n "$fs_mount" | awk '{ print $3 }')
+
+    if test ."$fs_type"  = .'zfs'; then
+        local filesystem=$($SUDO df "$host_dir" | awk 'NR > 1 { print $1 }')
+
+        if ! $SUDO zfs create -o mountpoint="${src_dir}" \
+             "${filesystem}/${volume_name}"; then
+            echo "${script_name}: ${src_dir}: Cannot create directory" >&2
+            return 1
+        fi
+    else
+        if ! $SUDO install -d "${src_dir}"; then
+            echo "${script_name}: ${src_dir}: Cannot create directory" >&2
+            return 2
+        fi
+    fi
+
+    $SUDO chown $(id -un):$(id -gn) "$src_dir"
+    echo "$src_dir"
+}
+
+run-builder ()
+{
+    local builder_id=$1
+    local src_dir=$2
+    local build_dir=$3
+
+    if command -v aa-enabled >/dev/null &&
+            test ."$(aa-enabled)" = .'Yes'; then
+        echo "Running with:  apparmor=unconfined" >&2
+        $SUDO podman run -it --rm --privileged \
+             --security-opt apparmor=unconfined \
+             -v "${src_dir}:${build_dir}:rshared,rbind,exec,dev,suid,rw" \
+             "$builder_id"
+    else
+        $SUDO podman run -it --rm --privileged \
+               -v "${src_dir}:${build_dir}:rshared,rbind,exec,dev,suid,rw" \
+               "$builder_id"
+    fi
+
+    $SUDO podman rmi "$builder_id" &>/dev/null
+}
+
+reset-window-title ()
+{
+    printf "\e]0;$USER@$HOSTNAME\n"
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    enable-qemu-arm || exit 1
+
+    declare image=docker.io/library/debian
+    declare tag=bullseye-slim
+    declare name=roadrunner-debian-builder
+    declare build_script=${script_dir}/build-roadrunner-images
+
+    declare builder_id=$(build-builder "$image" "$tag" "$name" "$build_script")
+
+    if test ."$builder_id" = .''; then
+        echo "${script_name}: Cannot build builder image" >&2
+        exit 2
+    fi
+
+    declare host_dir=/opt/src/revo/releases
+    declare volume_name=roadrunner-$(date -u +%Y%m%dT%H%M%SZ)
+
+    declare src_dir=$(create-external-volume "$host_dir" "$volume_name")
+
+    declare build_dir=/root/roadrunner_debian
+
+    run-builder "$builder_id" "$src_dir" "$build_dir"
+    reset-window-title
+fi

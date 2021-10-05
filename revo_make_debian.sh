@@ -1141,9 +1141,9 @@ cmd_make_diskimage ()
     local IMAGE_SIZE=$(( 7774208 * 512 )) # 3.7 GiB
     local ISO8601=$(date -u +'%Y%m%dT%H%M%SZ')
     local COMMIT_DIRTY=$(
-        { git diff --no-ext-diff --quiet &&
-              git diff --no-ext-diff --quiet -C "$G_LINUX_KERNEL_SRC_DIR"  &&
-              git diff --no-ext-diff --quiet -C "$G_UBOOT_SRC_DIR"; } ||
+        { git -C "$ABSOLUTE_DIRECTORY" diff --no-ext-diff --quiet &&
+              git -C "$G_LINUX_KERNEL_SRC_DIR" diff --no-ext-diff --quiet &&
+              git -C "$G_UBOOT_SRC_DIR" diff --no-ext-diff --quiet; } ||
             echo '-dirty'
           )
 

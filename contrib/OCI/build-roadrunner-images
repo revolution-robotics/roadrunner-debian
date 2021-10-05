@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+#
+# @() build-roadrunner-images
+#
+declare script=$(readlink -e $0)
+declare script_name=${script##*/}
+declare script_dir=${script%/*}
+
+: ${NPROC:='4'}
+: ${BUILD_SUITE_BRANCH_DEFAULT:='debian_bullseye_rr01'}
+: ${BUILD_DIR:="${script_dir}/roadrunner_debian"}
+: ${CA_URL:='@CA_URL@'}
+: ${CA_FINGERPRINT:='@CA_FINGERPRINT@'}
+: ${HOST_GW_IPV4:='@GW_IPV4@'}
+: ${DEBIAN_PROXY:="-p http://${HOST_GW_IPV4}:3142/deb.debian.org/debian"}
+
+install-prerequisites ()
+{
+    apt update
+    apt -qy install curl gawk iproute2
+    apt -qy remove --purge mawk
+
+    if test ."$HOST_GW_IPV4" != .'' &&
+            curl "${HOST_GW_IPV4}:3142" &>/dev/null; then
+        cat >/etc/apt/apt.conf.d/10acng-proxy <<EOF
+Acquire::http::Proxy "http://${HOST_GW_IPV4}:3142";
+EOF
+    else
+        DEBIAN_PROXY=''
+    fi
+
+    apt -qy install autoconf automake autopoint bc \
+        binfmt-support binutils bison build-essential cmake \
+        coreutils debootstrap device-tree-compiler diffstat \
+        ed flex g++ gcc git golang gpart gpg groff help2man \
+        libssl-dev libtool lzop m4 make parted qemu qemu-user-static \
+        rsync sudo u-boot-tools unzip upx-ucl
+    apt -qy install binutils-arm-linux-gnueabihf
+    apt -qy install cpp-arm-linux-gnueabihf
+    apt -qy install gcc-arm-linux-gnueabihf
+    apt -qy install g++-arm-linux-gnueabihf
+
+    curl -sLo /usr/bin/install-smallstep \
+         "https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_bullseye_rr01/revo/resources/smallstep/install-smallstep"
+    chmod +x /usr/bin/install-smallstep
+    install-smallstep
+
+    curl -sL https://ftp-master.debian.org/keys/release-11.asc |
+        gpg --import --no-default-keyring \
+             --keyring /usr/share/keyrings/debian-bullseye-release.gpg
+}
+
+clone-build-suite ()
+{
+    local build_suite_commit=$1
+
+    mkdir -p "$BUILD_DIR" || { echo "$BUILD_DIR: Permission denied"; exit 1; }
+    git config --global init.defaultBranch main
+    git -C "$BUILD_DIR" init
+    git -C "$BUILD_DIR" remote add origin \
+        https://github.com/revolution-robotics/roadrunner-debian.git
+    git -C "$BUILD_DIR" fetch
+    if test ."$build_suite_commit" != .''; then
+        git -C "$BUILD_DIR" checkout -b "commit-${build_suite_commit:0:6}" \
+            "$build_suite_commit"
+    else
+        git -C "$BUILD_DIR" switch "$BUILD_SUITE_BRANCH_DEFAULT"
+    fi
+}
+
+build-images ()
+{
+    MACHINE=revo-roadrunner-mx7 "${BUILD_DIR}/revo_make_debian.sh" \
+           -c deploy |&
+        tee "${BUILD_DIR}/build.log"
+    CA_URL=$CA_URL CA_FINGERPRINT=$CA_FINGERPRINT \
+          MACHINE=revo-roadrunner-mx7 "${BUILD_DIR}/revo_make_debian.sh" \
+          $DEBIAN_PROXY -j "$NPROC" -c all |&
+        tee -a "${BUILD_DIR}/build.log"
+    # echo | MACHINE=revo-roadrunner-mx7 "${BUILD_DIR}/revo_make_debian.sh" \
+    #               $DEBIAN_PROXY -c diskimage |&
+    #     tee -a "${BUILD_DIR}/build.log"
+    # echo | MACHINE=revo-roadrunner-mx7 "${BUILD_DIR}/revo_make_debian.sh" \
+    #               -c usbimage |&
+    #     tee -a "${BUILD_DIR}/build.log"
+    # echo | MACHINE=revo-roadrunner-mx7 "${BUILD_DIR}/revo_make_debian.sh" \
+    #               -c provisionimage |&
+    #     tee -a "${BUILD_DIR}/build.log"
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare build_suite_commit=$1
+
+    install-prerequisites
+    clone-build-suite "$build_suite_commit"
+    build-images
+fi
