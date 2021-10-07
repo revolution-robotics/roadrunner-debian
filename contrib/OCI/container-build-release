@@ -2,11 +2,11 @@
 #
 # @(#) container-build-release
 #
-: ${SUDO:='command sudo'}
-
 declare script=$(readlink -e "$0")
 declare script_name=${script##*/}
 declare script_dir=${script%/*}
+
+: ${SUDO:='command sudo'}
 
 enable-qemu-arm ()
 {

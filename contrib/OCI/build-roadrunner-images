@@ -31,10 +31,11 @@ EOF
 
     apt -qy install autoconf automake autopoint bc \
         binfmt-support binutils bison build-essential cmake \
-        coreutils debootstrap device-tree-compiler diffstat \
-        ed flex g++ gcc git golang gpart gpg groff help2man \
-        libssl-dev libtool lzop m4 make parted qemu qemu-user-static \
-        rsync sudo u-boot-tools unzip upx-ucl
+        coreutils debootstrap device-tree-compiler \
+        ed flex g++ gcc git golang gpg groff help2man \
+        libssl-dev libtool lzop m4 make parted qemu \
+        qemu-user-static rsync sudo u-boot-tools unzip \
+        upx-ucl
     apt -qy install binutils-arm-linux-gnueabihf
     apt -qy install cpp-arm-linux-gnueabihf
     apt -qy install gcc-arm-linux-gnueabihf
