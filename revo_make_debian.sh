@@ -455,7 +455,7 @@ install_kernel_modules ()
 {
     pr_info "Installing kernel headers to $4"
     make ARCH="$ARCH_ARGS" CROSS_COMPILE="$1" $G_CROSS_COMPILER_JOPTION -C "$3" \
-         INSTALL_HDR_PATH="$4/usr/local" headers_install
+         INSTALL_HDR_PATH="$4/usr" headers_install
 
     pr_info "Installing kernel modules to $4"
     make ARCH="$ARCH_ARGS" CROSS_COMPILE="$1" $G_CROSS_COMPILER_JOPTION -C "$3" \
