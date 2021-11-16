@@ -721,8 +721,10 @@ EOF
     ## Install pulse audio configuration
     install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
-    ln -sf "/lib/systemd/system/pulseaudio.service" \
-       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
+
+    # Don't enable pulseaudio service.
+    # ln -sf "/lib/systemd/system/pulseaudio.service" \
+    #    "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
     install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf" \
             "${ROOTFS_BASE}/etc/dbus-1/system.d"
     install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/system.pa" \

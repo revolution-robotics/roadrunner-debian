@@ -6,12 +6,11 @@
 #
 declare -r SCRIPT_NAME=${0##*/}
 
-declare -r LOOP_MAJOR=7
 declare COMPRESSION_SUFFIX='{bz2,gz,img,lz,lzma,lzo,xz,zip}'
 declare ZCAT='gzip -dc'
 
 declare PARAM_DEBUG=0
-declare PARAM_OUTPUT_DIR=${HOME}/output
+declare PARAM_OUTPUT_DIR=$PWD
 declare PARAM_BLOCK_DEVICE=na
 declare PARAM_DISK_IMAGE=na
 declare BYTES_WRITTEN=na
@@ -347,7 +346,6 @@ while true; do
             break
             ;;
         *)
-            shift
             break
             ;;
     esac
@@ -359,6 +357,19 @@ if test ."$PARAM_DEBUG" = .'1'; then
     echo "Debug mode enabled!"
     set -x
 fi
+
+case $# in
+    0)
+        : Nothing to do
+        ;;
+    1)
+        PARAM_DISK_IMAGE=$1
+        ;;
+    *)
+        PARAM_DISK_IMAGE=$1
+        PARAM_BLOCK_DEVICE=$2
+        ;;
+esac
 
 select-media
 get-decompressor "$PARAM_DISK_IMAGE"

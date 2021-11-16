@@ -42,8 +42,8 @@ process-cmdline ()
             "/boot/cmdline.txt"
             )
 
-    $SED -e "/^setenv kernelargs/s;\$; ${cmdline};" \
-        "/usr/share/boot/boot.sh" >"${tmpdir}/boot.sh"
+    $INSTALL -m 0644 /usr/share/boot/boot.sh "${tmpdir}"
+    $SED -i -e "0,/^setenv kernelargs/s;\$; ${cmdline};" "${tmpdir}/boot.sh"
     $MAKE -C "$tmpdir" -f "/usr/share/boot/Makefile"
 
     if test -f "${tmpdir}/boot.scr"; then
