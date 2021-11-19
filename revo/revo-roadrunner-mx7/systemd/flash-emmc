@@ -220,9 +220,9 @@ partition_emmc ()
     # Get total device size in blocks
     local total_size=$(blockdev --getsz "$device")
     local total_size_bytes=$(( total_size * 512 ))
-    local total_size_gib=$(perl -e "printf '%.1f', $total_size_bytes / 1024 ** 3")
+    local total_size_gib=$(perl -e "printf '%.1f', $total_size_bytes / 2 ** 30")
 
-    # Convert to MB
+    # Convert to MiB
     total_size=$(( total_size / 2048 ))
     local rootfs_offset=$(( BOOTLOAD_RESERVE_SIZE + SPARE_SIZE ))
     local rootfs_size=$(( total_size - rootfs_offset - RECOVERYFS_SIZE ))
