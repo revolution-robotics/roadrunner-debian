@@ -86,11 +86,11 @@ fetch-and-install-step-pkg ()
         $TAR -C "$tmpdir" --strip-components=1 -zxf "${tmpdir}/${pkg}"
         $SUDO $INSTALL -m 0755 "${tmpdir}/bin"/* /usr/bin/
         if test -d "${tmpdir}/autocomplete"; then
-            $SUDO $INSTALL -m 0644 "${tmpdir}/autocomplete"/bash* \
+            $INSTALL -m 0644 "${tmpdir}/autocomplete"/bash* \
                   /usr/share/bash-completion/completions/step
         fi
     else
-        $SUDO $APT install "${tmpdir}/${pkg}"
+        $APT install "${tmpdir}/${pkg}"
     fi
 
     $RM -rf "$tmpdir"
@@ -98,8 +98,14 @@ fetch-and-install-step-pkg ()
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare script_name=${0##*/}
     declare cli_uri=https://github.com/smallstep/cli
     declare certificates_uri=https://github.com/smallstep/certificates
+
+    if (( UID != 0 )); then
+        echo "${script_name}: Must be run as user \`root'." >&2
+        exit 1
+    fi
 
     fetch-and-install-step-pkg "$cli_uri"
     fetch-and-install-step-pkg "$certificates_uri"

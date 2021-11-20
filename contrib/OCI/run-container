@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+#
+: ${SUDO:='command sudo'}
+
+declare host_dir=/opt/src/revo/releases/
+
+declare volume_name=$1
+
+if test ."$volume_name" = .'' -o ! -d "${host_dir}/${volume_name}"; then
+    volume_name=$(
+        ls -d $host_dir/roadrunner-[0-9]* |
+            tail -1 |
+            sed 's;/.*/;;'
+               )
+    echo "volume_name <= ${volume_name}"
+fi
+
+declare src_dir=${host_dir}/${volume_name}
+declare build_dir=/root/roadrunner_debian
+# declare container_image=docker.io/library/debian:bullseye-slim
+declare container_image=localhost/roadrunner-debian-builder:latest
+
+
+$SUDO podman run -it --privileged --entrypoint=/bin/bash \
+      -v "${src_dir}:${build_dir}:rshared,rbind,exec,dev,suid,rw" \
+      "$container_image"

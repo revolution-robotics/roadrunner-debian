@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# @(#) container-build-release
+# @(#) revo-make-kernel
 #
 # Copyright © 2021 Revolution Robotics, Inc.
 #
@@ -36,11 +36,6 @@ pr-info ()
     printf "I: %s\n" "$@" >&2
 }
 
-pr-err ()
-{
-    printf "E: %s\n" "$@" >&2
-}
-
 load-configuration ()
 {
     local config_file=$1
@@ -74,10 +69,10 @@ enable-qemu-arm ()
     local qemu_arm=/proc/sys/fs/binfmt_misc/qemu-arm
 
     if ! $SUDO $SYSTEMCTL enable --now binfmt-support &>/dev/null; then
-        pr-err "${script_name}: binfmt-support not available"
+        pr-info "${script_name}: binfmt-support not available"
         return 1
     elif test ! -f "$qemu_arm" -o ."$($HEAD -1 $qemu_arm)" != .'enabled'; then
-        pr-err "${script_name}: qemu-arm: QEMU ARM interpreter not available"
+        pr-info "${script_name}: qemu-arm: QEMU ARM interpreter not available"
         return 2
     fi
 }
@@ -290,44 +285,17 @@ create-external-volume ()
 
         if ! $SUDO $ZFS create -p -o mountpoint="${dest_dir}" \
              "${filesystem}/${volume_name}"; then
-            pr-err "${script_name}: ${dest_dir}: Cannot create directory"
+            pr-info "${script_name}: ${dest_dir}: Cannot create directory"
             return 1
         fi
     else
         if ! $SUDO $INSTALL -d "${dest_dir}"; then
-            pr-err "${script_name}: ${dest_dir}: Cannot create directory"
+            pr-info "${script_name}: ${dest_dir}: Cannot create directory"
             return 2
         fi
     fi
 
     echo "$dest_dir"
-}
-
-run-builder ()
-{
-    local builder_id=$1
-    local src_dir=$2
-    local build_dir=$3
-
-    if command -v aa-enabled >/dev/null &&
-            test ."$(aa-enabled)" = .'Yes'; then
-
-        pr-info "Running with:  apparmor=unconfined"
-
-        $SUDO podman run -it --rm --privileged \
-             --security-opt apparmor=unconfined \
-             -v "${src_dir}:${build_dir}:rshared,rbind,exec,dev,suid,rw" \
-             "$builder_id"
-    else
-
-        pr-info "Running with:  privilege"
-
-        $SUDO podman run -it --rm --privileged \
-               -v "${src_dir}:${build_dir}:rshared,rbind,exec,dev,suid,rw" \
-               "$builder_id"
-    fi
-
-    # $SUDO podman rmi "$builder_id" &>/dev/null
 }
 
 reset-window-title ()
@@ -354,7 +322,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
             )
 
     if test ."$builder_id" = .''; then
-        pr-err "${script_name}: Cannot build builder image"
+        pr-info "${script_name}: Cannot build builder image"
         exit 2
     else
         pr-info "builder_id: $builder_id"

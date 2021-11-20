@@ -6,7 +6,7 @@ declare script=$(readlink -e $0)
 declare script_name=${script##*/}
 declare script_dir=${script%/*}
 
-: ${NPROC:='4'}
+: ${NPROC:='8'}
 : ${BUILD_SUITE_BRANCH_DEFAULT:='debian_bullseye_rr01'}
 : ${BUILD_DIR:="${script_dir}/roadrunner_debian"}
 : ${CA_URL:='@CA_URL@'}
