@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+#
+# @(#) run-roadrunner-container
+#
+# Copyright © 2021 Revolution Robotics, Inc.
+#
+# This script runs an interactive bash shell in a container with an
+# external volume mounted at the given container mount point.
+#
+: ${SUDO:='command sudo'}
+
+
+validate-image-reference ()
+{
+    local image_reference=$1
+
+    if test ."$image_reference" = .''; then
+        echo "${FUNCNAME[0]}: Missing image reference" >&2
+        return 1
+    fi
+
+    local image_id=$(
+        $SUDO buildah images -n --filter=reference="$image_reference" \
+              --format="{{.ID}}"
+            )
+
+    if test ."$image_id" = .''; then
+        echo "${FUNCNAME[0]}: ${image_reference}: No matching images" >&2
+        return 2
+    fi
+
+    echo "$image_id"
+}
+
+validate-host-volume ()
+{
+    local host_dir=$1
+    local volume_name=$2
+
+    if test ."$volume_name" = .'' -o ! -d "${host_dir}/${volume_name}"; then
+        volume_name=$(
+            ls -d "${host_dir}/roadrunner-"[0-9]* |
+                sed -n -e '$s;/.*/;;p'
+                   )
+    fi
+
+    local dest_dir=${host_dir}/${volume_name}
+
+    if test ! -d "$dest_dir"; then
+        echo "${FUNCNAME[0]}: ${dest_dir}: No such file or directory" >&2
+        return 1
+    fi
+
+    echo "$dest_dir"
+}
+
+run-container-image ()
+{
+    local image_id=$1
+    local dest_dir=$2
+    local mount_point=$3
+
+    cat >&2 <<EOF
+Container: $($SUDO buildah images -n --format="{{.Name}}" "$image_id")
+Filesystem: ${dest_dir}
+Mount point: ${mount_point}
+EOF
+
+    $SUDO podman run -it --privileged --entrypoint=/bin/bash \
+          -v "${dest_dir}:${mount_point}:rshared,rbind,exec,dev,suid,rw" \
+          "$image_id"
+}
+
+reset-window-title ()
+{
+    printf "\e]0;$USER@$HOSTNAME\a"
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare image_reference=${1:-'localhost/roadrunner-debian-builder:latest'}
+    declare mount_point=${2:-'/root/roadrunner_debian'}
+    declare host_dir=${3:-'/opt/src/revo/releases'}
+    declare volume_name=$4
+
+    declare image_id
+    declare dest_dir
+
+    image_id=$(validate-image-reference "$image_reference") || exit $?
+    dest_dir=$(validate-host-volume "$host_dir" "$volume_name") || exit $?
+
+    declare status=0
+
+    run-container-image "$image_id" "$dest_dir" "$mount_point" || status=$?
+    reset-window-title
+    exit $exit_status
+fi

@@ -961,6 +961,19 @@ apt -y install apparmor{,-utils,-profiles}
 ## Set apparamor profiles to complain mode by default.
 find /etc/apparmor.d -maxdepth 1 -type f -exec aa-complain {} \\; 2>/dev/null
 
+# Fix library symlinks to facilitate cross compilation.
+# XXX: Expression used below is for Debian. Not sure what (ARM) path,
+#      e.g., Fedora would use - /usr/lib32 and /usr/lib64?
+multiarch_libdir=\$(
+    gcc --print-search-dirs |
+        sed -nE -e '/^libraries/s;.*(/usr/lib/[^/]+/):.*;\1;p'
+)
+eval \$(
+    ls -l "\$multiarch_libdir" |
+        sed -nE -e "/-> \/lib/s^.* ([^ ]{1,}) -> .*/(.*)^ln -sf \2 \${multiarch_libdir}\1;^p" \\
+                -e "/-> \/usr\/lib/s^.* ([^ ]{1,}) -> .*/(.*)^ln -sf \2 \${multiarch_libdir}\1;^p"
+)
+
 apt clean
 
 rm -f /post-packages
