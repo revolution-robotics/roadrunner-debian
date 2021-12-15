@@ -148,14 +148,16 @@ build-builder ()
     local build_script=$4
     # local kernel_version=$5
 
-    local old_image=$($SUDO $BUILDAH images "localhost/${name}" 2>/dev/null)
+    local old_image_id=$($SUDO $BUILDAH images -n --filter=reference="localhost/${name}" --format="{{.ID}}")
 
-    if test ."$old_image" != .''; then
+    if test ."$old_image_id" != .''; then
         pr-info "Removing old container image: localhost/${name}"
-        $SUDO $BUILDAH rmi "$old_image" &>/dev/null || true
+        $SUDO $BUILDAH rmi "$old_image_id" || return $?
     fi
 
-    if ! $SUDO $BUILDAH images "localhost/${name}" &>/dev/null; then
+    local image_id=$($SUDO $BUILDAH images -n --filter=reference="localhost/${name}" --format="{{.ID}}")
+
+    if test ."$image_id" = .''; then
         pr-info "Pulling container image: ${image}:${tag}"
 
         local container
@@ -213,12 +215,14 @@ Acquire::http::Proxy "http://${HOST_GW_IPV4}:3142";
 EOF
     fi
 
-    DEBIAN_FRONTEND=noninteractive apt -qy install autoconf automake          \
-        autopoint bc binfmt-support binutils bison build-essential            \
-        cmake coreutils debootstrap device-tree-compiler ed flex g++          \
-        gcc git golang gpg groff gzip help2man kmod libncurses-dev            \
-        libssl-dev libtool lzop m4 make parted qemu qemu-user-static          \
-        rsync sudo u-boot-tools unzip upx-ucl
+    DEBIAN_FRONTEND=noninteractive apt -qy install autoconf automake
+        autopoint bc binfmt-support binutils bison build-essential
+        cmake coreutils debootstrap device-tree-compiler devscripts
+        dpkg-dev ed fakeroot flex g++ gcc git golang gpg groff gzip
+        help2man kmod libncurses-dev libssl-dev libtool lzop m4 make
+        parted patch perl python python3-dbus python-setuptools qemu
+        qemu-user-static rsync sudo u-boot-tools unzip upx-ucl vim
+        xz-utils zip
 
     apt -qy install binutils-arm-linux-gnueabihf
     apt -qy install cpp-arm-linux-gnueabihf
@@ -285,8 +289,7 @@ EOS
         $SUDO $BUILDAH rm "$container" >&2
     fi
 
-    $SUDO $BUILDAH inspect "localhost/${name}" |
-        $JQ -r '.FromImageID'
+    $SUDO $BUILDAH images -n --filter=reference="localhost/${name}" --format="{{.ID}}"
 }
 
 reset-window-title ()
@@ -319,8 +322,6 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     if test ."$builder_id" = .''; then
         pr-err "${script_name}: Cannot build builder image"
         exit 2
-    else
-        pr-info "builder_id: $builder_id"
     fi
 
     $CAT >&2 <<EOF

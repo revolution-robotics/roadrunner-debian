@@ -1,0 +1,344 @@
+#!/usr/bin/env bash
+#
+# @(#) image-device
+#
+# Copyright © 2021 Revolution Robotics, Inc.
+#
+declare script=$(readlink -e "$0")
+declare script_name=${script##*/}
+
+: ${SUDO:='command sudo'}
+
+usage ()
+{
+    local device=$(get-removable-devices | sed -e 's/ .*//' -e 'q')
+    local image=sd_$(date -u +%Y%m%dT%H%M%SZ).img.gz
+
+    cat <<EOF
+Usage: $script_name -i NAME [OPTIONS]
+Options:
+  -d|--device DEVICE
+              - Removable device to image to (e.g., ${device:-/dev/sde}).
+  -h|--help   - Print this help, then exit.
+  -i|--image NAME
+              - Basename of output image to which ISO 8601 timestamp
+                is appended.
+  -s|--size-mib
+              - Size of image in 1 MiB blocks (default: ${size_mib}).
+  -v|--verbose
+              - Enable verbose (debug) mode.
+
+Example:
+  To create a ${size_mib} MiB image file, ${image},
+  from an SD device, run:
+             ${script} -i sd
+EOF
+}
+
+get-range ()
+{
+    size=$1
+
+    if (( size > 9 )); then
+        echo "1-$size"
+    else
+        echo $(seq $size) | tr ' ' '|'
+    fi
+}
+
+select-from-list ()
+{
+    local -n choices=$1
+    local prompt=$2
+
+    local choice
+    local count=${#choices[*]}
+
+    case "$count" in
+        0)
+            echo "Nothing to choose" >&2
+            return 1
+            ;;
+        1)
+            choice=${choices[0]}
+            ;;
+        *)
+            echo "$prompt" >&2
+            PS3="Selection [$(get-range $count)]? "
+            select choice in "${choices[@]}"; do
+                case "$choice" in
+                    '')
+                        echo "$REPLY: Invalid choice - Please try again:" >&2
+                        ;;
+                    *)
+                        break
+                        ;;
+                esac
+            done
+    esac
+    echo "$choice"
+}
+
+get-removable-devices ()
+{
+    local -a devices
+    local device
+    local vendor
+    local model
+
+    mapfile -t devices < <(
+        grep -lv '^0$' '/sys/block/'*'/removable' |
+            sed -e 's;removable$;device/uevent;' |
+            xargs grep -l '^DRIVER=sd$' |
+            sed -e 's;device/uevent;size;' |
+            xargs grep -lv '^0' |
+            cut -d/ -f4
+    )
+
+    for device in "${devices[@]}"; do
+        vendor=$(echo $(< "/sys/block/${device}/device/vendor"))
+        model=$(echo $(< "/sys/block/${device}/device/model"))
+        echo "/dev/$device ($vendor $model)"
+    done
+}
+
+select-removable-device ()
+{
+    declare -a removable_devices
+
+    mapfile -t removable_devices < <(get-removable-devices)
+    select-from-list removable_devices 'Please choose a device to image from:'
+}
+
+is-removable-device ()
+{
+    local device=${1#/dev/}
+
+    local removable
+    local drive
+    local gdbus_is_removable
+
+    if test ! -b "/dev/$device"; then
+        echo "${script_name}: /dev/$device: Not a block device" >&2
+        return 1
+    elif test ! -d "/sys/block/$device"; then
+        echo "${script_name}: /sys/block/$device: No such file or directory" >&2
+        return 1
+    fi
+
+    removable=$(cat "/sys/block/${device}/removable")
+
+    # Non-removable SD-card readers require additional check
+    if test ."$removable" != .'1'; then
+        drive=$(udisksctl info -b "/dev/$device" |
+                    awk -F\' '/Drive:/ { print $2 }')
+        gdbus_is_removable=$(
+            gdbus call --system --dest org.freedesktop.UDisks2 \
+                  --object-path "$drive" \
+                  --method org.freedesktop.DBus.Properties.Get \
+                  org.freedesktop.UDisks2.Drive MediaRemovable 2>/dev/null
+                          )
+        if [[ ."$gdbus_is_removable" =~ ^\..*true ]]; then
+            removable=1
+        fi
+    fi
+
+    # Device not removable
+    if test ."$removable" != .'1'; then
+        echo "${script_name}: /dev/$device: Device not removable" >&2
+        return 1
+    fi
+}
+
+select-media ()
+{
+    local device=$1
+
+    if test ! -b "$device" || ! is-removable-device "$device"; then
+        device=$(select-removable-device | awk '{ print $1 }')
+    fi
+
+    if test ! -b "$device"; then
+        echo "${script_name}: ${device}: Device not available" >&2
+        return 1
+    fi
+
+    echo "$device"
+}
+
+confirm-selection ()
+{
+    local image=$1
+    local device=$2
+
+    local total_size=$($SUDO blockdev --getsz "$device")
+    local total_size_bytes=$(( total_size * 512 ))
+    local total_size_gib=$(perl -e "printf '%.1f', $total_size_bytes / 2 ** 30")
+
+    echo "═════════════════════════════════════════════" >&2
+    echo "Image file: ${image##*/}" >&2
+    echo "Removable device: $device, $total_size_gib GiB" >&2
+    echo "─────────────────────────────────────────────" >&2
+    printf 'Press Enter to continue' >&2
+    read
+}
+
+create-device-image ()
+{
+    local device=$1
+    local image=$2
+    local size_mib=$3
+
+    echo "Imaging from device..." >&2
+
+    for (( i=0; i < 10; i++ )); do
+        if test -n "$(findmnt -n "${device}${i}")"; then
+            $SUDO umount -f "${device}${i}"
+        fi
+    done
+
+    errfile=$(mktemp "/tmp/${script_name}.XXXXX")
+    trap 'rm -f "$errfile"; exit' 0 1 2 15 RETURN
+
+    if ! $SUDO dd if="$device" of="$image" bs=1M count="$size_mib" 2>"$errfile"; then
+        echo "Flash did not complete successfully." >&2
+        echo "*** Please check media and try again! ***" >&2
+        return 1
+    fi
+
+
+    bytes_read=$(awk '/bytes/ { print $1 }' "$errfile")
+
+    rm -f "$errfile"
+    trap - 0 1 2 15 RETURN
+
+    echo "$bytes_read"
+}
+
+verify-image ()
+{
+    local device=$1
+    local image=$2
+    local bytes_read=$3
+
+    echo "Verifying device against image..." >&2
+
+    errfile=$(mktemp "/tmp/${script_name}.XXXXX")
+    trap 'rm -f "$errfile"; exit' 0 1 2 15 RETURN
+
+    $SUDO cmp -n "$bytes_read" "$device" "$image"  >"$errfile" 2>&1
+
+    local bytes_verified=$(
+        sed -nE -e 's/.*differ: byte +([0-9]+).*$/\1/p' "$errfile"
+          )
+
+    local status=0
+
+    if test ! -s "$errfile"; then
+        echo "Compared: $bytes_read bytes" >&2
+        echo 'Device successfully verified' >&2
+    else
+        echo "Device and image differ at byte: $bytes_verified" >&2
+        status=1
+    fi
+
+    rm -f "$errfile"
+
+    trap - 0 1 2 15 RETURN
+
+    return $status
+}
+
+compress-image ()
+{
+    local image=$1
+
+    echo "Compressing image..." >&2
+
+    $SUDO gzip "$image"
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare bytes_read
+    declare device
+    declare image
+    declare size_mib=7200
+
+    declare -r SHORTOPTS=d:hi:s:v
+    declare -r LONGOPTS=device:,help,image:,size-mib:,verbose
+
+    declare ARGS=$(
+        getopt -s bash --options "$SHORTOPTS"  \
+               --longoptions "$LONGOPTS" --name "$script_name" -- "$@"
+            )
+
+    eval set -- "$ARGS"
+
+    declare verbose=false
+
+    while true; do
+        case "$1" in
+            -d|--device) # SD card block device
+                shift
+                if test -e "$1"; then
+                    device=$1
+                fi
+                ;;
+            -h|--help) # get help
+                usage
+                exit 0
+                ;;
+            -i|--image) # Disk image
+                shift
+                case "$1" in
+                    *[0-9]Z)
+                        image=${1}.img
+                        ;;
+                    '')
+                        echo "${script_name}: Option requires an argument: -n" >&2
+                        usage
+                        exit 1
+                        ;;
+                    *)
+                        image=${1}_$(date -u +%Y%m%dT%H%M%SZ).img
+                        ;;
+                esac
+                ;;
+            -s|--size-mib)
+                shift
+                if test -e "$1"; then
+                    size_mib=$1
+                fi
+                ;;
+            -v|--verbose)
+                verbose=true
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                shift
+                break
+                ;;
+        esac
+        shift
+    done
+
+    if test ."$image" = .''; then
+        usage
+        exit 1
+    fi
+
+    # enable trace option in debug mode
+    if $verbose; then
+        echo "Debug mode enabled!"
+        set -x
+    fi
+
+    device=$(select-media "${device:-na}") || exit $?
+    confirm-selection "$image" "$device" || exit $?
+    bytes_read=$(create-device-image "$device" "$image" "$size_mib") || exit $?
+    verify-image "$device" "$image" "$bytes_read"  || exit $?
+    compress-image "$image" || exit $?
+fi

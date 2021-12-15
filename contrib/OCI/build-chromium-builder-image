@@ -148,14 +148,17 @@ build-builder ()
     local build_script=$4
     # local kernel_version=$5
 
-    local old_image_id=$($SUDO $BUILDAH images --filter=reference="localhost/${name}" --format="{{.ID}}" 2>/dev/null)
+    local old_image_id=$($SUDO $BUILDAH images -n --filter=reference="localhost/${name}" --format="{{.ID}}")
 
     if test ."$old_image_id" != .''; then
         pr-info "Removing old image: localhost/${name}"
         $SUDO $BUILDAH rmi "$old_image_id" || return $?
     fi
 
-    if ! $SUDO $BUILDAH images "localhost/${name}" &>/dev/null; then
+
+    local image_id=$($SUDO $BUILDAH images -n --filter=reference="localhost/${name}" --format="{{.ID}}")
+
+    if test ."$image_id" = .''; then
         pr-info "Pulling container image: ${image}:${tag}"
 
         local container
@@ -217,42 +220,47 @@ EOF
 apache2-data apache2-utils apparmor autoconf automake autopoint bc            \
 binfmt-support binutils binutils-aarch64-linux-gnu                            \
 binutils-mips64el-linux-gnuabi64 binutils-mipsel-linux-gnu bison              \
-build-essential bzip2 cdbs cmake coreutils curl dbus-x11 debootstrap          \
-device-tree-compiler devscripts dpkg-dev ed elfutils fakeroot flex g++        \
-gcc gir1.2-gudev-1.0 git git-core golang gperf gpg groff gzip help2man        \
-kmod krb5-locales libapache2-mod-php7.4 libappindicator3-1                    \
-libappindicator3-dev libaprutil1-dbd-sqlite3 libaprutil1-ldap                 \
-libargon2-1 libasound2 libasound2-dev libatk1.0-0 libatspi2.0-0               \
-libatspi2.0-dev libbluetooth3 libbluetooth-dev libbrlapi-dev                  \
-libbz2-dev libc6 libc6-dev libcairo2 libcairo2-dev libcap2 libcap-dev         \
-libcryptsetup12 libcups2 libcups2-dev libcurl4-gnutls-dev libdrm2             \
-libdrm-dev libelf-dev libevdev2 libevdev-dev libexpat1 libffi-dev             \
-libfontconfig1 libfreetype6 libfuse2 libgbm1 libgbm-dev libglib2.0-0          \
+build-essential bzip2 cdbs clang clang-format cmake coreutils dbus-x11        \
+debootstrap device-tree-compiler devscripts dpkg-dev ed elfutils              \
+fakeroot flex fonts-ipafont-gothic fonts-ipafont-mincho g++ gcc               \
+gir1.2-gudev-1.0 git golang gperf gpg groff gzip help2man                     \
+libavformat-dev kmod krb5-locales libapache2-mod-php7.4                       \
+libaprutil1-dbd-sqlite3 libaprutil1-ldap libargon2-1 libasound2               \
+libasound2-dev libatk1.0-0 libatspi2.0-0 libatspi2.0-dev                      \
+libavcodec-dev libavutil-dev libbluetooth3 libbluetooth-dev                   \
+libbrlapi-dev libbz2-dev libc6 libc6-dev libcairo2 libcairo2-dev              \
+libcap2 libcap-dev libcryptsetup12 libcups2 libcups2-dev                      \
+libcurl4-gnutls-dev libdrm2 libdrm-dev libelf-dev libevdev2                  \
+libevdev-dev libevent-dev libexif-dev libexpat1 libffi-dev libflac-dev        \
+libfontconfig1 libfreetype6 libfuse2 libgbm1 libgbm-dev                       \
+libgcrypt20-dev libgl1-mesa-dev libgles2-mesa-dev libglib2.0-0                \
 libglib2.0-dev libglu1-mesa-dev libgtk-3-0 libgtk-3-dev libgudev-1.0-0        \
-libgudev-1.0-dev libinput10 libinput-bin libinput-dev libip4tc2               \
-libjansson4 libjson-c5 libkrb5-dev libmtdev1 libmtdev-dev                     \
-libncurses-dev libnspr4-dev libnss3-dev libpam0g libpam0g-dev                 \
-libpango-1.0-0 libpci3 libpci-dev libpcre3 libpixman-1-0 libpulse-dev         \
-libsctp-dev libsodium23 libspeechd2 libspeechd-dev libsqlite3-0               \
-libsqlite3-dev libssl-dev libstdc++6 libtool libudev-dev libuuid1             \
+libgudev-1.0-dev libhunspell-dev libinput10 libinput-bin libinput-dev         \
+libip4tc2 libjansson4 libjson-c5 libjsoncpp-dev libkrb5-dev                   \
+liblcms2-dev libminizip-dev libmodpbase64-dev libmtdev1 libmtdev-dev          \
+libncurses-dev libnspr4-dev libnss3-dev libopenjp2-7-dev libopus-dev          \
+libpam0g libpam0g-dev libpango-1.0-0 libpci3 libpci-dev libpcre3              \
+libpixman-1-0 libpulse-dev libre2-dev libsctp-dev libsnappy-dev               \
+libsodium23 libspeechd2 libspeechd-dev libsqlite3-0 libsqlite3-dev            \
+libssl-dev libstdc++6 libtool libudev-dev libusb-1.0-0-dev libuuid1           \
 libva-dev libvulkan-dev libwacom2 libwacom-bin libwacom-common                \
-libwacom-dev libwayland-egl1-mesa libwww-perl libx11-6 libx11-xcb1            \
-libxau6 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxdmcp6              \
-libxext6 libxfixes3 libxi6 libxinerama1 libxrandr2 libxrender1                \
-libxshmfence-dev libxslt1-dev libxss-dev libxt-dev libxtst6                   \
-libxtst-dev locales lzop m4 make mesa-common-dev networkd-dispatcher          \
-openbox p7zip parted patch perl php7.4-cgi php7.4-cli php7.4-common           \
-php7.4-json php7.4-opcache php7.4-readline php-common pkg-config              \
-psmisc python python3-dbus python3-gi python-dev python-setuptools            \
-qemu qemu-user-static rpm rsync ruby snapd squashfs-tools ssl-cert            \
-subversion sudo systemd systemd-timesyncd tzdata u-boot-tools udev            \
-unzip upx-ucl uuid-dev vim wdiff x11-utils xcompmgr xz-utils zip              \
-zlib1g
+libwacom-dev libwayland-egl1-mesa libwebp-dev libwww-perl libx11-6            \
+libx11-xcb1 libx11-xcb-dev libxau6 libxcb1 libxcb-dri3-dev                    \
+libxcomposite1 libxcursor1 libxdamage1 libxdmcp6 libxext6 libxfixes3          \
+libxi6 libxinerama1 libxrandr2 libxrender1 libxshmfence-dev                   \
+libxslt1-dev libxss-dev libxt-dev libxtst6 libxtst-dev lld locales            \
+lzop m4 make mesa-common-dev networkd-dispatcher ninja-build nodejs           \
+node-typescript openbox p7zip parted patch perl php7.4-cgi php7.4-cli         \
+php7.4-common php7.4-json php7.4-opcache php7.4-readline php-common           \
+pkg-config psmisc python python3-dbus python3-gi python-dev                   \
+python-jinja2 python-setuptools qemu qemu-user-static rpm rsync ruby          \
+snapd squashfs-tools ssl-cert subversion sudo systemd                         \
+systemd-timesyncd tzdata u-boot-tools udev uglifyjs.terser unzip              \
+upx-ucl uuid-dev valgrind vim wdiff x11-apps x11-utils xcb-proto              \
+xcompmgr xfonts-base xvfb xz-utils yasm zip zlib1g
 
     apt -qy install binutils-arm-linux-gnueabihf
     apt -qy install cpp-arm-linux-gnueabihf
-    apt -qy install g++-10-multilib-arm-linux-gnueabihf
-    apt -qy install gcc-10-multilib-arm-linux-gnueabihf
     apt -qy install g++-arm-linux-gnueabihf
     apt -qy install gcc-arm-linux-gnueabihf
     apt -qy install g++-10-arm-linux-gnueabihf
@@ -313,15 +321,10 @@ EOS
         $SUDO $BUILDAH config --cmd "/root/${build_script}" \
              --label name="$name" "$container" >&2
         $SUDO $BUILDAH commit "$container" "$name" >&2
-        sync
-        sync
-        $SLEEP 10
-        $SUDO $BUILDAH rm "$container" >&2
+        # $SUDO $BUILDAH rm "$container" >&2
     fi
 
-    $SUDO $BUILDAH images --filter=reference="localhost/${name}" --format="{{.ID}}"
-    # $SUDO $BUILDAH inspect "localhost/${name}" |
-    #     $JQ -r '.FromImageID'
+    $SUDO $BUILDAH images -n --filter=reference="localhost/${name}" --format="{{.ID}}"
 }
 
 reset-window-title ()
