@@ -535,6 +535,13 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/resources/etc/profile.d/set_window_title.sh" \
             "${RECOVERYFS_BASE}/etc/profile.d"
 
+    ## Allow memory overcommit (for Redis background saving)
+    install -m 0644 "${G_VENDOR_PATH}/resources/etc/sysctl.d/99-memory" \
+            "${RECOVERYFS_BASE}/etc/sysctl.d"
+
+    install -m 0644 "${G_VENDOR_PATH}/resources/etc/"{motd,rc.local,hostapd.conf} \
+            "${RECOVERYFS_BASE}/etc/"
+
     ## Build and install RS-485 mode configuration utility.
     make -C "${G_VENDOR_PATH}/resources/rs485" clean all
     install -m 0755 "${G_VENDOR_PATH}/resources/rs485/rs485" \
@@ -809,8 +816,6 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
             "${RECOVERYFS_BASE}/etc/systemd"
 
-    install -m 0644 "${G_VENDOR_PATH}/resources/etc/"{motd,rc.local,hostapd.conf} \
-             "${RECOVERYFS_BASE}/etc/"
     install -d -m 0755 "${RECOVERYFS_BASE}/boot"
     install -m 0644 "${G_VENDOR_PATH}/splash.bmp" "${RECOVERYFS_BASE}/boot/"
     install -d -m 0755 "${RECOVERYFS_BASE}/usr/share/images/desktop-base"

@@ -541,6 +541,13 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/resources/etc/profile.d/set_window_title.sh" \
             "${ROOTFS_BASE}/etc/profile.d"
 
+    ## Allow memory overcommit (for Redis background saving)
+    install -m 0644 "${G_VENDOR_PATH}/resources/etc/sysctl.d/99-memory" \
+            "${ROOTFS_BASE}/etc/sysctl.d"
+
+    install -m 0644 "${G_VENDOR_PATH}/resources/etc/"{motd,rc.local,hostapd.conf} \
+            "${ROOTFS_BASE}/etc/"
+
     ## Build and install RS-485 mode configuration utility.
     make -C "${G_VENDOR_PATH}/resources/rs485" clean all
     install -m 0755 "${G_VENDOR_PATH}/resources/rs485/rs485" \
@@ -811,8 +818,6 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
             "${ROOTFS_BASE}/etc/systemd"
 
-    install -m 0644 "${G_VENDOR_PATH}/resources/etc/"{motd,rc.local,hostapd.conf} \
-            "${ROOTFS_BASE}/etc/"
     install -d "${ROOTFS_BASE}/boot/"
     install -m 0644 "${G_VENDOR_PATH}/splash.bmp" "${ROOTFS_BASE}/boot/"
     install -m 0644 "${G_VENDOR_PATH}/wallpaper.png" \
