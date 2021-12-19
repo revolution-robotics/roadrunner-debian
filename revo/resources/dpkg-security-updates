@@ -1,0 +1,309 @@
+#!/usr/bin/env bash
+#
+# @(#) dpkg-security-updates
+#
+# Copyright © 2021, Revolution Robotics, Inc.
+#
+# This script is a front end for the Debian security utility `debsecan'.
+#
+
+# Path of script for installing security upgrades on Ubuntu.
+declare -r unattended_upgrade_path=/usr/bin/unattended-upgrade
+
+# Path of Debian security scanner.
+declare -r debsecan_path=/usr/bin/debsecan
+
+usage ()
+{
+    cat <<EOF
+Usage: $script_name OPTIONS
+where OPTIONS are:
+  -a|--apply  Apply available security updates.
+  -h|--help   Print (this) help, then exit.
+  -n|--new    List new CVEs for which security updates are available.
+  -o|--old    List old CVEs for which security updates are applied.
+  -u|--unresolved
+              List CVEs for which security updates are not yet available.
+EOF
+}
+
+get-version-codename ()
+{
+    local is_debian=${1:-'false'}
+
+    if $is_debian; then
+        sed -n '/^VERSION_CODENAME=\(.*\)/s//\1/p' /etc/os-release
+    else
+        local debian_version=$(sed -e 's;/.*;;' /etc/debian_version)
+
+        case "$debian_version" in
+            [a-z]*) echo "$debian_version" ;;
+            6*) echo 'squeeze' ;;
+            7*) echo 'wheezy' ;;
+            8*) echo 'jessie' ;;
+            9*) echo 'stretch' ;;
+            10*) echo 'buster' ;;
+            11*) echo 'bullseye' ;;
+            *)
+                echo "${script_name}: $debian_version: Unknown version" >&2
+                return 1
+                ;;
+        esac
+    fi
+}
+
+verify-system ()
+{
+    local valid_id=$1
+
+    local is_debian=false
+    local system_id=$(sed -n '/^ID=\(.*\)/s//\1/p' /etc/os-release)
+    local system_id_like=$(sed -n '/^ID_LIKE=\(.*\)/s//\1/p' /etc/os-release)
+
+    if test ."$system_id" = ."$valid_id"; then
+        is_debian=true
+    elif test ."$system_id_like" != ."$valid_id"; then
+        echo "${FUNCNAME[0]}: ${system_id}: Expected ID: ${valid_id}." >&2
+        return 1
+    fi
+
+    if test ! -x "$debsecan_path"; then
+        echo "${script_name}: Please install \`debsecan' before running this script." >&2
+            return 2
+    fi
+
+    echo $is_debian
+}
+
+refresh-pkgs-lists ()
+{
+    local pkg_cache=/var/cache/apt/pkgcache.bin
+    local -i cache_stale_threshold=43200
+    local -i cache_age=$cache_stale_threshold
+
+    if test -f "$pkg_cache"; then
+        local cache_ts=$(stat --printf="%Y" "$pkg_cache")
+        local now_ts=$(date -u +%s)
+
+        cache_age=$(( now_ts - cache_ts ))
+    fi
+
+    if (( cache_age >= cache_stale_threshold )); then
+        echo "Refreshing package cache..." >&2
+        apt update &>/dev/null
+    fi
+}
+
+get-updated-pkgs ()
+{
+    local -n updates_ref=$1
+    local is_debian=$2
+
+    local version_codename
+
+    version_codename=$(get-version-codename "$is_debian") || return $?
+
+    mapfile -t security_updates < <(
+        debsecan --suite="$version_codename" --format=packages --only-fixed
+    )
+
+    if (( ${#security_updates[@]} == 0 )); then
+        echo "${FUNCNAME[0]}: System is up to date." >&2
+        return 1
+    fi
+
+    updates_ref=( "${security_updates[@]}" )
+}
+
+install-updated-pkgs ()
+{
+    local -n updates_ref=$1
+
+    DEBIAN_FRONTEND=noninteractive apt -y install \
+                   "${updates_ref[@]}" 2>/dev/null
+}
+
+update-cve-whitelist ()
+{
+    local is_debian=$1
+
+    local version_codename
+
+    version_codename=$(get-version-codename "$is_debian") || return $?
+
+    mapfile -t cve_list < <(
+        debsecan --suite="$version_codename" --only-fixed |
+            awk '{ print $1 }'
+    )
+    sudo debsecan --suite="$version_codename" --add-whitelist "${cve_list[@]}"
+}
+
+clear-pkg-cache ()
+{
+    apt -y autoremove --purge 2>/dev/null
+    apt -y clean 2>/dev/null
+    rm -rf /var/lib/apt/lists/*
+}
+
+show-new-cves ()
+{
+    local is_debian=$1
+
+    local version_codename
+
+    version_codename=$(get-version-codename "$is_debian") || return $?
+
+    mapfile -t new_cves < <(
+        debsecan --suite="$version_codename" --only-fixed |
+            awk '{ printf("%s\t%s\n", $1, $2) }'
+    )
+
+    if (( ${#new_cves[@]} > 0 )); then
+        printf "%s\n" "${new_cves[@]}"
+    else
+        echo "System is up to date."
+    fi
+}
+
+show-old-cves ()
+{
+    local is_debian=$1
+
+    local version_codename
+
+    version_codename=$(get-version-codename "$is_debian") || return $?
+
+    mapfile -t old_cves < <(
+        debsecan --suite="$version_codename" --show-whitelist |
+            awk '{ printf("%s\n", $1) }'
+    )
+
+    if (( ${#old_cves[@]} > 0 )); then
+        printf "%s\n" "${old_cves[@]}"
+    else
+        echo "No previous updates recorded."
+    fi
+}
+
+show-unresolved-cves ()
+{
+    local is_debian=$1
+
+    local version_codename
+
+    version_codename=$(get-version-codename "$is_debian") || return $?
+
+    local tmpfile1=$(mktemp ${script_name}-XXXXX)
+    local tmpfile2=$(mktemp ${script_name}-XXXXX)
+    local tmpfile3=$(mktemp ${script_name}-XXXXX)
+    local tmpfile4=$(mktemp ${script_name}-XXXXX)
+
+    trap 'rm -f "$tmpfile1" "$tmpfile2" "$tmpfile3" "$tmpfile4"; return 1' 1 2 15 RETURN
+
+    apt list -qq --installed |
+        sed 's;/.*;;' >"$tmpfile1"
+    debsecan --suite="$version_codename" |
+        awk '{ printf("%s\t%s\n", $1, $2) }' |
+        tee "$tmpfile2" |
+        awk '{ print $2 }' |
+        sort -u |
+        sed -e 's/^/^/' -e 's/$/$/' >"$tmpfile3"
+    grep -f "$tmpfile3" "$tmpfile1" |
+        sort -u |
+        sed -e 's/^/\t/' -e 's/$/$/' >"$tmpfile4"
+    mapfile -t unresolved_cves < <(grep -f "$tmpfile4" "$tmpfile2")
+
+    rm -f "$tmpfile1" "$tmpfile2" "$tmpfile3" "$tmpfile4"
+
+    trap - 1 2 15 RETURN
+
+    if (( ${#unresolved_cves[@]} > 0 )); then
+        printf "%s\n" "${unresolved_cves[@]}"
+    else
+        echo "System is up to date."
+    fi
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare script_name=${0##*/}
+
+    declare opts
+    declare status
+    declare -r short_opts=a,h,n,o,u
+    declare -r long_opts=apply,help,new,old,unresolved
+
+    opts=$(
+        getopt  --name "$script_name" --options "$short_opts"  \
+                --longoptions "$long_opts" -- "$@"
+        ) || exit $?
+
+    eval set -- "$opts"
+
+    declare -A param=(
+        [apply]=false
+        [new]=false
+        [old]=false
+        [unresolved]=false
+    )
+
+    if (( $# == 0 )); then
+        usage
+        exit 1
+    fi
+
+    while true; do
+        case "$1" in
+            -a|--apply)
+                param[apply]=true
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            -n|--new)
+                param[new]=true
+                ;;
+            -o|--old)
+                param[old]=true
+                ;;
+            -u|--unresolved)
+                param[unresolved]=true
+                ;;
+            --)
+                break
+                ;;
+        esac
+        shift
+    done
+
+    if (( UID != 0 )); then
+        echo "${script_name}: Must be run by user root" >&2
+        exit 1
+    fi
+
+    declare is_debian=false
+    declare -a security_updates
+
+    is_debian=$(verify-system debian) || exit $?
+    refresh-pkgs-lists || exit $?
+    if ${param[apply]}; then
+        if $is_debian; then
+            get-updated-pkgs security_updates "$is_debian" || exit 0
+            install-updated-pkgs security_updates || exit $?
+            update-cve-whitelist "$is_debian" || exit $?
+            clear-pkg-cache
+        elif test -x "$unattended_upgrade_path"; then
+            $unattended_upgrade_path
+            clear-pkg-cache
+        fi
+    elif ${param[new]}; then
+        show-new-cves "$is_debian"
+    elif ${param[old]}; then
+        show-old-cves "$is_debian"
+    elif ${param[unresolved]}; then
+        show-unresolved-cves "$is_debian"
+    else
+        usage
+        exit 1
+    fi
+fi

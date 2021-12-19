@@ -563,6 +563,10 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/etc/default/serial" \
             "${ROOTFS_BASE}/etc/default"
 
+    ## Install front-end security utility for debsecan.
+    install -m 0755 "${G_VENDOR_PATH}/resources/dpkg-security-updates" \
+            "${ROOTFS_BASE}/usr/bin"
+
     ## Install utitlity to download Yandex shares.
     install -m 0755 "${G_VENDOR_PATH}/resources/fetch-yandex" \
             "${ROOTFS_BASE}/usr/bin"
