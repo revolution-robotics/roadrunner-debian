@@ -148,53 +148,60 @@ build-builder ()
     local build_script=$4
     # local kernel_version=$5
 
-    local old_image_id=$($SUDO $BUILDAH images -n --filter=reference="localhost/${name}" --format="{{.ID}}")
+    # local old_image_id=$($SUDO $BUILDAH images -n --filter=reference="localhost/${name}" --format="{{.ID}}")
 
-    if test ."$old_image_id" != .''; then
-        pr-info "Removing old container image: localhost/${name}"
-        $SUDO $BUILDAH rmi "$old_image_id" || return $?
+    # if test ."$old_image_id" != .''; then
+    #     pr-info "Removing old container image: localhost/${name}"
+    #     $SUDO $BUILDAH rmi "$old_image_id" >&2 || return $?
+    # fi
+
+    local image_id=$(
+        $SUDO $BUILDAH images -n --filter=reference="localhost/${name}" \
+              --format="{{.ID}}"
+          )
+
+    if test ."$image_id" != .''; then
+        echo "$image_id"
+        return 0
     fi
 
-    local image_id=$($SUDO $BUILDAH images -n --filter=reference="localhost/${name}" --format="{{.ID}}")
+    pr-info "Pulling container image: ${image}:${tag}"
 
-    if test ."$image_id" = .''; then
-        pr-info "Pulling container image: ${image}:${tag}"
+    local container
+    local mount_point
 
-        local container
-        local mount_point
+    container=$($SUDO $BUILDAH from "${image}:${tag}") || return $?
+    mount_point=$($SUDO $BUILDAH mount "$container") || return $?
 
-        container=$($SUDO $BUILDAH from "${image}:${tag}") || return $?
-        mount_point=$($SUDO $BUILDAH mount "$container") || return $?
+    if test -f "${mount_point}/etc/hosts"; then
+        $SUDO $CP -a "${mount_point}/etc/hosts"{,~}
+    else
+        $SUDO $TOUCH  "${mount_point}/etc/hosts~"
+    fi
 
-        if test -f "${mount_point}/etc/hosts"; then
-            $SUDO $CP -a "${mount_point}/etc/hosts"{,~}
-        else
-            $SUDO $TOUCH  "${mount_point}/etc/hosts~"
-        fi
+    if test -f "${mount_point}/etc/resolv.conf"; then
+        $SUDO $CP -a "${mount_point}/etc/resolv.conf"{,~}
+    else
+        $SUDO $TOUCH  "${mount_point}/etc/resolv.conf~"
+    fi
 
-        if test -f "${mount_point}/etc/resolv.conf"; then
-            $SUDO $CP -a "${mount_point}/etc/resolv.conf"{,~}
-        else
-            $SUDO $TOUCH  "${mount_point}/etc/resolv.conf~"
-        fi
+    $SUDO $INSTALL -m 0644 /etc/hosts "${mount_point}/etc"
+    $SUDO $INSTALL -m 0644 /etc/resolv.conf "${mount_point}/etc"
 
-        $SUDO $INSTALL -m 0644 /etc/hosts "${mount_point}/etc"
-        $SUDO $INSTALL -m 0644 /etc/resolv.conf "${mount_point}/etc"
-
-        $SUDO $TEE "${mount_point}/install_prerequisites" >/dev/null <<EOF
+    $SUDO $TEE "${mount_point}/install-prerequisites" >/dev/null <<EOF
 #!/bin/bash
 #
-# @(#) install_prerequisites
+# @(#) install-prerequisites
 #
 : \${HOST_GW_IPV4:=$(get-external-ip)}
 EOF
 
-        $SUDO $TEE -a "${mount_point}/install_prerequisites" >/dev/null <<'EOS'
+    $SUDO $TEE -a "${mount_point}/install-prerequisites" >/dev/null <<'EOS'
 
-install-prerequisites ()
+install-packages ()
 {
     local policy=/usr/sbin/policy-rc.d
-    local proxy=/etc/apt.conf.d/10acng-proxy
+    local proxy=/etc/apt/apt.conf.d/10acng-proxy
 
     trap 'rm -f "$policy"' 0 1 2 15 RETURN
 
@@ -205,7 +212,7 @@ EOF
     chmod 0755 "$policy"
 
     apt update
-    apt -qy install curl gawk iproute2
+    DEBIAN_FRONTEND=noninteractive apt -qy install curl gawk iproute2
     apt -qy remove --purge mawk
 
     if test ."$HOST_GW_IPV4" != .'' &&
@@ -215,14 +222,14 @@ Acquire::http::Proxy "http://${HOST_GW_IPV4}:3142";
 EOF
     fi
 
-    DEBIAN_FRONTEND=noninteractive apt -qy install autoconf automake
-        autopoint bc binfmt-support binutils bison build-essential
-        cmake coreutils debootstrap device-tree-compiler devscripts
-        dpkg-dev ed fakeroot flex g++ gcc git golang gpg groff gzip
-        help2man kmod libncurses-dev libssl-dev libtool lzop m4 make
-        parted patch perl python python3-dbus python-setuptools qemu
-        qemu-user-static rsync sudo u-boot-tools unzip upx-ucl vim
-        xz-utils zip
+    DEBIAN_FRONTEND=noninteractive apt -qy install autoconf automake          \
+        autopoint bc binfmt-support binutils bison build-essential            \
+        cmake coreutils debootstrap device-tree-compiler devscripts           \
+        dpkg-dev ed fakeroot flex g++ gcc gettext git golang gpg groff        \
+        gzip help2man kmod libncurses-dev libssl-dev libtool lzop m4          \
+        make parted patch perl python python3-dbus python-setuptools          \
+        qemu qemu-user-static rsync sudo u-boot-tools unzip upx-ucl           \
+        vim xz-utils zip
 
     apt -qy install binutils-arm-linux-gnueabihf
     apt -qy install cpp-arm-linux-gnueabihf
@@ -232,6 +239,7 @@ EOF
     curl -sLo /usr/bin/install-smallstep \
          "https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_bullseye_rr01/revo/resources/smallstep/install-smallstep"
     chmod +x /usr/bin/install-smallstep
+    echo "Installing smallstep..." >&2
     install-smallstep
 
     curl -sL https://ftp-master.debian.org/keys/release-11.asc |
@@ -242,25 +250,25 @@ EOF
     trap - 0 1 2 15 RETURN
 }
 
-install-prerequisites
+install-packages
 EOS
 
-        $SUDO $CHMOD 0755 "$mount_point/install_prerequisites" || return $?
+    $SUDO $CHMOD 0755 "$mount_point/install-prerequisites" || return $?
 
-        trap 'umount-fs "$mount_point"; exit' 0 1 2 15
+    trap 'umount-fs "$mount_point"; exit' 0 1 2 15
 
-        mount-fs "$mount_point"
+    mount-fs "$mount_point"
 
-        pr-info "Installing builder prerequisites..."
+    pr-info "Installing builder prerequisites..."
 
-        $SUDO $CHROOT "$mount_point" ./install_prerequisites >&2
-        $SUDO $RM -f "${mount_point}/install_prerequisites"
+    $SUDO $CHROOT "$mount_point" ./install-prerequisites >&2
+    $SUDO $RM -f "${mount_point}/install-prerequisites"
 
-        umount-fs "$mount_point"
+    umount-fs "$mount_point"
 
-        trap - 0 1 2 15
+    trap - 0 1 2 15
 
-        # $SED -e "s;@BUILD_DIR@;$build_dir;" \
+    # $SED -e "s;@BUILD_DIR@;$build_dir;" \
         #      -e "s;@BRANCH@;$branch;" \
         #      -e "s;@DEFCONFIG@;$defconfig;" \
         #      -e "s;@IMAGE_TYPE@;$image_type;" \
@@ -268,28 +276,27 @@ EOS
         #      -e "s;@DTBS@;$dtbs;" \
         #      -e "s;@ROOT_FILESYSTEM@;$root_filesystem;" \
         #      "${vendor_path}/resources/${build_script}-${kernel_version}" |
-        #     $SUDO $TEE "${mount_point}/root/${build_script}" >/dev/null
-        # $SUDO $CHMOD 0755 "${mount_point}/root/${build_script}"
-        $SED -e "s;@GW_IPV4@;$(get-external-ip);"  \
-            -e "s;@CA_URL@;$(get-secret CA_URL);" \
-            -e "s;@CA_FINGERPRINT@;$(get-secret CA_FINGERPRINT);" \
-            "$build_script" |
-            $SUDO tee "${mount_point}/root/${build_script##*/}" >/dev/null
-        $SUDO $CHMOD 0755 "${mount_point}/root/${build_script}"
-        # $SUDO $INSTALL -m 0755 \
+    #     $SUDO $TEE "${mount_point}/root/${build_script}" >/dev/null
+    # $SUDO $CHMOD 0755 "${mount_point}/root/${build_script}"
+    $SED -e "s;@GW_IPV4@;$(get-external-ip);"  \
+         -e "s;@CA_URL@;$(get-secret CA_URL);" \
+         -e "s;@CA_FINGERPRINT@;$(get-secret CA_FINGERPRINT);" \
+         "$build_script" |
+        $SUDO tee "${mount_point}/root/${build_script##*/}" >/dev/null
+    $SUDO $CHMOD 0755 "${mount_point}/root/${build_script}"
+    # $SUDO $INSTALL -m 0755 \
         #       "${vendor_path}/resources/${build_script}-${kernel_version}" \
         #       "${mount_point}/root/${build_script}" >&2
 
-        $SUDO $BUILDAH unmount "$container" >&2
-        $SUDO $BUILDAH config --cmd "/root/${build_script}" \
-             --label name="$name" "$container" >&2
-        $SUDO $BUILDAH commit "$container" "$name" >&2
-        $SUDO sync
-        $SLEEP 5
-        $SUDO $BUILDAH rm "$container" >&2
-    fi
-
-    $SUDO $BUILDAH images -n --filter=reference="localhost/${name}" --format="{{.ID}}"
+    $SUDO $BUILDAH unmount "$container" >&2
+    $SUDO $BUILDAH config --cmd "/root/${build_script}" \
+          --label name="$name" "$container" >&2
+    $SUDO $BUILDAH commit "$container" "$name" >&2
+    $SUDO sync
+    $SLEEP 5
+    $SUDO $BUILDAH rm "$container" >&2
+    $SUDO $BUILDAH images -n --filter=reference="localhost/${name}" \
+          --format="{{.ID}}"
 }
 
 reset-window-title ()
@@ -327,6 +334,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     $CAT >&2 <<EOF
 ════════════════════════════════════════════════════════════════════════════════
 Builder image: ${builder_name}
+Builder ID: ${builder_id}
 Derived from: ${builder_image}:${builder_tag}
 Destination: ${dest_dir}
 ────────────────────────────────────────────────────────────────────────────────
