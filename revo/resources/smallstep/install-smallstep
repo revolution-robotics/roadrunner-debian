@@ -42,7 +42,7 @@ get-current-tag ()
     #     v0.14.2
     #     v0.14.3
     $GIT ls-remote --tags "$uri" |
-        $GREP -v -- '-rc[-.0-9]*' |
+        # $GREP -v -- '-rc[-.0-9]*' |
         $SED 's;.*refs/tags/;;' |
         $SORT --version-sort -k1.2 |
         $TAIL -1
