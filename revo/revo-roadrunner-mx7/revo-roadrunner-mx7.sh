@@ -26,7 +26,7 @@ declare -r G_LINUX_KERNEL_GIT=https://github.com/revolution-robotics/roadrunner-
 # declare -r G_LINUX_KERNEL_BRANCH=imx_5.4.85_1.0.0_revo
 # declare -r G_LINUX_KERNEL_REV=9292229fa9587f0587541bc2962685a442cbd6db
 declare -r G_LINUX_KERNEL_BRANCH=imx_5.4.142_1.0.0_revo
-declare -r G_LINUX_KERNEL_REV=76c26b62afd0b3e289726420b739904533e4117a
+declare -r G_LINUX_KERNEL_REV=b3dc4169f46770579b741329f471fc8e0b5e38df
 declare -r G_LINUX_KERNEL_DEF_CONFIG=imx_v7_roadrunner_defconfig
 declare -r G_LINUX_DTB='imx7d-roadrunner-gpio16.dtb imx7d-roadrunner-iomix.dtb imx7d-roadrunner-blade.dtb'
 
@@ -63,7 +63,7 @@ declare -r G_REVO_WEB_DISPATCH_BRANCH=golang
 declare -r G_REVO_WEB_DISPATCH_REV=6aa8f314b80f515309a18840dc2f8c5591c8e9c8
 
 # Node version and user
-declare -r NODE_BASE=14.
+declare -r NODE_BASE=16.
 declare -r NODE_GROUP=revo
 declare -r NODE_USER=revo
 
