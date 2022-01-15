@@ -150,6 +150,10 @@ make_debian_recoveryfs ()
     # cp -r ${G_VENDOR_PATH}/deb/shared-mime-info/* \
     #    ${RECOVERYFS_BASE}/srv/local-apt-repository
 
+    ## Unix line editor
+    cp -r "${G_VENDOR_PATH}/deb/ed"/* \
+       "${ROOTFS_BASE}/srv/local-apt-repository"
+
     install -d -m 0755 "${RECOVERYFS_BASE}/var/lib/usbmux"
 
     ## BEGIN -- REVO i.MX7D security
@@ -340,8 +344,8 @@ protected_install udisks2
 ## Network Manager.
 # protected_install network-manager-gnome
 
-## Legacy scripting editor.
-# protected_install ed
+## Unix line editor
+protected_install ed
 
 ## Fix lightdm config (added autologin x_user).
 # sed -i -e 's/^#* *\\(autologin-user=\\)/\\1x_user/g' \\
