@@ -39,9 +39,14 @@ validate-host-volume ()
 
     if test ."$volume_name" = .'' -o ! -d "${host_dir}/${volume_name}"; then
         volume_name=$(
-            ls -d "${host_dir}/roadrunner-"[0-9]* |
+            ls -d "${host_dir}/roadrunner-"[0-9]* 2>/dev/null |
                 sed -n -e '$s;/.*/;;p'
                    )
+
+        if test ."$volume_name" = .''; then
+            echo "${FUNCNAME[0]}: ${host_dir}: No volumes found" >&2
+            return 1
+        fi
     fi
 
     local dest_dir=${host_dir}/${volume_name}
@@ -66,7 +71,7 @@ Filesystem: ${dest_dir}
 Mount point: ${mount_point}
 EOF
 
-    $SUDO podman run -it --privileged --entrypoint=/bin/bash \
+    $SUDO podman run -it --rm --privileged --entrypoint=/bin/bash \
           -v "${dest_dir}:${mount_point}:rshared,rbind,exec,dev,suid,rw" \
           "$image_id"
 }
@@ -77,10 +82,10 @@ reset-window-title ()
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
-    declare image_reference=${1:-'localhost/roadrunner-debian-builder:latest'}
-    declare mount_point=${2:-'/root/roadrunner_debian'}
-    declare host_dir=${3:-'/opt/src/revo/releases'}
-    declare volume_name=$4
+    declare host_dir=${1:-'/opt/src/revo/releases/roadrunner'}
+    declare volume_name=$2
+    declare image_reference=${3:-'localhost/roadrunner-debian-builder:latest'}
+    declare mount_point=${4:-'/root/roadrunner_debian'}
 
     declare image_id
     declare dest_dir
