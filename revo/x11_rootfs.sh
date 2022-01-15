@@ -389,7 +389,7 @@ protected_install gstreamer1.0-plugins-ugly
 protected_install gstreamer1.0-tools
 
 ## Add gstreamer-imx.
-protected_install gstreamer-imx
+# protected_install gstreamer-imx
 
 ## Add i2c tools.
 protected_install i2c-tools
