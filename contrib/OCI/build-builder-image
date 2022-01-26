@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# @(#) revo-make-kernel
+# @(#) build-builder-image
 #
-# Copyright © 2021 Revolution Robotics, Inc.
+# Copyright © 2022 Revolution Robotics, Inc.
 #
 : ${AWK:='/usr/bin/gawk'}
 : ${BUILDAH:='/usr/bin/buildah'}
@@ -226,10 +226,11 @@ EOF
         autopoint bc binfmt-support binutils bison build-essential            \
         cmake coreutils debootstrap device-tree-compiler devscripts           \
         dpkg-dev ed fakeroot flex g++ gcc gettext git golang gpg groff        \
-        gzip help2man kmod libncurses-dev libssl-dev libtool lzop m4          \
-        make parted patch perl python python3-dbus python-setuptools          \
-        qemu qemu-user-static rsync sudo u-boot-tools unzip upx-ucl           \
-        vim xz-utils zip
+        gzip help2man kmod libncurses-dev libssl-dev libtool                  \
+        libzmq3-dev libzmq5 lzop m4 make nlohmann-json3-dev parted            \
+        patch perl python python3-dbus python-setuptools qemu                 \
+        qemu-user-static rsync sudo u-boot-tools unzip upx-ucl vim            \
+        xz-utils zip
 
     apt -qy install binutils-arm-linux-gnueabihf
     apt -qy install cpp-arm-linux-gnueabihf
