@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+#
+# @(#) fetch-gh-content
+#
+# Copyright © 2022 Revolution Robotics, Inc.
+#
+# This script fetches private raw GitHub user content given two
+# arguments: a GitHub personal access token, and the "raw" URL of
+# a private GitHub file.
+#
+: ${ghapi:='api.github.com'}
+
+usage ()
+{
+    echo "Usage: ${script_name} ghp-token raw-content-url"
+    exit 1
+}
+
+gh-curl ()
+{
+    local token=$1
+    local uri=$2
+
+    curl -sL -H "Authorization: token $token" \
+         -H 'Accept: application/vnd.github.v3+json' \
+         "$uri"
+}
+
+fetch-contents ()
+{
+    declare token=$1
+    declare raw_content_url=$2
+
+    declare path
+
+    OIFS=$IFS; IFS=/; set -- $raw_content_url; path=${*:7}; IFS=$OIFS
+
+    declare -i path_length=$(( $# - 6 ))
+
+    if (( path_length < 1 )); then
+        usage
+    fi
+
+    declare owner=$4
+    declare repo=$5
+
+    gh-curl "$token" https://${ghapi}/repos/${owner}/${repo}/contents/${path} |
+        jq -r '.content' |
+        base64 -d -
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare script_name=${0##*/}
+
+    declare token=$1
+    declare raw_content_url=${2%\?*}
+
+    if (( $# < 2 )); then
+        usage
+    fi
+
+    declare file=${raw_content_url##*/}
+
+    fetch-contents "$token" "$raw_content_url"  >"$file"
+fi

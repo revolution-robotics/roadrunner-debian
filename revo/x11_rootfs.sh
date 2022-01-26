@@ -575,6 +575,10 @@ EOF
     install -m 0755 "${G_VENDOR_PATH}/resources/fetch-yandex" \
             "${ROOTFS_BASE}/usr/bin"
 
+    ## Install utitlity to download private GitHub content.
+    install -m 0755 "${G_VENDOR_PATH}/resources/fetch-gh-content" \
+            "${ROOTFS_BASE}/usr/bin"
+
     ## Mount /tmp, /var/tmp and /var/log on tmpfs.
     install -m 0644 "${ROOTFS_BASE}/usr/share/systemd/tmp.mount" \
             "${ROOTFS_BASE}/lib/systemd/system"
@@ -737,9 +741,24 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
 
-    # Don't enable pulseaudio service.
+    # Mask pulseaudio and rtkit-daemon services - per
+    # https://www.kernel.org/doc/Documentation/cgroup-v2.txt:
+    #   WARNING: cgroup2 doesn't yet support control of realtime processes and
+    #   the cpu controller can only be enabled when all RT processes are in
+    #   the root cgroup.
+    # In particular, container runtime, crun, requires:
+    #   echo +cpu >/sys/fs/cgroup/cgroup.subtree_control
+    # but fails with error "Invalid argument" when rtkit-daemon
+    # makes pulseaudio a realtime process.
+
     # ln -sf "/lib/systemd/system/pulseaudio.service" \
     #    "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
+    rm -f "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service"
+    rm -f "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/rtkit-daemon.service"
+    rm -f "${ROOTFS_BASE}/lib/systemd/system/sound.target.wants"/*
+    ln -s /dev/null "${ROOTFS_BASE}/etc/systemd/system/rtkit-daemon.service"
+    ln -s /dev/null "${ROOTFS_BASE}/etc/systemd/system/pulseaudio.service"
+
     install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf" \
             "${ROOTFS_BASE}/etc/dbus-1/system.d"
     install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/system.pa" \
