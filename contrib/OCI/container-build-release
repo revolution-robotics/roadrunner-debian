@@ -2,7 +2,7 @@
 #
 # @(#) container-build-release
 #
-# Copyright © 2021 Revolution Robotics, Inc.
+# Copyright © 2021,2022 Revolution Robotics, Inc.
 #
 declare script=$(readlink -e "$0")
 declare script_dir=${script%/*}
@@ -72,8 +72,9 @@ run-builder ()
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
-    declare machine=${1:-'revo-roadrunner-mx7'}
+    declare client=${1:-'BW'}
     declare distribution=${2:-'debian'}
+    declare machine=${3-'revo-roadrunner-mx7'}
 
     declare vendor_path=${script_dir}/../../revo
     # declare external_src=${script_dir}/../../src
@@ -86,7 +87,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
 
     builder_id=$(
         build-builder "$builder_image" "$builder_tag" "$builder_name" \
-                      "$build_script" "$kernel_version"
+                      "$build_script" "$client" "$kernel_version"
             ) || exit $?
 
     if test ."$builder_id" = .''; then
@@ -108,6 +109,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
 
     $CAT >&2 <<EOF
 ════════════════════════════════════════════════════════════════════════════════
+Client: ${client}
 Builder image: ${builder_name}
 Derived from: ${builder_image}:${builder_tag}
 Destination: ${dest_dir}

@@ -11,6 +11,8 @@ declare script_dir=${script%/*}
 : ${BUILD_DIR:="${script_dir}/roadrunner_debian"}
 : ${CA_URL:='@CA_URL@'}
 : ${CA_FINGERPRINT:='@CA_FINGERPRINT@'}
+: ${X509_GENKEY:="@X509_GENKEY@"}
+: ${SIGNING_KEY:="@SIGNING_KEY@"}
 : ${HOST_GW_IPV4:='@GW_IPV4@'}
 : ${DEBIAN_PROXY:="-p http://${HOST_GW_IPV4}:3142/deb.debian.org/debian"}
 
@@ -71,10 +73,11 @@ clone-build-suite ()
 
 build-images ()
 {
-    MACHINE=revo-roadrunner-mx7 "${BUILD_DIR}/revo_make_debian.sh" \
-           -c deploy |&
+    X509_GENKEY="$X509_GENKEY" SIGNING_KEY="$SIGNING_KEY" \
+               MACHINE=revo-roadrunner-mx7 \
+               "${BUILD_DIR}/revo_make_debian.sh" -c deploy |&
         tee "${BUILD_DIR}/build.log"
-    CA_URL=$CA_URL CA_FINGERPRINT=$CA_FINGERPRINT \
+    CA_URL="$CA_URL" CA_FINGERPRINT="$CA_FINGERPRINT" \
           MACHINE=revo-roadrunner-mx7 "${BUILD_DIR}/revo_make_debian.sh" \
           $DEBIAN_PROXY -j "$NPROC" -c all |&
         tee -a "${BUILD_DIR}/build.log"

@@ -409,7 +409,7 @@ make_kernel ()
     make ARCH="$ARCH_ARGS" CROSS_COMPILE="$1" $G_CROSS_COMPILER_JOPTION -C "$4" "$2"
 
     pr_info "make kernel"
-    if test ! -z "$UIMAGE_LOADADDR"; then
+    if test ."$UIMAGE_LOADADDR" != .''; then
         IMAGE_EXTRA_ARGS=LOADADDR=$UIMAGE_LOADADDR
     fi
     make CROSS_COMPILE="$1" ARCH="$ARCH_ARGS" $G_CROSS_COMPILER_JOPTION \
@@ -908,7 +908,19 @@ cmd_make_deploy ()
                     "$G_LINUX_KERNEL_SRC_DIR" "$G_LINUX_KERNEL_REV"
     fi
 
-    if test ! -z "$G_BCM_FW_GIT"; then
+    if test ."$X509_GENKEY" != .''; then
+        install -d -m 0755 "${G_LINUX_KERNEL_SRC_DIR}/certs"
+        eval echo "$X509_GENKEY" |
+            base64 -d - >"${G_LINUX_KERNEL_SRC_DIR}/certs/x509.genkey"
+    fi
+
+    if test ."$SIGNING_KEY" != .''; then
+        install -d -m 0755 "${G_LINUX_KERNEL_SRC_DIR}/certs/"
+        eval echo "$SIGNING_KEY" |
+            base64 -d - >"${G_LINUX_KERNEL_SRC_DIR}/certs/signing_key.pem"
+    fi
+
+    if test ."$G_BCM_FW_GIT" != .''; then
         # get bcm firmware repository
         if (( $(ls "$G_BCM_FW_SRC_DIR"  2>/dev/null | wc -l) == 0 )); then
             pr_info "Get bcmhd firmware repository"
@@ -917,7 +929,7 @@ cmd_make_deploy ()
         fi
     fi
 
-    if test ! -z "$G_IMXBOOT_GIT"; then
+    if test ."$G_IMXBOOT_GIT" != .''; then
         # get IMXBoot Source repository
         if (( $(ls "$G_IMXBOOT_SRC_DIR"  2>/dev/null | wc -l) == 0 )); then
             pr_info "Get imx-boot"
@@ -957,7 +969,7 @@ cmd_make_rootfs ()
     fi
 
     # make bcm firmwares
-    if test ! -z "$G_BCM_FW_GIT"; then
+    if test ."$G_BCM_FW_GIT" != .''; then
         make_bcm_fw "$G_BCM_FW_SRC_DIR" "$G_ROOTFS_DIR"
     fi
 
@@ -999,7 +1011,7 @@ cmd_make_recoveryfs ()
         fi
 
         # make bcm firmwares
-        if test ! -z "$G_BCM_FW_GIT"; then
+        if test ."$G_BCM_FW_GIT" != .''; then
             make_bcm_fw "$G_BCM_FW_SRC_DIR" "$G_RECOVERYFS_DIR"
         fi
     fi

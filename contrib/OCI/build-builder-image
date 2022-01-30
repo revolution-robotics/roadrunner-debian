@@ -2,7 +2,7 @@
 #
 # @(#) build-builder-image
 #
-# Copyright © 2022 Revolution Robotics, Inc.
+# Copyright © 2021,2022 Revolution Robotics, Inc.
 #
 : ${AWK:='/usr/bin/gawk'}
 : ${BUILDAH:='/usr/bin/buildah'}
@@ -146,7 +146,8 @@ build-builder ()
     local tag=$2
     local name=$3
     local build_script=$4
-    # local kernel_version=$5
+    local client=$5
+    # local kernel_version=$6
 
     # local old_image_id=$($SUDO $BUILDAH images -n --filter=reference="localhost/${name}" --format="{{.ID}}")
 
@@ -279,9 +280,14 @@ EOS
         #      "${vendor_path}/resources/${build_script}-${kernel_version}" |
     #     $SUDO $TEE "${mount_point}/root/${build_script}" >/dev/null
     # $SUDO $CHMOD 0755 "${mount_point}/root/${build_script}"
+    printf -v quoted_x509_genkey '%q' "$(get-secret X509_GENKEY_${client})"
+    printf -v quoted_signing_key '%q' "$(get-secret SIGNING_KEY_${client})"
+
     $SED -e "s;@GW_IPV4@;$(get-external-ip);"  \
          -e "s;@CA_URL@;$(get-secret CA_URL);" \
          -e "s;@CA_FINGERPRINT@;$(get-secret CA_FINGERPRINT);" \
+         -e "s;@X509_GENKEY@;${quoted_x509_genkey};" \
+         -e "s;@SIGNING_KEY@;${quoted_signing_key};" \
          "$build_script" |
         $SUDO tee "${mount_point}/root/${build_script##*/}" >/dev/null
     $SUDO $CHMOD 0755 "${mount_point}/root/${build_script}"
@@ -307,8 +313,10 @@ reset-window-title ()
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare script=$(readlink -e "$0")
-    declare machine=${1:-'revo-roadrunner-mx7'}
-    declare distribution=${2:-'debian'}
+
+    declare client=${1:-'BW'}
+    declare distribution=${3:-'debian'}
+    declare machine=${2:-'revo-roadrunner-mx7'}
 
 
     declare script_name=${script##*/}
@@ -324,7 +332,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
 
     builder_id=$(
         build-builder "$builder_image" "$builder_tag" "$builder_name" \
-                      "$build_script" "$kernel_version"
+                      "$build_script" "$client" "$kernel_version"
               ) || exit $?
 
     if test ."$builder_id" = .''; then
