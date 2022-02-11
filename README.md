@@ -40,8 +40,8 @@ Import a Debian GPG-signing key to verify repository integrity:
 
 ```shell
 curl -L https://ftp-master.debian.org/keys/release-11.asc |
-    sudo gpg --import --no-default-keyring \
-         --keyring /usr/share/keyrings/debian-bullseye-release.gpg
+    gpg --dearmor |
+    sudo tee /usr/share/keyrings/debian-bullseye-release.gpg >/dev/null
 ```
 
 ## Fetch build suite and kernel sources
