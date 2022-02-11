@@ -31,6 +31,7 @@
 get-current-tag ()
 {
     local uri=$1
+    local allow_rc=$2
 
     # GIT output format:
     #     f8bc862f1f40000864555374c08f59670f2cf6b9	refs/tags/v0.14.2
@@ -41,19 +42,28 @@ get-current-tag ()
     # After filtering and sorting:
     #     v0.14.2
     #     v0.14.3
-    $GIT ls-remote --tags "$uri" |
-        # $GREP -v -- '-rc[-.0-9]*' |
-        $SED 's;.*refs/tags/;;' |
-        $SORT --version-sort -k1.2 |
-        $TAIL -1
+
+    if ."$allow_rc" != .'false'; then
+        $GIT ls-remote --tags "$uri" |
+            $SED 's;.*refs/tags/;;' |
+            $SORT --version-sort -k1.2 |
+            $TAIL -1
+    else
+        $GIT ls-remote --tags "$uri" |
+            $GREP -v -- '-rc[-.0-9]*' |
+            $SED 's;.*refs/tags/;;' |
+            $SORT --version-sort -k1.2 |
+            $TAIL -1
+    fi
 }
 
 fetch-and-install-step-pkg ()
 {
     local uri=$1
+    local allow_rc=$2
 
     local pkg
-    local tag=$(get-current-tag "$uri")
+    local tag=$(get-current-tag "$uri" "$allow_rc")
     local extension=${uri##*/}
     local machine=amd64
 
@@ -82,6 +92,13 @@ fetch-and-install-step-pkg ()
     $CURL -o "${tmpdir}/${pkg}" -LC - \
           "${uri}/releases/download/${tag}/${pkg}"
 
+    local step_ca_enabled=false
+
+    if systemctl is-enabled step-ca &>/dev/null; then
+        step_ca_enabled=true
+        systemctl stop step-ca
+    fi
+
     if test ! -f /etc/debian_version -o ."$machine" != .'x86_64'; then
         $TAR -C "$tmpdir" --strip-components=1 -zxf "${tmpdir}/${pkg}"
         $SUDO $INSTALL -m 0755 "${tmpdir}/bin"/* /usr/bin/
@@ -95,6 +112,10 @@ fetch-and-install-step-pkg ()
 
     $RM -rf "$tmpdir"
     trap - 0 1 2 15
+
+    if $step_ca_enabled; then
+        systemctl start step-ca
+    fi
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
@@ -102,11 +123,13 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare cli_uri=https://github.com/smallstep/cli
     declare certificates_uri=https://github.com/smallstep/certificates
 
+    declare allow_rc=${1:-'false'}
+
     if (( UID != 0 )); then
         echo "${script_name}: Must be run as user \`root'." >&2
         exit 1
     fi
 
-    fetch-and-install-step-pkg "$cli_uri"
-    fetch-and-install-step-pkg "$certificates_uri"
+    fetch-and-install-step-pkg "$cli_uri" "$allow_rc"
+    fetch-and-install-step-pkg "$certificates_uri" "$allow_rc"
 fi
