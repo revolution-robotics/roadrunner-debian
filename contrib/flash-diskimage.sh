@@ -2,44 +2,65 @@
 #
 # @(#) flash-diskimage
 #
-# Copyright © 2020 Revolution Robotics, Inc.
+# Copyright © 2022 Revolution Robotics, Inc.
 #
-declare -r SCRIPT_NAME=${0##*/}
-
-declare COMPRESSION_SUFFIX='{bz2,gz,img,lz,lzma,lzo,xz,zip}'
-declare ZCAT='gzip -dc'
-
-declare PARAM_DEBUG=0
-declare PARAM_OUTPUT_DIR=$PWD
-declare PARAM_BLOCK_DEVICE=na
-declare PARAM_DISK_IMAGE=na
-declare BYTES_WRITTEN=na
-declare BYTES_VERIFIED=na
-
+# This script is intended for flashing a USB drive with a bootable
+# image file.
+#
+# In addition to requiring a recent version of the Bash shell
+# interpreter, for identifying removable devices, it depends on
+# GNU/Linux sysfs, udisksctl and gdbus.
+#
 usage ()
 {
     cat <<EOF
-Usage: $SCRIPT_NAME OPTIONS
+Usage: $script_name OPTIONS
 Options:
-  -h|--help   -- print this help, then exit
-  -d|--dev    -- removable block device to flash to (e.g., -d /dev/sde)
-  -i|--image diskimage
-              -- disk image to flash from (see also option -o)
-  -o|--output -- directory of disk image(s) (default: "$PARAM_OUTPUT_DIR")
+  -h|--help   - Print this help, then exit.
+  -b|--block-device DEVICE
+              - Flash to removable block DEVICE (e.g., -d /dev/sdh).
+  -d|--directory DIRECTORY
+              - Select image from DIRECTORY (default: $PWD).
+  -f|--file IMAGE
+              - Flash file IMAGE (see also option -d).
+  -v|--verbose
+              - Debug script.
+  -x|--ex-dos-mbr
+              - Include in selection lists non-USB boot images.
 
-Example:
-  flash image to SD card:           ./${SCRIPT_NAME}
+Examples:
+  To flash an image in the current directory to a removable block
+  device, use:
+
+    ${script_name}
+
+  To flash a specific image, \`/path/to/file.iso', to a specific block
+  device, \`/dev/sdh', use:
+
+    ${script_name} /path/to/file.iso /dev/sdh
+
+  When selecting from multiple images to flash, this script lists, by
+  default, only those that can produce a bootable USB drive. In
+  particular, ISO 9660 images that don't have a DOS/MBR boot sector
+  are omitted. To include these images in the selection list, invoke
+  the script with option \`-x', e.g.:
+
+    ${script_name} -x
+
+  Alternatively, any file can be flashed by providing its path as in
+  the example above.
+
 EOF
 }
 
 pr-error ()
 {
-    echo "E: $@"
+    echo "Error: $@" >&2
 }
 
 pr-info ()
 {
-    echo "I: $@"
+    echo "$@" >&2
 }
 
 get-range ()
@@ -88,48 +109,69 @@ select-from-list ()
 
 get-decompressor ()
 {
-    local archive=$1
+    local image_file=$1
 
-    case $(file "$archive") in
+    case $(file "$image_file") in
         *bzip2*)
-            ZCAT='bzip2 -dc'
+            image_cat='bzip2 -dc'
             ;;
         *lzip*)
-            ZCAT='lzip -dc'
+            image_cat='lzip -dc'
             ;;
         *LZMA*)
-            ZCAT='lzma -dc'
+            image_cat='lzma -dc'
             ;;
         *lzop*)
-            ZCAT='lzop -dc'
+            image_cat='lzop -dc'
             ;;
         *gzip*)
-            ZCAT='gzip -dc'
+            image_cat='gzip -dc'
             ;;
         *XZ*)
-            ZCAT='xz -dc'
+            image_cat='xz -dc'
             ;;
         *Zip*)
-            ZCAT='unzip -p'
+            image_cat='unzip -p'
             ;;
         *'ISO 9660'*|*'DOS/MBR boot sector'*)
-            ZCAT=cat
+            image_cat=cat
+            ;;
+        *)
+            image_cat=unknown
             ;;
     esac
+
+    if test ."$image_cat" = .'unknown'; then
+        pr-error "${image_file}: Unrecognized image"
+        return 1
+    fi
+
+    echo "$image_cat"
 }
 
 get-disk-images ()
 {
+    local image_directory=$1
+    local ex_dos_mbr=$2
+
+    local image_suffixes='{bz2,gz,img,iso,lz,lzma,lzo,xz,zip}'
+
     local -a archives
     local archive
-    local kind
+    local image_cat
 
-    mapfile -t archives < <(eval ls "${PARAM_OUTPUT_DIR}/"*.$COMPRESSION_SUFFIX 2>/dev/null)
+    mapfile -t archives < <(eval ls "${image_directory}/"*.${image_suffixes} 2>/dev/null)
+
     for archive in "${archives[@]}"; do
-        get-decompressor "$archive"
-        case $($ZCAT "$archive" | file -) in
-            *DOS/MBR*)
+        image_cat=$(get-decompressor "$archive")
+        case $($image_cat "$archive" | file -) in
+            *'DOS/MBR boot sector'*)
                 echo "$archive"
+                ;;
+            *'ISO 9660'*'bootable'*)
+                if $ex_dos_mbr; then
+                    echo "$archive"
+                fi
                 ;;
         esac
     done
@@ -160,9 +202,12 @@ get-removable-devices ()
 
 select-disk-image ()
 {
-    declare -a disk_images
+    local image_directory=$1
+    local ex_dos_mbr=$2
 
-    mapfile -t disk_images < <(get-disk-images)
+    local -a disk_images
+
+    mapfile -t disk_images < <(get-disk-images "$image_directory" "$ex_dos_mbr")
     select-from-list disk_images 'Please choose an image to flash from:'
 }
 
@@ -219,159 +264,229 @@ is-removable-device ()
     fi
 }
 
-select-media ()
+get-image-file ()
 {
+    local image_directory=$1
+    local image_file=$2
+    local ex_dos_mbr=$3
+
+    if test ! -f "$image_file"; then
+        if test -f "${image_directory}/${image_file}"; then
+            image_file=${image_directory}/${image_file}
+        else
+            image_file=$(select-disk-image "$image_directory" "$ex_dos_mbr")
+        fi
+
+        if test ! -f "$image_file"; then
+            pr-error "${image_file}: Image not available"
+            return 1
+        fi
+    fi
+
+    echo "$image_file"
+}
+
+get-block-device ()
+{
+    local block_device=$1
+
     local total_size
     local total_size_bytes
     local total_size_gib
     local -i i
 
-    if test ! -f "$PARAM_DISK_IMAGE"; then
-        if test -f "${PARAM_OUTPUT_DIR}/${PARAM_DISK_IMAGE}"; then
-            PARAM_DISK_IMAGE=${PARAM_OUTPUT_DIR}/${PARAM_DISK_IMAGE}
-        else
-            PARAM_DISK_IMAGE=$(select-disk-image)
-        fi
-        if test ! -f "$PARAM_DISK_IMAGE"; then
-            pr-error "Image not available"
-            exit 1
+    if ! is-removable-device "$block_device" >/dev/null 2>&1; then
+        block_device=$(select-removable-device | awk '{ print $1 }')
+
+        if test ! -b "$block_device"; then
+            pr-error "${block_device}: Device not available"
+            return 1
         fi
     fi
 
-    if ! is-removable-device "$PARAM_BLOCK_DEVICE" >/dev/null 2>&1; then
-        PARAM_BLOCK_DEVICE=$(select-removable-device | awk '{ print $1 }')
-        if test ! -b "$PARAM_BLOCK_DEVICE"; then
-            pr-error "Device not available"
-            exit 1
-        fi
-    fi
+    echo "$block_device"
+}
 
-    total_size=$(sudo blockdev --getsz "$PARAM_BLOCK_DEVICE")
+verify-media ()
+{
+    local image_file=$1
+    local block_device=$2
+
+    total_size=$(sudo blockdev --getsz "$block_device")
     total_size_bytes=$(( total_size * 512 ))
     total_size_gib=$(perl -e "printf '%.1f', $total_size_bytes / 1024 ** 3")
 
-    echo '============================================='
-    pr-info "Image: ${PARAM_DISK_IMAGE##*/}"
-    pr-info "Device: $PARAM_BLOCK_DEVICE, $total_size_gib GiB"
-    echo '============================================='
-    read -p "Press Enter to continue"
+    echo '═════════════════════════════════════════════' >&2
+    pr-info "Image: ${image_file##*/}"
+    pr-info "Device: $block_device, $total_size_gib GiB"
+    echo '─────────────────────────────────────────────' >&2
+    read -t 30 -p "Press Enter to continue... "
+    local -i status=$?
+
+    if (( status != 0 )); then
+       echo >&2
+       pr-error "Timed out waiting for response"
+       return $status
+    fi
 }
 
-flash-diskimage ()
+flash-image ()
 {
+    local image_file=$1
+    local image_cat=$2
+    local block_device=$3
+
     pr-info "Flashing image to device..."
 
     for (( i=0; i < 10; i++ )); do
-        if test -n "$(findmnt -n "${PARAM_BLOCK_DEVICE}${i}")"; then
-            sudo umount -f "${PARAM_BLOCK_DEVICE}${i}"
+        if test -n "$(findmnt -n "${block_device}${i}")"; then
+            sudo umount -f "${block_device}${i}"
         fi
     done
 
-    errfile=$(mktemp "/tmp/${SCRIPT_NAME}.XXXXX")
+    errfile=$(mktemp "/tmp/${script_name}.XXXXX")
     trap 'rm -f "$errfile"; exit' 0 1 2 15 RETURN
 
-    if ! $ZCAT "$PARAM_DISK_IMAGE" |
-            sudo dd of="$PARAM_BLOCK_DEVICE" bs=1M 2>"$errfile"; then
+    if ! $image_cat "$image_file" |
+            sudo dd of="$block_device" bs=1M 2>"$errfile"; then
         pr-error "Flash did not complete successfully."
         echo "*** Please check media and try again! ***"
+        return 1
     fi
 
-
-    BYTES_WRITTEN=$(awk '/bytes/ { print $1 }' "$errfile")
+    local bytes_written=$(awk '/bytes/ { print $1 }' "$errfile")
 
     rm -f "$errfile"
     trap - 0 1 2 15 RETURN
+
+    echo "$bytes_written"
 }
 
 verify-diskimage ()
 {
+    local image_file=$1
+    local block_device=$2
+    local -i bytes_written=$3
+
     pr-info "Verifying device against image..."
 
-    errfile=$(mktemp "/tmp/${SCRIPT_NAME}.XXXXX")
+    errfile=$(mktemp "/tmp/${script_name}.XXXXX")
     trap 'rm -f "$errfile"; exit' 0 1 2 15 RETURN
 
-    $ZCAT "$PARAM_DISK_IMAGE" |
-        sudo cmp -n "$BYTES_WRITTEN" "$PARAM_BLOCK_DEVICE" - >"$errfile" 2>&1
+    $image_cat "$image_file" |
+        sudo cmp -n "$bytes_written" "$block_device" - >"$errfile" 2>&1
 
-    BYTES_VERIFIED=$(sed -nE -e 's/.*differ: byte +([0-9]+).*$/\1/p' "$errfile")
-    if test ! -s "$errfile"; then
-        pr-info "Compared: $BYTES_WRITTEN bytes"
-        pr-info 'Device successfully verified'
-    else
-        pr-error "Device and image differ at byte: $BYTES_VERIFIED"
+    local bytes_verified=$(sed -nE -e 's/.*differ: byte +([0-9]+).*$/\1/p' "$errfile")
+
+    if test -s "$errfile"; then
+        pr-error "Device and image differ at byte: ${bytes_verified}"
+        return 1
     fi
 
     rm -f "$errfile"
     trap - 0 1 2 15 RETURN
+
+    pr-info "Compared: ${bytes_written} bytes"
+    pr-info 'Device successfully verified'
 }
 
-## parse input arguments ##
-declare -r SHORTOPTS=d:i:o:h
-declare -r LONGOPTS=debug,dev:,image:,output:,help
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare -r script_name=${0##*/}
 
-declare ARGS=$(
-    getopt -s bash --options "$SHORTOPTS"  \
-           --longoptions "$LONGOPTS" --name "$SCRIPT_NAME" -- "$@"
-        )
+    declare block_device
+    declare image_cat
+    declare image_directory=$PWD
+    declare image_file
+    declare verbose=false
+    declare ex_dos_mbr=false
 
-eval set -- "$ARGS"
+    ## parse input arguments ##
+    declare -r short_opts=b:d:f:hvx
+    declare -r long_opts=block-device:,directory:,file:,help,verbose,ex-dos-mbr
 
-while true; do
-    case "$1" in
-        --debug)
-            PARAM_DEBUG=1
+    declare ARGS=$(
+        getopt -s bash --options "$short_opts"  \
+               --longoptions "$long_opts" --name "$script_name" -- "$@"
+            )
+
+    eval set -- "$ARGS"
+
+    while true; do
+        case "$1" in
+            -b|--block-device) # flash disk block device
+                shift
+                block_device=$1
+
+                if test -b "$block_device"; then
+                    pr-error "${block_device}: No such file or directory"
+                    exit 1
+                fi
+                ;;
+            -d|--directory) # image directory
+                shift
+                image_directory=$1
+
+                if test ! -d "$image_directory"; then
+                    pr-error "${image_directory}: No such file or directory"
+                    exit 1
+                fi
+                ;;
+            -f|--file) # image file
+                shift
+                image_file=$1
+
+                if test ! -f "$image_file"; then
+                    pr-error "${image_file}: No such file or directory"
+                    exit 1
+                fi
+                ;;
+            -h|--help) # get help
+                usage
+                exit 0
+                ;;
+            -v|--verbose)
+                verbose=true
+                ;;
+            -x|--ex-dos-mbr)
+                ex_dos_mbr=true
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *) # Process non-option arguments below...
+                break
+                ;;
+        esac
+        shift
+    done
+
+    # enable trace option in debug mode
+    if $verbose; then
+        echo "Debug mode enabled!"
+        set -x
+    fi
+
+    case $# in
+        0)
+            : Nothing to do
             ;;
-        -d|--dev) # SD card block device
-            shift
-            if test -e "$1"; then
-                PARAM_BLOCK_DEVICE=$1
-            fi
-            ;;
-        -h|--help) # get help
-            usage
-            exit 0
-            ;;
-        -i|--image) # Disk image
-            shift
-            if test -e "$1"; then
-                PARAM_DISK_IMAGE=$1
-            fi
-            ;;
-        -o|--output) # select output dir
-            shift
-            PARAM_OUTPUT_DIR=$1
-            ;;
-        --)
-            shift
-            break
+        1)
+            image_file=$1
             ;;
         *)
-            break
+            image_file=$1
+            block_device=$2
             ;;
     esac
-    shift
-done
 
-# enable trace option in debug mode
-if test ."$PARAM_DEBUG" = .'1'; then
-    echo "Debug mode enabled!"
-    set -x
+    image_file=$(get-image-file "$image_directory" "$image_file" "$ex_dos_mbr") || exit $?
+    image_cat=$(get-decompressor "$image_file") || exit $?
+    block_device=$(get-block-device "$block_device") || exit $?
+    verify-media "$image_file" "$block_device" || exit $?
+
+    declare -i bytes_written
+
+    bytes_written=$(flash-image "$image_file" "$image_cat" "$block_device") || exit $?
+    verify-diskimage "$image_file" "$block_device" "$bytes_written" || exit $?
 fi
-
-case $# in
-    0)
-        : Nothing to do
-        ;;
-    1)
-        PARAM_DISK_IMAGE=$1
-        ;;
-    *)
-        PARAM_DISK_IMAGE=$1
-        PARAM_BLOCK_DEVICE=$2
-        ;;
-esac
-
-select-media
-get-decompressor "$PARAM_DISK_IMAGE"
-flash-diskimage
-verify-diskimage
