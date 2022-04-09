@@ -43,7 +43,7 @@ get-current-tag ()
     #     v0.14.2
     #     v0.14.3
 
-    if ."$allow_rc" != .'false'; then
+    if test ."$allow_rc" != .'false'; then
         $GIT ls-remote --tags "$uri" |
             $SED 's;.*refs/tags/;;' |
             $SORT --version-sort -k1.2 |
