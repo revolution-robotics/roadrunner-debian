@@ -194,9 +194,13 @@ main(int argc, char *argv[])
     case 'd':                   /* Set RS-485 device. */
       device = strndup (optarg, DEVICE_MAX);
 
-      /* Silently exit if device cannot be accessed. */
-      if (access(device, F_OK | R_OK | W_OK) != 0)
-        exit(0);
+      if (access(device, F_OK) != 0) {
+        fprintf (stderr, "%s: No such file or directory\n", device);
+        exit(1);
+      } else if (access(device, R_OK | W_OK) != 0) {
+        fprintf (stderr, "%s: Permission denied\n", device);
+        exit(1);
+      }
       break;
     case 'h':                   /* Show help, then exit. */
       usage (pgm);
@@ -236,7 +240,7 @@ main(int argc, char *argv[])
     }
 
   /* Open serial device, e.g., `/dev/ttymxc1' */
-  if ((fd = open (device, O_RDWR)) < 0)
+  if ((fd = open (device, status ? O_RDONLY : O_RDWR)) < 0)
     {
       fprintf (stderr, "%s\n", strerror(errno));
       exit (1);
