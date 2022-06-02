@@ -4,7 +4,7 @@ After=multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart=ln -s opt/images/Debian /system-update
+ExecStart=/usr/bin/ln -s opt/images/Debian /system-update
 
 [Install]
 WantedBy=multi-user.target
