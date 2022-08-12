@@ -1,0 +1,16 @@
+[Unit]
+Description=Flash eMMC from USB
+DefaultDependencies=no
+Requires=sysinit.target
+After=sysinit.target
+After=system-update-pre.target
+Before=system-update.target
+ConditionKernelCommandLine=flash_emmc_from_usb
+ConditionPathExists=|/system-update
+ConditionPathIsSymbolicLink=|/system-update
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/flash-emmc -q
+ExecStartPost=/bin/systemctl reboot
+FailureAction=reboot

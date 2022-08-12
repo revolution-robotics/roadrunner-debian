@@ -1,0 +1,10 @@
+[Unit]
+Description=Allow USB boot after post-recovery boot.
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ln -s opt/images/Debian /system-update
+
+[Install]
+WantedBy=multi-user.target

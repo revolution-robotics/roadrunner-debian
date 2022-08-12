@@ -10,7 +10,7 @@ set -e -o pipefail
 
 declare -r SCRIPT_NAME=${0##*/}
 
-: ${MACHINE:='revo-roadrunner-mx7'}
+: ${MACHINE:='revo-roadrunner-mx8m'}
 
 # Build recoveryfs from rootfs?
 # Before enabling this, see: contrib/express-recoveryfs/README.md.
@@ -31,39 +31,31 @@ declare -r ZIP_SUFFIX=gz
 declare -r DEF_DEBIAN_MIRROR=http://deb.debian.org/debian/
 # declare -r DEB_RELEASE=buster
 declare -r DEB_RELEASE=bullseye
-declare -r DEF_ROOTFS_TARBALL_NAME=rootfs.tar.gz
-declare -r DEF_RECOVERYFS_TARBALL_NAME=recoveryfs.tar.gz
-declare -r DEF_USBFS_TARBALL_NAME=usbfs.tar.gz
-declare -r DEF_PROVISIONFS_TARBALL_NAME=provisionfs.tar.gz
+declare -r DEF_ROOTFS_TARBALL_NAME=mx8m_rootfs.tar.gz
+declare -r DEF_RECOVERYFS_TARBALL_NAME=mx8m_recoveryfs.tar.gz
+declare -r DEF_USBFS_TARBALL_NAME=mx8m_usbfs.tar.gz
+declare -r DEF_PROVISIONFS_TARBALL_NAME=mx8m_provisionfs.tar.gz
 
 # base paths
 declare -r CHROOTFS=${ABSOLUTE_DIRECTORY}/contrib/chrootfs
 declare -r DEF_BUILDENV=$ABSOLUTE_DIRECTORY
-declare -r DEF_SRC_DIR=${DEF_BUILDENV}/src
-declare -r G_ROOTFS_DIR=${DEF_BUILDENV}/rootfs
-declare -r G_RECOVERYFS_DIR=${DEF_BUILDENV}/recoveryfs
-declare -r G_USBFS_DIR=${DEF_BUILDENV}/usbfs
-declare -r G_PROVISIONFS_DIR=${DEF_BUILDENV}/provisionfs
+declare -r DEF_SRC_DIR=${DEF_BUILDENV}/mx8m_src
+declare -r G_ROOTFS_DIR=${DEF_BUILDENV}/mx8m_rootfs
+declare -r G_RECOVERYFS_DIR=${DEF_BUILDENV}/mx8m_recoveryfs
+declare -r G_USBFS_DIR=${DEF_BUILDENV}/mx8m_usbfs
+declare -r G_PROVISIONFS_DIR=${DEF_BUILDENV}/mx8m_provisionfs
 declare -r G_TMP_DIR=${DEF_BUILDENV}/tmp
-# declare -r G_TOOLS_PATH=${DEF_BUILDENV}/toolchain
 declare G_TOOLS_PATH=/usr/bin
-if test ."$MACHINE" = .'revo-roadrunner-mx7'; then
+if test ."$MACHINE" = .'revo-roadrunner-mx7' -o ."$MACHINE" = .'revo-roadrunner-mx8m'; then
     declare -r G_VENDOR_PATH=${DEF_BUILDENV}/revo
 else
     declare -r G_VENDOR_PATH=${DEF_BUILDENV}/variscite
 fi
 
 #64 bit CROSS_COMPILER config and paths
-declare -r G_CROSS_COMPILER_64BIT_NAME=aarch64--glibc--stable-2020.02-2
-declare -r G_CROSS_COMPILER_ARCHIVE_64BIT=${G_CROSS_COMPILER_64BIT_NAME}.tar.bz2
-declare -r G_EXT_CROSS_64BIT_COMPILER_LINK=https://toolchains.bootlin.com/downloads/releases/toolchains/aarch64/tarballs/${G_CROSS_COMPILER_ARCHIVE_64BIT}
-declare -r G_CROSS_COMPILER_64BIT_PREFIX=aarch64-buildroot-linux-gnu-
+declare -r G_CROSS_COMPILER_64BIT_PREFIX=aarch64-linux-gnu-
 
 #32 bit CROSS_COMPILER config and paths
-# declare -r G_CROSS_COMPILER_32BIT_NAME=armv7-eabihf--glibc--stable-2020.02-2
-# declare -r G_CROSS_COMPILER_ARCHIVE_32BIT=${G_CROSS_COMPILER_32BIT_NAME}.tar.bz2
-# declare -r G_EXT_CROSS_32BIT_COMPILER_LINK=https://toolchains.bootlin.com/downloads/releases/toolchains/armv7-eabihf/tarballs/${G_CROSS_COMPILER_ARCHIVE_32BIT}
-# declare -r G_CROSS_COMPILER_32BIT_PREFIX=arm-buildroot-linux-gnueabihf-
 declare -r G_CROSS_COMPILER_32BIT_PREFIX=arm-linux-gnueabihf-
 
 declare G_CROSS_COMPILER_JOPTION="-j $(nproc)"
@@ -83,7 +75,7 @@ export LC_ALL=${LOCALES%% *}
 
 #### Input params ####
 declare PARAM_DEB_LOCAL_MIRROR=$DEF_DEBIAN_MIRROR
-declare PARAM_OUTPUT_DIR=${DEF_BUILDENV}/output
+declare PARAM_OUTPUT_DIR=${DEF_BUILDENV}/mx8m_output
 declare PARAM_DEBUG=0
 declare PARAM_CMD=''
 declare PARAM_BLOCK_DEVICE=na
@@ -157,21 +149,12 @@ source "${G_VENDOR_PATH}/${MACHINE}/${MACHINE}.sh"
 
 # Setup cross compiler path, name, kernel dtb path, kernel image type, helper scripts
 if test ."$ARCH_CPU" = .'64BIT'; then
-    declare G_CROSS_COMPILER_NAME=$G_CROSS_COMPILER_64BIT_NAME
-    declare G_EXT_CROSS_COMPILER_LINK=$G_EXT_CROSS_64BIT_COMPILER_LINK
-    declare G_CROSS_COMPILER_ARCHIVE=$G_CROSS_COMPILER_ARCHIVE_64BIT
     declare G_CROSS_COMPILER_PREFIX=$G_CROSS_COMPILER_64BIT_PREFIX
     declare ARCH_ARGS=arm64
-    declare BUILD_IMAGE_TYPE=Image.gz
-    declare KERNEL_BOOT_IMAGE_SRC=arch/arm64/boot/
-    declare KERNEL_DTB_IMAGE_PATH=arch/arm64/boot/dts/freescale/
     # Include weston backend rootfs helper
-    source "${G_VENDOR_PATH}/weston_rootfs.sh"
+    source "${G_VENDOR_PATH}/mx8m_rootfs.sh"
 elif test ."$ARCH_CPU" = .'32BIT'; then
     declare G_SCRIPT_SRC_DIR="${G_VENDOR_PATH}/${MACHINE}/u-boot"
-    declare G_CROSS_COMPILER_NAME=$G_CROSS_COMPILER_32BIT_NAME
-    declare G_EXT_CROSS_COMPILER_LINK=$G_EXT_CROSS_32BIT_COMPILER_LINK
-    declare G_CROSS_COMPILER_ARCHIVE=$G_CROSS_COMPILER_ARCHIVE_32BIT
     declare G_CROSS_COMPILER_PREFIX=$G_CROSS_COMPILER_32BIT_PREFIX
     declare ARCH_ARGS=arm
     # Include backend rootfs and recoveryfs helpers
@@ -185,7 +168,6 @@ else
     exit 1
 fi
 
-# declare G_CROSS_COMPILER_PATH=${G_TOOLS_PATH}/${G_CROSS_COMPILER_NAME}/bin
 declare G_CROSS_COMPILER_PATH=${G_TOOLS_PATH}
 
 declare -r G_IMAGES_DIR=opt/images/Debian
@@ -964,7 +946,7 @@ cmd_make_rootfs ()
         )
     else
         (
-            make_debian_weston_rootfs "$G_ROOTFS_DIR"
+            make_debian_mx8m_rootfs "$G_ROOTFS_DIR"
         )
     fi
 

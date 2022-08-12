@@ -1,0 +1,14 @@
+[Unit]
+Description=Regenerate SSH host keys
+Wants=system-update-pre.target hostname-commit.service
+After=hostname-commit.service
+Before=system-update-pre.target ssh.service
+
+[Service]
+Type=oneshot
+ExecStartPre=-/bin/sh -c "/bin/rm -f /etc/ssh/ssh_host_*_key*"
+ExecStart=/usr/bin/ssh-keygen -A
+ExecStartPost=/bin/systemctl disable regenerate-ssh-host-keys
+
+[Install]
+WantedBy=multi-user.target

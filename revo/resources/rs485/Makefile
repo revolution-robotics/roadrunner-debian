@@ -5,7 +5,7 @@ ARCH = $(shell cc -dumpmachine | cut -d- -f1)
 ifeq ($(ARCH),arm)
 CC = cc
 else
-CC = arm-linux-gnueabihf-gcc
+CC = aarch64-linux-gnu-gcc
 endif
 
 

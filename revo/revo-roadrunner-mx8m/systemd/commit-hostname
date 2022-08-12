@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+#
+# @(#) commit-hostname
+#
+# Copyright © 2021 Revolution Robotics, Inc.
+#
+# This script generates and sets a unique hostname. It is intended to
+# be run by hostname-commit.service. The following files are affected:
+#
+#     /etc/hostname
+#     /etc/hosts
+#     /etc/mailname
+#
+# Following the hostname update, SSH host keys and TLS certificates
+# are regenerated as well.
+#
+# See also `update-hostname' for updating a live system.
+#
+# NB: A hostname is generated from the MAC of the first enumerated
+#     physical interface, which is identified by its queuing
+#     disciple (mq). But queueing disciples must be loaded, so upon
+#     systemd reaching network.target, a brief delay must be added
+#     before running this script.
+#
+: ${CUT:='/usr/bin/cut'}
+: ${GREP:='/bin/grep'}
+: ${HOSTNAMECTL:='/usr/bin/hostnamectl'}
+: ${IP:='/bin/ip'}
+: ${OPENSSL:='/usr/bin/openssl'}
+: ${RM:='/bin/rm'}
+: ${SED:='/bin/sed'}
+: ${SSH_KEYGEN:='/usr/bin/ssh-keygen'}
+: ${TLS_GENERATE_SELF_SIGNED:='/usr/sbin/tls-generate-self-signed'}
+
+get-hashed-mac-prefix ()
+{
+    $IP -o link show |
+        $SED -nE -e '/qdisc mq/{s/.*ether ([^ ]*) .*$/\1/p;q}' |
+        $OPENSSL dgst -r -sha256 |
+        $CUT -c1-6
+}
+
+update-hostnames ()
+{
+    local hn=$1
+
+    $HOSTNAMECTL  --static --transient --pretty set-hostname "$hn"
+}
+
+update-hosts ()
+{
+    local hn=$1
+
+    if $GREP -q '^127.0.1.1' /etc/hosts; then
+        $SED -i -e '/^127.0.0.1/s;\([[:space:]]\{1,\}\)[^[:space:]].*;\1localhost;' \
+             -e '/^127.0.1.1/s;\([[:space:]]\{1,\}\)[^[:space:]].*;\1'"$hn"';' \
+             /etc/hosts
+    else
+        $SED -i -e '/^127.0.0.1/s;\([[:space:]]\{1,\}\)[^[:space:]].*;\1localhost;' \
+             -e '/^127.0.0.1/a 127.0.1.1	'"$hn" \
+             /etc/hosts
+    fi
+}
+
+update-mailname ()
+{
+    local hn=$1
+
+    echo "$hn" >/etc/mailname
+}
+
+ssh-generate-keys ()
+{
+    $RM -f /etc/ssh/ssh_host_*_key*
+    $SSH_KEYGEN -A
+}
+
+declare hn=revoedge-$(get-hashed-mac-prefix)
+
+update-hostnames "$hn"
+update-hosts "$hn"
+update-mailname "$hn"
+
+# NB: Certificates must be regenerated last!
+ssh-generate-keys
+$TLS_GENERATE_SELF_SIGNED

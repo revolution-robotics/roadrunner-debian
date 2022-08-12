@@ -2,10 +2,10 @@ SRCS = $(wildcard *.c)
 OBJS = $(SRCS:.c=.o)
 ARCH = $(shell cc -dumpmachine | cut -d- -f1)
 
-ifeq ($(ARCH),arm)
+ifeq ($(ARCH),arm64)
 CC = cc
 else
-CC = arm-linux-gnueabihf-gcc
+CC = aarch64-linux-gnu-gcc
 endif
 
 %.o : %.c

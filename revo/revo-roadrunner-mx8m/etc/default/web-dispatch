@@ -1,0 +1,20 @@
+# HTTP port to listen on
+httpPort = 80
+
+# HTTPS port to listen on
+httpsPort = 443
+
+# Directory of default web page.
+www = /opt/revoedge/web-ui
+
+# URI of CGI trigger
+uri = /status.json
+
+# CGI path
+cgi = /opt/revoedge/user/hp_wp_ups/status.py
+
+# Public TLS certificate
+cert = /etc/web-dispatch/certs/self-signed.crt
+
+# Private TLS key
+key = /etc/web-dispatch/certs/self-signed.key

@@ -1,0 +1,12 @@
+[Unit]
+Description=Serial interface initialization
+After=network.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/default/serial
+ExecStart=/usr/bin/rs485 -d $SERIAL_DEVICE -m $ENABLE_RS485 $RS485_OPTIONS
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

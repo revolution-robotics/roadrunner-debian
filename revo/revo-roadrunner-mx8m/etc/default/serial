@@ -1,0 +1,10 @@
+# Serial configuration read by serial-init.service.
+
+# Serial device.
+SERIAL_DEVICE = /dev/ttymxc1
+
+# Use 1 (0) to enable (disable) RS-485 signaling on device.
+ENABLE_RS485  = 1
+
+# Uncomment to specify additon RS-485 settings (see output of `rs485 --help').
+RS485_OPTIONS = --receive-while-send=0

@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+#
+# @(#) recover-emmc-monitor
+#
+# This script monitors the chassis reset buttion. When the reset
+# button is depressed, the chassis (red) LEDs begin cycling on and
+# off. If the reset button is released within 10 seconds, then the
+# LEDs stop cycling and the script resumes monitoring. If the reset
+# button is depressed beyond the 10-second threshold, then the eMMC
+# recovery process begins. This is indicated by the chassis LEDs going
+# solid red for 5 seconds, after which a recovery request is written
+# to U-Boot's environment and the system reboots to the recovery file
+# system. Booting to the recovery file system initiates reflashing of
+# the eMMC BOOT and rootfs partitions.
+#
+# This scripts expects to be able to boot to the eMMC recovery
+# partition, so it is operational only if the root device is
+# /dev/mmcblk2. In particular, it is disabled when booting from SD or
+# a USB flash drive.
+#
+from threading import Thread, Event
+import os, re, selectors, signal, subprocess, sys, time
+
+eMMC_DEVICE = '/dev/mmcblk2'
+RECOVERY_PART = f'{eMMC_DEVICE}p3'
+
+class InitRecovery(Thread):
+    def __init__(self):
+        self.stop_event = Event()
+        self.sleep_interval = 0.5
+        self.grn_pwr_led = open('/sys/class/leds/pwr-green-led/brightness', 'w')
+        self.red_pwr_led = open('/sys/class/leds/pwr-red-led/brightness', 'w')
+        self.red_link_led = open('/sys/class/leds/link-red-led/brightness', 'w')
+        self.red_stat_led = open('/sys/class/leds/stat-red-led/brightness', 'w')
+        self.alarm_fired = False
+        self.signal_received = False
+        self.status = 1
+
+        Thread.__init__(self)
+
+    def boot_recoveryfs(self):
+        mount_point = '/media/recoveryfs'
+
+        subprocess.run(['mkdir', '-p',  f'{mount_point}'])
+        subprocess.run(['mount', f'{RECOVERY_PART}', f'{mount_point}'])
+        subprocess.run(['ln', '-sf',  'opt/images/Debian', f'{mount_point}/system-update'])
+        subprocess.run(['/usr/bin/fw_setenv', 'recovery_request', 'true'])
+        subprocess.run(['/bin/systemctl', 'reboot'])
+
+    def write(self, led, s):
+        led.write(s)
+        led.flush()
+
+    def run(self):
+        self.write(self.grn_pwr_led, '0')
+        while not self.stop_event.isSet():
+            self.write(self.red_pwr_led, '1')
+            self.write(self.red_link_led, '1')
+            self.write(self.red_stat_led, '1')
+            self.stop_event.wait(self.sleep_interval)
+            self.write(self.red_pwr_led, '0')
+            self.write(self.red_link_led, '0')
+            self.write(self.red_stat_led, '0')
+            self.stop_event.wait(self.sleep_interval)
+
+        if self.alarm_fired:
+            self.write(self.red_pwr_led, '1')
+            self.write(self.red_link_led, '1')
+            self.write(self.red_stat_led, '1')
+            time.sleep(5)
+            self.boot_recoveryfs()
+
+        self.write(self.red_pwr_led, '0')
+        self.write(self.red_link_led, '0')
+        self.write(self.red_stat_led, '0')
+        self.write(self.grn_pwr_led, '1')
+
+        if self.signal_received:
+            os._exit(0)
+
+    def signal_handler(self, signum, frame):
+        self.signal_received = True
+        if signum == signal.SIGALRM:
+            self.alarm_fired = True
+        self.stop()
+        if not self.is_alive():
+            os._exit(0)
+
+    def stop(self, timeout=None):
+        self.stop_event.set()
+
+
+def main():
+    BUTTON_DOWN = b'\x01'
+    BUTTON_UP = b'\x00'
+    BUFSZ = 32
+
+    root_device = subprocess.run([r"findmnt -n / | awk '{ print $2 }'"],
+                                 stdout=subprocess.PIPE,
+                                 shell=True).stdout.decode('utf-8').rstrip()
+
+    init_recovery = InitRecovery()
+    signal.signal(signal.SIGINT, init_recovery.signal_handler)
+    signal.signal(signal.SIGALRM, init_recovery.signal_handler)
+    eventfd = os.open('/dev/input/event1', os.O_RDONLY)
+    sel = selectors.DefaultSelector()
+    sel.register(eventfd, selectors.EVENT_READ, os.read)
+
+    while True:
+        events = sel.select()
+        for key, mask in events:
+            if key.fd == eventfd:
+                data = os.read(key.fd, BUFSZ)
+                if len(data) != BUFSZ or not re.match(eMMC_DEVICE, root_device):
+                    continue
+
+                if data[12:13] == BUTTON_DOWN:
+                    signal.alarm(10)
+                    init_recovery.start()
+
+                elif data[12:13] == BUTTON_UP:
+                    signal.alarm(0)
+                    if init_recovery.is_alive():
+                        init_recovery.stop()
+                        init_recovery.join()
+
+                    init_recovery = InitRecovery()
+                    signal.signal(signal.SIGINT, init_recovery.signal_handler)
+                    signal.signal(signal.SIGALRM, init_recovery.signal_handler)
+
+if __name__ == '__main__':
+    main()

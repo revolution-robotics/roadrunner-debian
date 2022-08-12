@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+#
+# @(#) revo-wifi
+#
+source /etc/wifi/revo-wifi-common.sh
+
+WIFI_SLEEP=1
+
+wifi_setup ()
+{
+    if test ! -f "/sys/class/gpio/gpio${WIFI_EN_GPIO}/direction"; then
+        echo "$WIFI_EN_GPIO" > /sys/class/gpio/export
+        echo out > "/sys/class/gpio/gpio${WIFI_EN_GPIO}/direction"
+    fi
+
+    if test ! -f "/sys/class/gpio/gpio${BT_EN_GPIO}/direction"; then
+        echo "$BT_EN_GPIO" > /sys/class/gpio/export
+        echo out > "/sys/class/gpio/gpio${BT_EN_GPIO}/direction"
+    fi
+}
+
+wifi_is_up ()
+{
+    for i in {1..16}; do
+        if test -d /sys/class/net/wlan0; then
+            return 0
+        fi
+        sleep 0.5
+    done
+    return 1
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+
+    ###########################
+    #  Execution starts here  #
+    ###########################
+
+    # Run initial setup sequence
+    wifi_setup
+
+    for i in {1..3}; do
+
+        # Up WIFI
+        wifi_up
+
+        # Check that WIFI interface is up
+        if wifi_is_up; then
+            echo "WiFi initialized"
+            exit 0
+        fi
+
+        # Down WIFI
+        wifi_down
+
+        # Wait enough time for discharge
+        sleep "$WIFI_SLEEP"
+    done
+
+    echo "WiFi initialization failed"
+    exit 1
+fi

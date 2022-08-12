@@ -1,0 +1,16 @@
+[Unit]
+Description=REVO web dispatch daemon
+After=network.target
+
+[Service]
+# revo-web-dispatch options:
+#   -config=/path/to/config
+#   -port=N
+#   -cgi=/path/to/CGI
+#   -uri=/cgi-trigger
+#   -www=/path/to/HTML
+ExecStart=/usr/sbin/revo-web-dispatch --config=/etc/default/web-dispatch
+ExecStop=/bin/kill -INT $MAINPID
+
+[Install]
+WantedBy=multi-user.target
