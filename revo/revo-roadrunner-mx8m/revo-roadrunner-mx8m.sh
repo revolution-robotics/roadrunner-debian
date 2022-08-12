@@ -71,7 +71,7 @@ declare -r G_REVO_WEB_DISPATCH_BRANCH=golang
 declare -r G_REVO_WEB_DISPATCH_REV=6aa8f314b80f515309a18840dc2f8c5591c8e9c8
 
 # Node version and user
-declare -r NODE_BASE=16.
+declare -r NODE_BASE=18.
 declare -r NODE_GROUP=revo
 declare -r NODE_USER=revo
 
