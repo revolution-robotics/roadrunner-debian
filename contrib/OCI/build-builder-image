@@ -308,7 +308,7 @@ EOS
 
 reset-window-title ()
 {
-    printf "\e]0;$USER@$HOSTNAME\a"
+    printf "\e]0;$USER@${HOSTNAME%%.*}\a"
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
