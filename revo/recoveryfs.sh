@@ -886,6 +886,14 @@ EOF
     ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_all.service"
     ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/e2scrub_reap.service"
 
+    ## Disable systemd-networkd-wait-online service.
+    rm -f "${RECOVERYFS_BASE}/etc/systemd/system/network-online.target.wants/systemd-networkd-wait-online.service"
+    ln -sf /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/systemd-networkd-wait-online.service"
+
+    ## Fix network connectivity check
+    sed -i -e '$s;.*;uri=http://connectivity-check.ubuntu.com./;' \
+        "${RECOVERYFS_BASE}/usr/lib/NetworkManager/conf.d/20-connectivity.conf"
+
     ## Allow non-root users to run ping.
     echo 'net.ipv4.ping_group_range = 0 2147483647' >"${RECOVERYFS_BASE}/etc/sysctl.d/99-ping.conf"
 
