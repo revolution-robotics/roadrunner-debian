@@ -152,7 +152,7 @@ make_debian_recoveryfs ()
 
     ## Unix line editor
     cp -r "${G_VENDOR_PATH}/deb/ed"/* \
-       "${ROOTFS_BASE}/srv/local-apt-repository"
+       "${RECOVERYFS_BASE}/srv/local-apt-repository"
 
     install -d -m 0755 "${RECOVERYFS_BASE}/var/lib/usbmux"
 
@@ -752,8 +752,8 @@ EOF
     rm -f "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service"
     rm -f "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/rtkit-daemon.service"
     rm -f "${RECOVERYFS_BASE}/lib/systemd/system/sound.target.wants"/*
-    ln -s /dev/null "${ROOTFS_BASE}/etc/systemd/system/rtkit-daemon.service"
-    ln -s /dev/null "${ROOTFS_BASE}/etc/systemd/system/pulseaudio.service"
+    ln -s /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/rtkit-daemon.service"
+    ln -s /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/pulseaudio.service"
 
     install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf" \
             "${RECOVERYFS_BASE}/etc/dbus-1/system.d"
