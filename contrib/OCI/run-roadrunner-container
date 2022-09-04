@@ -2,7 +2,7 @@
 #
 # @(#) run-roadrunner-container
 #
-# Copyright © 2021 Revolution Robotics, Inc.
+# Copyright © 2021, 2022 Revolution Robotics, Inc.
 #
 # This script runs an interactive bash shell in a container with an
 # external volume mounted at the given container mount point.
@@ -85,7 +85,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare host_dir=${1:-'/opt/src/revo/releases/roadrunner'}
     declare volume_name=$2
     declare image_reference=${3:-'localhost/roadrunner-debian-builder:latest'}
-    declare mount_point=${4:-'/root/roadrunner_debian'}
+    declare mount_point=${4:-'/root/roadrunner-debian'}
 
     declare image_id
     declare dest_dir

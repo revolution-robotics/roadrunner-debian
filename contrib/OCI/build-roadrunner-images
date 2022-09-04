@@ -8,7 +8,7 @@ declare script_dir=${script%/*}
 
 : ${NPROC:='8'}
 : ${BUILD_SUITE_BRANCH_DEFAULT:='debian_bullseye_rr01'}
-: ${BUILD_DIR:="${script_dir}/roadrunner_debian"}
+: ${BUILD_DIR:="${script_dir}/roadrunner-debian"}
 : ${CA_URL:='@CA_URL@'}
 : ${CA_FINGERPRINT:='@CA_FINGERPRINT@'}
 : ${X509_GENKEY:="@X509_GENKEY@"}
