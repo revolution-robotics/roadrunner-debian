@@ -2,7 +2,7 @@
 #
 # @(#) container-build-release
 #
-# Copyright © 2021,2022 Revolution Robotics, Inc.
+# Copyright © 2021, 2022 Revolution Robotics, Inc.
 #
 declare script=$(readlink -e "$0")
 declare script_dir=${script%/*}

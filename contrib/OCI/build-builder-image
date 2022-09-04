@@ -2,7 +2,7 @@
 #
 # @(#) build-builder-image
 #
-# Copyright © 2021,2022 Revolution Robotics, Inc.
+# Copyright © 2021, 2022 Revolution Robotics, Inc.
 #
 : ${AWK:='/usr/bin/gawk'}
 : ${BUILDAH:='/usr/bin/buildah'}
