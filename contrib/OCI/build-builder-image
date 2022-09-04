@@ -142,12 +142,11 @@ mount-fs ()
 
 build-builder ()
 {
-    local image=$1
-    local tag=$2
-    local name=$3
+    local name=$1
+    local image=$2
+    local tag=$3
     local build_script=$4
     local client=$5
-    # local kernel_version=$6
 
     # local old_image_id=$($SUDO $BUILDAH images -n --filter=reference="localhost/${name}" --format="{{.ID}}")
 
@@ -270,16 +269,6 @@ EOS
 
     trap - 0 1 2 15
 
-    # $SED -e "s;@BUILD_DIR@;$build_dir;" \
-        #      -e "s;@BRANCH@;$branch;" \
-        #      -e "s;@DEFCONFIG@;$defconfig;" \
-        #      -e "s;@IMAGE_TYPE@;$image_type;" \
-        #      -e "s;@VM_NAME@;$vm_name;" \
-        #      -e "s;@DTBS@;$dtbs;" \
-        #      -e "s;@ROOT_FILESYSTEM@;$root_filesystem;" \
-        #      "${vendor_path}/resources/${build_script}-${kernel_version}" |
-    #     $SUDO $TEE "${mount_point}/root/${build_script}" >/dev/null
-    # $SUDO $CHMOD 0755 "${mount_point}/root/${build_script}"
     printf -v quoted_x509_genkey '%q' "$(get-secret X509_GENKEY_${client})"
     printf -v quoted_signing_key '%q' "$(get-secret SIGNING_KEY_${client})"
 
@@ -291,10 +280,6 @@ EOS
          "$build_script" |
         $SUDO tee "${mount_point}/root/${build_script##*/}" >/dev/null
     $SUDO $CHMOD 0755 "${mount_point}/root/${build_script}"
-    # $SUDO $INSTALL -m 0755 \
-        #       "${vendor_path}/resources/${build_script}-${kernel_version}" \
-        #       "${mount_point}/root/${build_script}" >&2
-
     $SUDO $BUILDAH unmount "$container" >&2
     $SUDO $BUILDAH config --cmd "/root/${build_script}" \
           --label name="$name" "$container" >&2
@@ -322,7 +307,6 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare script_name=${script##*/}
     declare script_dir=${script%/*}
     declare vendor_path=${script_dir}/../../revo
-    # declare external_src=${script_dir}/../../src
 
     # Load  variable definitions from ${machine}-${distribution}.conf.
     load-configuration "${vendor_path}/${machine}/${machine}-${distribution}.conf"
@@ -331,8 +315,8 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare builder_id
 
     builder_id=$(
-        build-builder "$builder_image" "$builder_tag" "$builder_name" \
-                      "$build_script" "$client" "$kernel_version"
+        build-builder "$builder_name" "$builder_image" "$builder_tag" \
+                      "$build_script" "$client"
               ) || exit $?
 
     if test ."$builder_id" = .''; then
