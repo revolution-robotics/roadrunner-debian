@@ -14,23 +14,19 @@ create-external-volume ()
 {
     local output_dir=$1
     local volume_name=$2
-    # local external_src=$3
-    # local root_filesystem=$4
-    # local recovery_filesystem=$5
-    # local kernel_version=$6
 
     local dest_dir=${output_dir}/${volume_name}
 
     pr-info "Populating external volume..."
 
-    local fs_mount=$($SUDO $DF "$output_dir" | $AWK 'NR > 1 { print $NF }')
-    local fs_type=$($SUDO $FINDMNT -n "$fs_mount" | $AWK '{ print $3 }')
+    local fs_mount=$($DF "$output_dir" | $AWK 'NR > 1 { print $NF }')
+    local fs_type=$($FINDMNT -n "$fs_mount" | $AWK '{ print $3 }')
 
     if test ."$fs_type"  = .'zfs'; then
-        local filesystem=$($SUDO $DF "$output_dir" | $AWK 'NR > 1 { print $1 }')
+        local dataset=$($DF "$output_dir" | $AWK 'NR > 1 { print $1 }')
 
         if ! $SUDO $ZFS create -p -o mountpoint="${dest_dir}" \
-             "${filesystem}/${volume_name}"; then
+             "${dataset}/${volume_name}"; then
             pr-err "${script_name}: ${dest_dir}: Cannot create directory"
             return 1
         fi
@@ -55,7 +51,7 @@ run-builder ()
 
         pr-info "Running with:  apparmor=unconfined"
 
-        $SUDO podman run -it --rm --privileged \
+        $SUDO $PODMAN run -it --rm --privileged \
              --security-opt apparmor=unconfined \
              -v "${dest_dir}:${build_dir}:rshared,rbind,exec,dev,suid,rw" \
              "$builder_id"
@@ -63,12 +59,12 @@ run-builder ()
 
         pr-info "Running with:  privilege"
 
-        $SUDO podman run -it --rm --privileged \
+        $SUDO $PODMAN run -it --rm --privileged \
                -v "${dest_dir}:${build_dir}:rshared,rbind,exec,dev,suid,rw" \
                "$builder_id"
     fi
 
-    # $SUDO podman rmi "$builder_id" &>/dev/null
+    # $SUDO $PODMAN rmi "$builder_id" &>/dev/null
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
@@ -77,7 +73,6 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare machine=${3-'revo-roadrunner-mx7'}
 
     declare vendor_path=${script_dir}/../../revo
-    # declare external_src=${script_dir}/../../src
 
     # Load  variable definitions from ${machine}-${distribution}.conf.
     load-configuration "${vendor_path}/${machine}/${machine}-${distribution}.conf"
@@ -86,8 +81,8 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare builder_id
 
     builder_id=$(
-        build-builder "$builder_image" "$builder_tag" "$builder_name" \
-                      "$build_script" "$client" "$kernel_version"
+        build-builder "$builder_name" "$builder_image" "$builder_tag" \
+                      "$build_script" "$client"
             ) || exit $?
 
     if test ."$builder_id" = .''; then
@@ -99,11 +94,6 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
 
     declare volume_name=roadrunner-${kernel_version}_$(date -u +%Y%m%dT%H%M%SZ)
 
-    # declare dest_dir=$(
-    #     create-external-volume "$output_dir" "$volume_name" \
-    #                            "$external_src" "$root_filesystem" \
-    #                            "$recovery_filesystem" "$kernel_version"
-    #         )
     declare dest_dir=$(create-external-volume "$output_dir" "$volume_name")
 
 
