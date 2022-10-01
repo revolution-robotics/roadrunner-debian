@@ -2,19 +2,37 @@
 #
 # @(#) image-device
 #
-# Copyright © 2021 Revolution Robotics, Inc.
+# Copyright © 2022 Revolution Robotics, Inc.
 #
-declare script=$(readlink -e "$0")
-declare script_name=${script##*/}
-
-: ${SUDO:='command sudo'}
+: ${AWK_CMD:='/usr/bin/gawk'}
+: ${BLOCKDEV_CMD:='/usr/sbin/blockdev'}
+: ${CAT_CMD:='/bin/cat'}
+: ${CMP_CMD:='/bin/cmp'}
+: ${CUT_CMD:='/usr/bin/cut'}
+: ${DATE_CMD:='/usr/bin/date'}
+: ${DD_CMD:='/usr/bin/dd'}
+: ${FINDMNT_CMD:='/usr/bin/findmnt'}
+: ${GETOPT_CMD:='/usr/bin/getopt'}
+: ${GDBUS_CMD:='/usr/bin/gdbus'}
+: ${GREP_CMD:='/bin/grep'}
+: ${GZIP_CMD:='/usr/bin/gzip'}
+: ${MKTEMP_CMD:='/usr/bin/mktemp'}
+: ${PERL_CMD:='/usr/bin/perl'}
+: ${READLINK_CMD:='/usr/bin/readlink'}
+: ${RM_CMD:='/bin/rm'}
+: ${SED_CMD:='/usr/bin/sed'}
+: ${SUDO_CMD:='/usr/bin/sudo'}
+: ${TR_CMD:='/usr/bin/tr'}
+: ${UDISKSCTL_CMD:='/usr/bin/udisksctl'}
+: ${UMOUNT_CMD:='/bin/umount'}
+: ${XARGS_CMD:='/usr/bin/xargs'}
 
 usage ()
 {
-    local device=$(get-removable-devices | sed -e 's/ .*//' -e 'q')
-    local image=sd_$(date -u +%Y%m%dT%H%M%SZ).img.gz
+    local device=$(get-removable-devices | $SED_CMD -e 's/ .*//' -e 'q')
+    local image=sd_$($DATE_CMD -u +%Y%m%dT%H%M%SZ).img.gz
 
-    cat <<EOF
+    $CAT_CMD <<EOF
 Usage: $script_name -i NAME [OPTIONS]
 Options:
   -d|--device DEVICE
@@ -37,12 +55,12 @@ EOF
 
 get-range ()
 {
-    size=$1
+    local -i size=$1
 
     if (( size > 9 )); then
         echo "1-$size"
     else
-        echo $(seq $size) | tr ' ' '|'
+        eval echo {1.."$size"} | $TR_CMD ' ' '|'
     fi
 }
 
@@ -87,17 +105,17 @@ get-removable-devices ()
     local model
 
     mapfile -t devices < <(
-        grep -lv '^0$' '/sys/block/'*'/removable' |
-            sed -e 's;removable$;device/uevent;' |
-            xargs grep -l '^DRIVER=sd$' |
-            sed -e 's;device/uevent;size;' |
-            xargs grep -lv '^0' |
-            cut -d/ -f4
+        $GREP_CMD -lv '^0$' '/sys/block/'*'/removable' |
+            $SED_CMD -e 's;removable$;device/uevent;' |
+            $XARGS_CMD $GREP_CMD -l '^DRIVER=sd$' |
+            $SED_CMD -e 's;device/uevent;size;' |
+            $XARGS_CMD $GREP_CMD -lv '^0' |
+            $CUT_CMD -d/ -f4
     )
 
     for device in "${devices[@]}"; do
-        vendor=$(echo $(< "/sys/block/${device}/device/vendor"))
-        model=$(echo $(< "/sys/block/${device}/device/model"))
+        vendor=$(< "/sys/block/${device}/device/vendor")
+        model=$(< "/sys/block/${device}/device/model")
         echo "/dev/$device ($vendor $model)"
     done
 }
@@ -126,14 +144,14 @@ is-removable-device ()
         return 1
     fi
 
-    removable=$(cat "/sys/block/${device}/removable")
+    removable=$(< "/sys/block/${device}/removable")
 
     # Non-removable SD-card readers require additional check
     if test ."$removable" != .'1'; then
-        drive=$(udisksctl info -b "/dev/$device" |
-                    awk -F\' '/Drive:/ { print $2 }')
+        drive=$($UDISKSCTL_CMD info -b "/dev/$device" |
+                    $AWK_CMD -F\' '/Drive:/ { print $2 }')
         gdbus_is_removable=$(
-            gdbus call --system --dest org.freedesktop.UDisks2 \
+            $GDBUS_CMD call --system --dest org.freedesktop.UDisks2 \
                   --object-path "$drive" \
                   --method org.freedesktop.DBus.Properties.Get \
                   org.freedesktop.UDisks2.Drive MediaRemovable 2>/dev/null
@@ -155,7 +173,7 @@ select-media ()
     local device=$1
 
     if test ! -b "$device" || ! is-removable-device "$device"; then
-        device=$(select-removable-device | awk '{ print $1 }')
+        device=$(select-removable-device | $AWK_CMD '{ print $1 }')
     fi
 
     if test ! -b "$device"; then
@@ -171,9 +189,9 @@ confirm-selection ()
     local image=$1
     local device=$2
 
-    local total_size=$($SUDO blockdev --getsz "$device")
+    local total_size=$($SUDO_CMD $BLOCKDEV_CMD --getsz "$device")
     local total_size_bytes=$(( total_size * 512 ))
-    local total_size_gib=$(perl -e "printf '%.1f', $total_size_bytes / 2 ** 30")
+    local total_size_gib=$($PERL_CMD -e "printf '%.1f', $total_size_bytes / 2 ** 30")
 
     echo "═════════════════════════════════════════════" >&2
     echo "Image file: ${image##*/}" >&2
@@ -192,24 +210,24 @@ create-device-image ()
     echo "Imaging from device..." >&2
 
     for (( i=0; i < 10; i++ )); do
-        if test -n "$(findmnt -n "${device}${i}")"; then
-            $SUDO umount -f "${device}${i}"
+        if test -n "$($FINDMNT_CMD -n "${device}${i}")"; then
+            $SUDO_CMD $UMOUNT_CMD -f "${device}${i}"
         fi
     done
 
-    errfile=$(mktemp "/tmp/${script_name}.XXXXX")
-    trap 'rm -f "$errfile"; exit' 0 1 2 15 RETURN
+    errfile=$($MKTEMP_CMD "/tmp/${script_name}.XXXXX")
+    trap '$RM_CMD -f "$errfile"; exit' 0 1 2 15 RETURN
 
-    if ! $SUDO dd if="$device" of="$image" bs=1M count="$size_mib" 2>"$errfile"; then
+    if ! $SUDO_CMD $DD_CMD if="$device" of="$image" bs=1M count="$size_mib" 2>"$errfile"; then
         echo "Flash did not complete successfully." >&2
         echo "*** Please check media and try again! ***" >&2
         return 1
     fi
 
 
-    bytes_read=$(awk '/bytes/ { print $1 }' "$errfile")
+    bytes_read=$($AWK_CMD '/bytes/ { print $1 }' "$errfile")
 
-    rm -f "$errfile"
+    $RM_CMD -f "$errfile"
     trap - 0 1 2 15 RETURN
 
     echo "$bytes_read"
@@ -223,13 +241,13 @@ verify-image ()
 
     echo "Verifying device against image..." >&2
 
-    errfile=$(mktemp "/tmp/${script_name}.XXXXX")
-    trap 'rm -f "$errfile"; exit' 0 1 2 15 RETURN
+    errfile=$($MKTEMP_CMD "/tmp/${script_name}.XXXXX")
+    trap '$RM_CMD -f "$errfile"; exit' 0 1 2 15 RETURN
 
-    $SUDO cmp -n "$bytes_read" "$device" "$image"  >"$errfile" 2>&1
+    $SUDO_CMD $CMP_CMD -n "$bytes_read" "$device" "$image"  >"$errfile" 2>&1
 
     local bytes_verified=$(
-        sed -nE -e 's/.*differ: byte +([0-9]+).*$/\1/p' "$errfile"
+        $SED_CMD -nr -e 's/.*differ: byte +([0-9]+).*$/\1/p' "$errfile"
           )
 
     local status=0
@@ -242,7 +260,7 @@ verify-image ()
         status=1
     fi
 
-    rm -f "$errfile"
+    $RM_CMD -f "$errfile"
 
     trap - 0 1 2 15 RETURN
 
@@ -255,10 +273,12 @@ compress-image ()
 
     echo "Compressing image..." >&2
 
-    $SUDO gzip "$image"
+    $SUDO_CMD $GZIP_CMD "$image"
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare script=$($READLINK_CMD -e "$0")
+    declare script_name=${script##*/}
     declare bytes_read
     declare device
     declare image
@@ -268,7 +288,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare -r LONGOPTS=device:,help,image:,size-mib:,verbose
 
     declare ARGS=$(
-        getopt -s bash --options "$SHORTOPTS"  \
+        $GETOPT_CMD -s bash --options "$SHORTOPTS"  \
                --longoptions "$LONGOPTS" --name "$script_name" -- "$@"
             )
 
@@ -300,7 +320,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
                         exit 1
                         ;;
                     *)
-                        image=${1}_$(date -u +%Y%m%dT%H%M%SZ).img
+                        image=${1}_$($DATE_CMD -u +%Y%m%dT%H%M%SZ).img
                         ;;
                 esac
                 ;;
