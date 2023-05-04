@@ -13,19 +13,24 @@
 #     armv7l
 #     x86_64
 #
-: ${APT:='/usr/bin/apt'}
-: ${CURL:='/usr/bin/curl'}
-: ${GIT:='/usr/bin/git'}
-: ${GREP:='/bin/grep'}
-: ${INSTALL:='/usr/bin/install'}
-: ${MKTEMP:='/bin/mktemp'}
-: ${RM:='/bin/rm'}
-: ${SED:='/bin/sed'}
-: ${SORT:='/usr/bin/sort'}
-: ${SUDO:='/usr/bin/sudo'}
-: ${TAIL:='/usr/bin/tail'}
-: ${TAR:='/bin/tar'}
-: ${UNAME:='/bin/uname'}
+: ${APT_CMD:='/usr/bin/apt'}
+: ${CHOWN_CMD:='/usr/bin/chown'}
+: ${CURL_CMD:='/usr/bin/curl'}
+: ${DNF_CMD:='/usr/bin/dnf5'}
+: ${FILE_CMD:='/usr/bin/file'}
+: ${FIND_CMD:='/usr/bin/find'}
+: ${GIT_CMD:='/usr/bin/git'}
+: ${GREP_CMD:='/bin/grep'}
+: ${INSTALL_CMD:='/usr/bin/install'}
+: ${MKTEMP_CMD:='/bin/mktemp'}
+: ${RM_CMD:='/bin/rm'}
+: ${SED_CMD:='/bin/sed'}
+: ${SLEEP_CMD:='/usr/bin/sleep'}
+: ${SORT_CMD:='/usr/bin/sort'}
+: ${TAIL_CMD:='/usr/bin/tail'}
+: ${TAR_CMD:='/bin/tar'}
+: ${SYSTEMCTL_CMD:='/usr/bin/systemctl'}
+: ${UNAME_CMD:='/bin/uname'}
 
 # Return latest GIT repository tag of the form vX.Y.Z.
 get-current-tag ()
@@ -44,16 +49,16 @@ get-current-tag ()
     #     v0.14.3
 
     if test ."$allow_rc" != .'false'; then
-        $GIT ls-remote --tags "$uri" |
-            $SED 's;.*refs/tags/;;' |
-            $SORT --version-sort -k1.2 |
-            $TAIL -1
+        $GIT_CMD ls-remote --tags "$uri" |
+            $SED_CMD 's;.*refs/tags/;;' |
+            $SORT_CMD --version-sort -k1.2 |
+            $TAIL_CMD -1
     else
-        $GIT ls-remote --tags "$uri" |
-            $GREP -v -- '-rc[-.0-9]*' |
-            $SED 's;.*refs/tags/;;' |
-            $SORT --version-sort -k1.2 |
-            $TAIL -1
+        $GIT_CMD ls-remote --tags "$uri" |
+            $GREP_CMD -v -- '-rc[-.0-9]*' |
+            $SED_CMD 's;.*refs/tags/;;' |
+            $SORT_CMD --version-sort -k1.2 |
+            $TAIL_CMD -1
     fi
 }
 
@@ -62,63 +67,153 @@ fetch-and-install-step-pkg ()
     local uri=$1
     local allow_rc=$2
 
-    local pkg
-    local tag=$(get-current-tag "$uri" "$allow_rc")
+    local ID=''
     local extension=${uri##*/}
-    local machine=amd64
+    local host=''
+    local machine=''
+    local pkg=''
+    local tag=''
 
-    if test ."$($UNAME --machine)" = .'armv7l'; then
-        machine=armv7
-    fi
+    tag=$(get-current-tag "$uri" "$allow_rc") || return $?
+    case "$OSTYPE" in
+        freebsd*)
+            host=freebsd
+            ;;
+        linux-gnu)
+            host=linux
+            ;;
+        darwin*)
+            host=darwin
+            ;;
+        *)
+            host=windows
+            ;;
+    esac
 
-    if test ."$extension" = .'certificates'; then
-        extension=-ca
-    elif test -f /etc/debian_version -a ."$machine" = .'x86_64'; then
-        extension='-cli'
+    local umachine=''
+
+    umachine=$($UNAME_CMD -m) || return $?
+    case "$umachine" in
+        aarch64|arm64)
+            machine=arm64
+            ;;
+        x86_64)
+            machine=amd64
+            ;;
+        arm7l)
+            machine=armv7
+            if test ."$extension" = .'certificates'; then
+                # 32-bit step-ca no longer supported (?)
+                return 0
+            fi
+            ;;
+    esac
+
+    if test -f /etc/os-release; then
+        source /etc/os-release
+    elif test -f /etc/asl.conf; then
+        ID=darwin
     else
-        extension=''
+        ID=windows
     fi
 
-    if test ! -f /etc/debian_version -o ."$machine" != .'x86_64'; then
-        pkg=step${extension}_linux_${tag#v}_${machine}.tar.gz
-    else
-        pkg=step${extension}_${tag#v}_${machine}.deb
-    fi
+    case "$ID" in
+        fedora)
+            if test ."$extension" = .'certificates'; then
+                pkg=step-ca_linux_${tag#v}_${machine}.tar.gz
+            else
+                pkg=step-cli_${tag#v}_${machine}.rpm
+            fi
+            ;;
+        ubuntu|debian)
+            if test ."$extension" = .'certificates'; then
+                pkg=step-ca_${tag#v}_${machine}.deb
+            else
+                pkg=step-cli_${tag#v}_${machine}.deb
+            fi
+            ;;
+        darwin)
+            if test ."$extension" = .'certificates'; then
+                pkg=step-ca_${host}_${tag#v}_${machine}.tar.gz
+            else
+                pkg=step_${host}_${tag#v}_${machine}.tar.gz
+            fi
+            ;;
+        windows)
+            if test ."$extension" = .'certificates'; then
+                pkg=step-ca_${host}_${tag#v}_${machine}.zip
+            else
+                pkg=step_${host}_${tag#v}_${machine}.zip
+            fi
+            ;;
+    esac
 
-    local tmpdir=$($MKTEMP -d "/tmp/${FUNCNAME[0]}.XXXXX")
+    local tmpdir=''
 
-    trap '$RM -rf "$tmpdir"; exit' 0 1 2 15
+    tmpdir=$($MKTEMP_CMD -d "/tmp/${FUNCNAME[0]}.XXXXX") || return $?
 
-    $CURL -o "${tmpdir}/${pkg}" -LC - \
-          "${uri}/releases/download/${tag}/${pkg}"
+    trap '$RM_CMD -rf "$tmpdir"; exit' 0 1 2 15
+
+    $CURL_CMD -o "${tmpdir}/${pkg}" -sSL \
+          "${uri}/releases/download/${tag}/${pkg}" || return $?
 
     local step_ca_enabled=false
 
-    if systemctl is-enabled step-ca &>/dev/null; then
-        step_ca_enabled=true
-        systemctl stop step-ca
-    fi
-
-    if test ! -f /etc/debian_version -o ."$machine" != .'x86_64'; then
-        $TAR -C "$tmpdir" --strip-components=1 -zxf "${tmpdir}/${pkg}"
-        $SUDO $INSTALL -m 0755 "${tmpdir}/bin"/* /usr/bin/
-        if test -d "${tmpdir}/autocomplete"; then
-            $INSTALL -m 0644 "${tmpdir}/autocomplete"/bash* \
-                  /usr/share/bash-completion/completions/step
+    if test ."$extensions" = .'certificates' \
+            && command -v "$SYSTEMCTL_CMD" >/dev/null; then
+        if $SYSTEMCTL_CMD is-enabled step-ca &>/dev/null; then
+            step_ca_enabled=true
+            $SYSTEMCTL_CMD stop step-ca
         fi
-    else
-        $APT install "${tmpdir}/${pkg}"
     fi
 
-    $RM -rf "$tmpdir"
+    case "$pkg" in
+        *.tar.gz)
+            $TAR_CMD -C "$tmpdir" --strip-components=1 -zxf "${tmpdir}/${pkg}" || return $?
+
+            if test -d "${tmpdir}/bin"; then
+                pushd "${tmpdir}/bin"
+            else
+                pushd "$tmpdir"
+            fi
+
+            $FIND_CMD . -type f |
+                while read candidate; do
+                    case $($FILE_CMD "$candidate") in
+                        *executable*)
+                            $INSTALL_CMD -m 0755 "$candidate" /usr/local/bin/
+                            ;;
+                    esac
+                done || { local status=$?; popd; return $status; }
+
+            if test -d "${tmpdir}/autocomplete"; then
+                $INSTALL_CMD -D -m 0644 "${tmpdir}/autocomplete"/bash* \
+                             /usr/local/share/bash-completion/completions/step || return $?
+            fi
+            ;;
+        *.deb)
+            $CHOWN_CMD -R _apt "${tmpdir}" || return $?
+            $APT_CMD install -y "${tmpdir}/${pkg}" || return $?
+            ;;
+        *.rpm)
+            $DNF_CMD install -y "${tmpdir}/${pkg}" || return $?
+            ;;
+        *.zip)
+            # TODO: Define $destdir.
+            $UNZIP_CMD -d "$destdir" "${tmpdir}/${pkg}" || return $?
+            ;;
+    esac
+
+    $RM_CMD -rf "$tmpdir" || return $?
     trap - 0 1 2 15
 
     if $step_ca_enabled; then
-        systemctl start step-ca
+        $SYSTEMCTL_CMD start step-ca || return $?
     fi
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    set -o pipefail
     declare script_name=${0##*/}
     declare cli_uri=https://github.com/smallstep/cli
     declare certificates_uri=https://github.com/smallstep/certificates
@@ -128,8 +223,11 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     if (( UID != 0 )); then
         echo "${script_name}: Must be run as user \`root'." >&2
         exit 1
+    elif (( $# > 0 )) && [[ ."$1" =~ ^\.(true|false) ]]; then
+        echo "Usage: ${script_name} [true | false]" >&2
+        exit 1
     fi
 
-    fetch-and-install-step-pkg "$cli_uri" "$allow_rc"
+    fetch-and-install-step-pkg "$cli_uri" "$allow_rc" || exit $?
     fetch-and-install-step-pkg "$certificates_uri" "$allow_rc"
 fi
