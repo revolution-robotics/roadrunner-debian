@@ -68,7 +68,7 @@ run-builder ()
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
-    declare client=${1:-'BW'}
+    declare client=${1:-'UD'}
     declare distribution=${2:-'debian'}
     declare machine=${3-'revo-roadrunner-mx7'}
 

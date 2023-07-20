@@ -299,9 +299,9 @@ reset-window-title ()
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare script=$(readlink -e "$0")
 
-    declare client=${1:-'BW'}
-    declare distribution=${3:-'debian'}
+    declare client=${1:-'UD'}
     declare machine=${2:-'revo-roadrunner-mx7'}
+    declare distribution=${3:-'debian'}
 
 
     declare script_name=${script##*/}
