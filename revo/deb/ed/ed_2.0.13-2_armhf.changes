@@ -1,0 +1,43 @@
+Format: 1.8
+Date: Fri, 08 Sep 2023 01:40:08 +0000
+Source: ed
+Binary: ed ed-dbgsym
+Architecture: source armhf
+Version: 1:2.0.13-2
+Distribution: unstable
+Urgency: medium
+Maintainer: Andrew L. Moore <slewsys@gmail.com>
+Changed-By: Andrew L. Moore <slewsys@gmail.com>
+Description:
+ ed         - The standard Unix text editor.
+Changes:
+ ed (1:2.0.13-2) unstable; urgency=medium
+ .
+   * Allow ed to read output of process substitution, e.g.:
+       $ ed -e 'p'  <(echo hello)
+       echo
+       $
+   * Support GNU regex operators in extended regular expressions.
+   * Handle edge case where backslash is used as pattern delimiter.
+   * Support command-line address arguments, e.g.:
+       $ ed +3 +/RE1 +?RE2 FILE
+     searches FILE forward from line 3 for RE1 and, from there,
+     backward for RE2.
+Checksums-Sha1:
+ ff95411223120655a64180679fb8830f83447b19 806 ed_2.0.13-2.dsc
+ 764f090c4b7bd1a3b7645ac0d13f5bdd19712033 12964 ed_2.0.13-2.debian.tar.xz
+ 6da172d1d4ccbae47cbdf746fb53b12481dcf48d 215924 ed-dbgsym_2.0.13-2_armhf.deb
+ 8cd5d4a24c102aaddab850b2cde52c4710fe2043 5299 ed_2.0.13-2_armhf.buildinfo
+ 52f20a797065e42cf28abe24180f3e4e0e3e5f46 200076 ed_2.0.13-2_armhf.deb
+Checksums-Sha256:
+ 6d9f59e6bd0d3631e9b64637a20a503ac38d3e8c8994d516dff3ce366bbf572a 806 ed_2.0.13-2.dsc
+ d080b451c1543b112459d5695549112d58dcd3a09f1f1ea8282953a752463329 12964 ed_2.0.13-2.debian.tar.xz
+ a618d0939c3bc20533a599546a30d93b9e5aa6bbc3b8d748f7af6833f1f522d0 215924 ed-dbgsym_2.0.13-2_armhf.deb
+ 6af09d25bc6d3be8014d595ee20085476fd914cc4a864dbb7f4ea4190a9b436c 5299 ed_2.0.13-2_armhf.buildinfo
+ d512fe3d4d2cfa116279e03798fcd8e6e2243aa82c7b187e5cca978b254245d8 200076 ed_2.0.13-2_armhf.deb
+Files:
+ c6260745df3d068d760d4b7e52812def 806 editors standard ed_2.0.13-2.dsc
+ bed4d1230e7dd2d459318ae840d39004 12964 editors standard ed_2.0.13-2.debian.tar.xz
+ df17592e1f70845c80a5c67b40ab8412 215924 debug optional ed-dbgsym_2.0.13-2_armhf.deb
+ 846160af5e58eaf8d4b2b7a202574ca7 5299 editors standard ed_2.0.13-2_armhf.buildinfo
+ 0f24923f2efd43586237c4774d05cacd 200076 editors standard ed_2.0.13-2_armhf.deb

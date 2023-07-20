@@ -329,7 +329,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
 Builder image: ${builder_name}
 Builder ID: ${builder_id}
 Derived from: ${builder_image}:${builder_tag}
-Destination: ${dest_dir}
+Destination: ${output_dir}
 ────────────────────────────────────────────────────────────────────────────────
 EOF
 
