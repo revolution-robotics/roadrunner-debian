@@ -955,7 +955,7 @@ EOF
     #         "${ROOTFS_BASE}/usr/bin/curl"
 
     ## Install Smallstep CA installation script
-    install -m 0755 "${G_VENDOR_PATH}/resources/smallstep/install-smallstep" \
+    install -m 0755 "${G_VENDOR_PATH}/resources/smallstep/"{bootstrap,install}-smallstep \
             "${ROOTFS_BASE}/usr/bin"
 
     ## Install nodejs/reverse-tunnel-server installation script.
@@ -977,7 +977,7 @@ EOF
 #!/bin/bash
 
 ## Install Smallstep CA
-install-smallstep
+bootstrap-smallstep
 
 ## Install reverse-tunnel-server
 install-reverse-tunnel-server "$CA_URL" "$CA_FINGERPRINT"

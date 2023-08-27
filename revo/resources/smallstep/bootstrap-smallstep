@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+#
+# @(#) bootstrap-smallstep
+#
+# SYNOPSIS
+#     bootstrap-smallstep
+#
+# DESCRIPTION
+#     This script installs in the home directory of user revo:
+#        1) version manager `asdf',
+#        2) the latest version of golang,
+#        3) SmallStep CLI and Certificates (via script `install-smallstep').
+#
+: ${CHMOD_CMD:='/bin/chmod'}
+: ${CAT_CMD:='/bin/cat'}
+: ${GIT_CMD:='/usr/bin/git'}
+: ${GREP_CMD:='/bin/grep'}
+: ${READLINK_CMD:='/bin/readlink'}
+: ${RM_CMD:='/bin/rm'}
+: ${SUDO_CMD:='/usr/bin/sudo'}
+
+ : ${LOCK:=''}
+
+fetch-asdf ()
+{
+    if test -d ~/.asdf; then
+        $GIT_CMD -C ~/.asdf pull || return $?
+    else
+        $GIT_CMD clone https://github.com/asdf-vm/asdf.git ~/.asdf || return $?
+    fi
+}
+
+initialize-asdf ()
+{
+    source ~/.asdf/asdf.sh || return $?
+
+    if test ! -f ~/.bashrc || ! $GREP_CMD -q ASDF_DIR ~/.bashrc; then
+        echo "Appending to bashrc..." >&2
+        $CAT_CMD >>~/.bashrc <<'EOF'
+
+# Initialize asdf version manager.
+export ASDF_DIR=~/.asdf
+if test -f "${ASDF_DIR}/asdf.sh"; then
+    source "${ASDF_DIR}/asdf.sh"
+    source "${ASDF_DIR}/completions/asdf.bash"
+fi
+
+if command -v go &>/dev/null; then
+    export GOPATH=$(go env GOPATH)
+fi
+EOF
+    fi
+}
+
+install-golang ()
+{
+    echo "Installing golang..."
+    asdf plugin add golang || true
+
+    local latest=''
+
+    latest=$(asdf latest golang) || return $?
+    asdf install golang "$latest" || return $?
+    asdf global  golang "$latest" || return $?
+    asdf reshim golang || return $?
+
+    GOPATH=$(go env GOPATH) || return $?
+    export GOPATH
+}
+
+remove-golang ()
+{
+    echo "Removing golang..."
+    $CHMOD_CMD -R +w "${GOPATH}/../../"
+    asdf plugin remove golang
+    $RM_CMD -rf "${GOPATH}/../../" ~/.cache/go-build
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare script=$($READLINK_CMD -e $0)
+
+    # Run script as user revo.
+    if test ."$LOCKED" != ."$script"; then
+        exec env LOCKED="$script" $SUDO_CMD -i -u revo \
+             --preserve-env=LOCKED "$script" "$@"
+    fi
+
+    fetch-asdf || exit $?
+    initialize-asdf || exit $?
+    command -v asdf &>/dev/null || exit $?
+    install-golang || exit $?
+    install-smallstep || exit $?
+    remove-golang || exit $?
+fi

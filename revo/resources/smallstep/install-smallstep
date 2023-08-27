@@ -2,35 +2,51 @@
 #
 # @(#) install-smallstep
 #
-# This script downloads and installs the latest Smallstep certificates
-# and CLI packages for the current system.
+# This script installs current versions of Smallstep CLI and CA.
 #
 # Supported platforms:
 #     Centos/Fedora
 #     Debian/Ubuntu
-#
-# Supported architectures:
+#     Darwin
 #     armv7l
 #     x86_64
 #
 : ${APT_CMD:='/usr/bin/apt'}
+: ${BASH_CMD:='/usr/bin/bash'}
+: ${CHMOD_CMD:='/usr/bin/chmod'}
 : ${CHOWN_CMD:='/usr/bin/chown'}
 : ${CURL_CMD:='/usr/bin/curl'}
 : ${DNF_CMD:='/usr/bin/dnf5'}
 : ${FILE_CMD:='/usr/bin/file'}
 : ${FIND_CMD:='/usr/bin/find'}
 : ${GIT_CMD:='/usr/bin/git'}
-: ${GREP_CMD:='/bin/grep'}
+: ${GREP_CMD:='/usr/bin/grep'}
+: ${HEAD_CMD:='/usr/bin/head'}
 : ${INSTALL_CMD:='/usr/bin/install'}
-: ${MKTEMP_CMD:='/bin/mktemp'}
-: ${RM_CMD:='/bin/rm'}
-: ${SED_CMD:='/bin/sed'}
-: ${SLEEP_CMD:='/usr/bin/sleep'}
+: ${LS_CMD:='/usr/bin/ls'}
+: ${MAKE_CMD:='/usr/bin/make'}
+: ${MKTEMP_CMD:='/usr/bin/mktemp'}
+: ${READLINK_CMD:='/usr/bin/readlink'}
+: ${RM_CMD:='/usr/bin/rm'}
+: ${SED_CMD:='/usr/bin/sed'}
 : ${SORT_CMD:='/usr/bin/sort'}
-: ${TAIL_CMD:='/usr/bin/tail'}
-: ${TAR_CMD:='/bin/tar'}
+: ${TAR_CMD:='/usr/bin/tar'}
 : ${SYSTEMCTL_CMD:='/usr/bin/systemctl'}
-: ${UNAME_CMD:='/bin/uname'}
+: ${SUDO_CMD:='/usr/bin/sudo'}
+: ${UNAME_CMD:='/usr/bin/uname'}
+
+: ${ASDF_SHIMS_PATH:="${HOME}/.asdf/shims"}
+
+# OS-agnstoic readlink for existent files/directories.
+resolve-existing ()
+{
+    if $READLINK_CMD --version 2>&1 |
+            $GREP_CMD -q 'coreutils'; then
+        $READLINK_CMD -e "$@"
+    else
+        $READLINK_CMD -f N "$@"
+    fi
+}
 
 # Return latest GIT repository tag of the form vX.Y.Z.
 get-current-tag ()
@@ -51,14 +67,14 @@ get-current-tag ()
     if test ."$allow_rc" != .'false'; then
         $GIT_CMD ls-remote --tags "$uri" |
             $SED_CMD 's;.*refs/tags/;;' |
-            $SORT_CMD --version-sort -k1.2 |
-            $TAIL_CMD -1
+            $SORT_CMD -rV -k1.2 |
+            $HEAD_CMD -1
     else
         $GIT_CMD ls-remote --tags "$uri" |
             $GREP_CMD -v -- '-rc[-.0-9]*' |
             $SED_CMD 's;.*refs/tags/;;' |
-            $SORT_CMD --version-sort -k1.2 |
-            $TAIL_CMD -1
+            $SORT_CMD -rV -k1.2 |
+            $HEAD_CMD -1
     fi
 }
 
@@ -101,11 +117,8 @@ fetch-and-install-step-pkg ()
             machine=amd64
             ;;
         arm7l)
-            machine=armv7
-            if test ."$extension" = .'certificates'; then
-                # 32-bit step-ca no longer supported (?)
-                return 0
-            fi
+            # armv7l binaries no longer distributed.
+            return 0
             ;;
     esac
 
@@ -212,22 +225,116 @@ fetch-and-install-step-pkg ()
     fi
 }
 
+build-step-cli ()
+{
+    echo "Building SmallStep CLI..." >&2
+    go install -n github.com/smallstep/cli/cmd/step@latest &>/dev/null || true
+
+    local latest=''
+
+    latest=$(
+        $LS_CMD -d  "${GOPATH}/pkg/mod/github.com/smallstep/cli@"* |
+            $SORT_CMD -rV |
+            $HEAD_CMD -1
+          ) || return $?
+    $CHMOD_CMD -R u+w "$latest" || return $?
+
+    local version=${latest##*@}
+
+    $CAT_CMD >"${latest}/make/version.sh" <<EOF
+#!/bin/sh
+echo ${version}-dev
+EOF
+
+    $CHMOD_CMD +x "${latest}/make/version.sh" || return $?
+    $MAKE_CMD -C "$latest" bootstrap || return $?
+    # $MAKE_CMD -C "$latest" lint || return $?
+    $MAKE_CMD -C "$latest" build || return $?
+    $INSTALL_CMD -m 0755 "${latest}/bin/step" "${GOPATH}/bin" || return $?
+
+    local bash_completion_path=$(
+        $SED_CMD -e 's;/bin.*;/share/bash-completion;' <(resolve-existing $(command -v bash))
+          )
+
+    $SUDO_CMD $INSTALL_CMD -m 0644 "${latest}/autocomplete/bash_autocomplete" \
+              "${bash_completion_path}/completions/step" || true
+}
+
+build-step-ca ()
+{
+    echo "Building SmallStep CA..." >&2
+    go install -n github.com/smallstep/certificates/cmd/step-ca@latest &>/dev/null || true
+
+    local latest=''
+
+    latest=$(
+        $LS_CMD -d  "${GOPATH}/pkg/mod/github.com/smallstep/certificates@"* |
+            $SORT_CMD -rV |
+            $HEAD_CMD -1
+          ) || return $?
+    $CHMOD_CMD -R u+w "$latest" || return $?
+
+    local version=${latest##*@}
+
+    $CAT_CMD >"${latest}/.version.sh" <<EOF
+#!/usr/bin/env bash
+echo ${version}-dev
+EOF
+
+    $CHMOD_CMD +x "${latest}/.version.sh" || return $?
+    $MAKE_CMD -C "$latest" bootstrap || return $?
+    # $MAKE_CMD -C "$latest" lint || return $?
+    $MAKE_CMD -C "$latest" build || return $?
+    $INSTALL_CMD -m 0755 "${latest}/bin/step-ca" "${GOPATH}/bin" || return $?
+}
+
+deploy-smallstep ()
+{
+    $SUDO_CMD $INSTALL_CMD -m 0755 -o root "${GOPATH}/bin/step"{,-ca} /usr/bin/
+}
+
+maybe-reshim-golang ()
+{
+    local go_dir=$1
+
+    if test ."$go_dir" = ."$ASDF_SHIMS_PATH"; then
+        source "${ASDF_SHIMS_PATH}/../asdf.sh"
+        asdf reshim golang
+    fi
+}
+
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
-    set -o pipefail
-    declare script_name=${0##*/}
+    set -e -o pipefail
+
+    declare script=''
+
+    script=$(resolve-existing "$0") || exit $?
+
+    declare script_name=${script##*/}
+
     declare cli_uri=https://github.com/smallstep/cli
     declare certificates_uri=https://github.com/smallstep/certificates
+    declare go_path=''
 
-    declare allow_rc=${1:-'false'}
-
-    if (( UID != 0 )); then
-        echo "${script_name}: Must be run as user \`root'." >&2
-        exit 1
-    elif (( $# > 0 )) && [[ ."$1" =~ ^\.(true|false) ]]; then
-        echo "Usage: ${script_name} [true | false]" >&2
-        exit 1
+    if go_path=$(command -v go); then
+        export GOPATH=$(go env GOPATH)
     fi
 
-    fetch-and-install-step-pkg "$cli_uri" "$allow_rc" || exit $?
-    fetch-and-install-step-pkg "$certificates_uri" "$allow_rc"
+    if [[ ."$GOPATH" =~ ^\.$HOME ]]; then
+        build-step-cli || exit $?
+        build-step-ca || exit $?
+        deploy-smallstep $GOPATH || exit $?
+        maybe-reshim-golang "${go_path%/*}"
+    else
+        declare allow_rc=${1:-'false'}
+
+        if (( UID != 0 )); then
+            echo "${script_name}: Must be run as user \`root'." >&2
+            exit 1
+        fi
+
+        fetch-and-install-step-pkg "$cli_uri" "$allow_rc" || exit $?
+        fetch-and-install-step-pkg "$certificates_uri" "$allow_rc" || exit $?
+    fi
+
 fi
