@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
 #
-# @() build-roadrunner-images
+# @(#) build-roadrunner-images
 #
-declare script=$(readlink -e $0)
-declare script_name=${script##*/}
-declare script_dir=${script%/*}
+# Copyright © 2021-2023 Revolution Robotics, Inc.
+#
+: ${APT_CMD:='/usr/bin/apt'}
+: ${CAT_CMD:='/bin/cat'}
+: ${CURL_CMD:='/usr/bin/curl'}
+: ${CHMOD_CMD:='/bin/chmod'}
+: ${GPG_CMD:='/usr/bin/gpg'}
+: ${GIT_CMD:='/usr/bin/git'}
+: ${MKDIR_CMD:='/bin/mkdir'}
+: ${READLINK_CMD:='/usr/bin/readlink'}
+: ${TEE_CMD:='/usr/bin/tee'}
 
-: ${NPROC:='8'}
+: ${NPROC:=$(nproc)}
 : ${BUILD_SUITE_BRANCH_DEFAULT:='debian_bullseye_rr01'}
-: ${BUILD_DIR:="${script_dir}/roadrunner-debian"}
+: ${BUILD_DIR:="${0%/*}/roadrunner-debian"}
 : ${CA_URL:='@CA_URL@'}
 : ${CA_FINGERPRINT:='@CA_FINGERPRINT@'}
 : ${X509_GENKEY:="@X509_GENKEY@"}
@@ -18,38 +26,38 @@ declare script_dir=${script%/*}
 
 install-prerequisites ()
 {
-    apt update
-    apt -qy install curl gawk iproute2
-    apt -qy remove --purge mawk
+    $APT_CMD update
+    $APT_CMD -qy install curl gawk iproute2
+    $APT_CMD -qy remove --purge mawk
 
     if test ."$HOST_GW_IPV4" != .'' &&
-            curl "${HOST_GW_IPV4}:3142" &>/dev/null; then
-        cat >/etc/apt/apt.conf.d/10acng-proxy <<EOF
+            $CURL_CMD "${HOST_GW_IPV4}:3142" &>/dev/null; then
+        $CAT_CMD >/etc/apt/apt.conf.d/10acng-proxy <<EOF
 Acquire::http::Proxy "http://${HOST_GW_IPV4}:3142";
 EOF
     else
         DEBIAN_PROXY=''
     fi
 
-    apt -qy install autoconf automake autopoint bc \
+    $APT_CMD -qy install autoconf automake autopoint bc \
         binfmt-support binutils bison build-essential cmake \
         coreutils debootstrap device-tree-compiler \
         ed flex g++ gcc git golang gpg groff help2man \
         libssl-dev libtool lzop m4 make parted qemu \
         qemu-user-static rsync sudo u-boot-tools unzip \
-        upx-ucl
-    apt -qy install binutils-arm-linux-gnueabihf
-    apt -qy install cpp-arm-linux-gnueabihf
-    apt -qy install gcc-arm-linux-gnueabihf
-    apt -qy install g++-arm-linux-gnueabihf
+        upx-ucl zstd
+    $APT_CMD -qy install binutils-arm-linux-gnueabihf
+    $APT_CMD -qy install cpp-arm-linux-gnueabihf
+    $APT_CMD -qy install gcc-arm-linux-gnueabihf
+    $APT_CMD -qy install g++-arm-linux-gnueabihf
 
-    curl -sLo /usr/bin/install-smallstep \
+    $CURL_CMD -sLo /usr/bin/install-smallstep \
          "https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_bullseye_rr01/revo/resources/smallstep/install-smallstep"
-    chmod +x /usr/bin/install-smallstep
+    $CHMOD_CMD +x /usr/bin/install-smallstep
     install-smallstep
 
-    curl -sL https://ftp-master.debian.org/keys/release-11.asc |
-        gpg --import --no-default-keyring \
+    $CURL_CMD -sL https://ftp-master.debian.org/keys/release-11.asc |
+        $GPG_CMD --import --no-default-keyring \
              --keyring /usr/share/keyrings/debian-bullseye-release.gpg
 }
 
@@ -57,45 +65,57 @@ clone-build-suite ()
 {
     local build_suite_commit=$1
 
-    mkdir -p "$BUILD_DIR" || { echo "$BUILD_DIR: Permission denied"; exit 1; }
-    git config --global init.defaultBranch main
-    git -C "$BUILD_DIR" init
+    if ! $MKDIR_CMD -p "$BUILD_DIR"; then
+        echo "${FUNCNAME[0]}: $BUILD_DIR: Permission denied" >&2
+        return 1
+    fi
+    git config --global init.defaultBranch main || return $?
+    git -C "$BUILD_DIR" init || return $?
     git -C "$BUILD_DIR" remote add origin \
-        https://github.com/revolution-robotics/roadrunner-debian.git
-    git -C "$BUILD_DIR" fetch
+        https://github.com/revolution-robotics/roadrunner-debian.git || return $?
+    git -C "$BUILD_DIR" fetch || return $?
     if test ."$build_suite_commit" != .''; then
         git -C "$BUILD_DIR" checkout -b "commit-${build_suite_commit:0:6}" \
-            "$build_suite_commit"
+            "$build_suite_commit" || return $?
     else
-        git -C "$BUILD_DIR" switch "$BUILD_SUITE_BRANCH_DEFAULT"
+        git -C "$BUILD_DIR" switch "$BUILD_SUITE_BRANCH_DEFAULT"  || return $?
     fi
 }
 
 build-images ()
 {
-    X509_GENKEY="$X509_GENKEY" SIGNING_KEY="$SIGNING_KEY" \
+    X509_GENKEY="$X509_GENKEY" \
+               SIGNING_KEY="$SIGNING_KEY" \
                MACHINE=revo-roadrunner-mx7 \
                "${BUILD_DIR}/revo_make_debian.sh" -c deploy |&
-        tee "${BUILD_DIR}/build.log"
-    CA_URL="$CA_URL" CA_FINGERPRINT="$CA_FINGERPRINT" \
-          MACHINE=revo-roadrunner-mx7 "${BUILD_DIR}/revo_make_debian.sh" \
+        $TEE_CMD "${BUILD_DIR}/build.log" || return $?
+    CA_URL="$CA_URL" \
+          CA_FINGERPRINT="$CA_FINGERPRINT" \
+          MACHINE=revo-roadrunner-mx7 \
+          "${BUILD_DIR}/revo_make_debian.sh" \
           $DEBIAN_PROXY -j "$NPROC" -c all |&
-        tee -a "${BUILD_DIR}/build.log"
+        $TEE_CMD -a "${BUILD_DIR}/build.log" || return $?
+
+    ## Container is missing devices required to run these...
     # echo | MACHINE=revo-roadrunner-mx7 "${BUILD_DIR}/revo_make_debian.sh" \
     #               $DEBIAN_PROXY -c diskimage |&
-    #     tee -a "${BUILD_DIR}/build.log"
+    #     $TEE_CMD -a "${BUILD_DIR}/build.log"
     # echo | MACHINE=revo-roadrunner-mx7 "${BUILD_DIR}/revo_make_debian.sh" \
     #               -c usbimage |&
-    #     tee -a "${BUILD_DIR}/build.log"
+    #     $TEE_CMD -a "${BUILD_DIR}/build.log"
     # echo | MACHINE=revo-roadrunner-mx7 "${BUILD_DIR}/revo_make_debian.sh" \
     #               -c provisionimage |&
-    #     tee -a "${BUILD_DIR}/build.log"
+    #     $TEE_CMD -a "${BUILD_DIR}/build.log"
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare script=$($READLINK_CMD -e $0)
+    declare script_name=${script##*/}
+    declare script_dir=${script%/*}
+
     declare build_suite_commit=$1
 
-    install-prerequisites
-    clone-build-suite "$build_suite_commit"
+    install-prerequisites || exit $?
+    clone-build-suite "$build_suite_commit" || exit $?
     build-images
 fi

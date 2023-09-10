@@ -2,38 +2,39 @@
 #
 # @(#) build-builder-image
 #
-# Copyright © 2021, 2022 Revolution Robotics, Inc.
+# Copyright © 2021-2023 Revolution Robotics, Inc.
 #
-: ${AWK:='/usr/bin/gawk'}
-: ${BUILDAH:='/usr/bin/buildah'}
-: ${CAT:='/bin/cat'}
-: ${CHMOD:='/bin/chmod'}
-: ${CHROOT:='/usr/sbin/chroot'}
-: ${CP:='/bin/cp'}
-: ${DF:='/bin/df'}
-: ${FINDMNT:='/bin/findmnt'}
-: ${GIT:='/usr/bin/git'}
-: ${HEAD:='/usr/bin/head'}
-: ${INSTALL:='/usr/bin/install'}
-: ${IP:='/bin/ip'}
-: ${JQ:='/usr/bin/jq'}
-: ${MKDIR:='/bin/mkdir'}
-: ${MOUNT:='/bin/mount'}
-: ${MV:='/bin/mv'}
-: ${NMCLI:='/usr/bin/nmcli'}
-: ${PODMAN:='/usr/bin/podman'}
-: ${READLINK:='/bin/readlink'}
-: ${RM:='/bin/rm'}
-: ${SED:='/bin/sed'}
-: ${SLEEP:='/bin/sleep'}
-: ${SOPS:="${HOME}/.asdf/shims/sops"}
-: ${SUDO:='/usr/bin/sudo'}
-: ${SYSTEMCTL:='/bin/systemctl'}
-: ${TAR:='/bin/tar'}
-: ${TEE:='/usr/bin/tee'}
-: ${TOUCH:='/bin/touch'}
-: ${UMOUNT:='/bin/umount'}
-: ${ZFS:='/sbin/zfs'}
+: ${APT_CMD:='/usr/bin/apt'}
+: ${AWK_CMD:='/usr/bin/gawk'}
+: ${BUILDAH_CMD:='/usr/bin/buildah'}
+: ${CAT_CMD:='/bin/cat'}
+: ${CHMOD_CMD:='/bin/chmod'}
+: ${CHROOT_CMD:='/usr/sbin/chroot'}
+: ${CP_CMD:='/bin/cp'}
+: ${DF_CMD:='/bin/df'}
+: ${FINDMNT_CMD:='/bin/findmnt'}
+: ${GIT_CMD:='/usr/bin/git'}
+: ${HEAD_CMD:='/usr/bin/head'}
+: ${INSTALL_CMD:='/usr/bin/install'}
+: ${IP_CMD:='/bin/ip'}
+: ${JQ_CMD:='/usr/bin/jq'}
+: ${MKDIR_CMD:='/bin/mkdir'}
+: ${MOUNT_CMD:='/bin/mount'}
+: ${MV_CMD:='/bin/mv'}
+: ${NMCLI_CMD:='/usr/bin/nmcli'}
+: ${PODMAN_CMD:='/usr/bin/podman'}
+: ${READLINK_CMD:='/bin/readlink'}
+: ${RM_CMD:='/bin/rm'}
+: ${SED_CMD:='/bin/sed'}
+: ${SLEEP_CMD:='/bin/sleep'}
+: ${SOPS_CMD:="${HOME}/.asdf/shims/sops"}
+: ${SUDO_CMD:='/usr/bin/sudo'}
+: ${SYSTEMCTL_CMD:='/bin/systemctl'}
+: ${TAR_CMD:='/bin/tar'}
+: ${TEE_CMD:='/usr/bin/tee'}
+: ${TOUCH_CMD:='/bin/touch'}
+: ${UMOUNT_CMD:='/bin/umount'}
+: ${ZFS_CMD:='/sbin/zfs'}
 
 pr-info ()
 {
@@ -57,7 +58,7 @@ load-configuration ()
                   && ! ."$line" =~ ^\.[[:space:]]*# ]]; then
 
             # Split line on equals sign (=)...
-            set --; set -- $(awk -F'=' '{ print $1, $2 }' <<<"$line")
+            set --; set -- $($AWK_CMD -F'=' '{ print $1, $2 }' <<<"$line")
 
             # If first arg is legal bash variable name...
             if [[ ."$1" =~ ^\.[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
@@ -77,10 +78,10 @@ enable-qemu-arm ()
 {
     local qemu_arm=/proc/sys/fs/binfmt_misc/qemu-arm
 
-    if ! $SUDO $SYSTEMCTL enable --now binfmt-support &>/dev/null; then
+    if ! $SUDO_CMD $SYSTEMCTL_CMD enable --now binfmt-support &>/dev/null; then
         pr-err "${script_name}: binfmt-support not available"
         return 1
-    elif test ! -f "$qemu_arm" -o ."$($HEAD -1 $qemu_arm)" != .'enabled'; then
+    elif test ! -f "$qemu_arm" -o ."$($HEAD_CMD -1 $qemu_arm)" != .'enabled'; then
         pr-err "${script_name}: qemu-arm: QEMU ARM interpreter not available"
         return 2
     fi
@@ -88,14 +89,17 @@ enable-qemu-arm ()
 
 get-external-ip ()
 {
-    local gateway_device=$(
-        $IP route |
-            $AWK '/^default/ { print gensub(/^.* dev ([^ ]+) .*$/, "\\1", 1) }'
-          )
-    local ipv4_address=$(
-        $NMCLI -t --fields ip4.address d show "$gateway_device" |
-            $AWK '{ print gensub(/.*:([^/]+)\/.*/, "\\1", 1) }'
-          )
+    local gateway_device=''
+    local ipv4_address=''
+
+    gateway_device=$(
+        $IP_CMD route |
+            $AWK_CMD '/^default/ { print gensub(/^.* dev ([^ ]+) .*$/, "\\1", 1) }'
+                  ) || return $?
+    ipv4_address=$(
+        $NMCLI_CMD -t --fields ip4.address d show "$gateway_device" |
+            $AWK_CMD '{ print gensub(/.*:([^/]+)\/.*/, "\\1", 1) }'
+                ) || return $?
 
     echo "$ipv4_address"
 }
@@ -104,19 +108,21 @@ get-secret ()
 {
     local key=$1
 
-    local toplevel_dir=$($GIT -C "$script_dir" rev-parse --show-toplevel)
+    local toplevel_dir=''
 
-    $SOPS exec-env "${toplevel_dir}/config/secrets.enc.json" "echo \$$key"
+    toplevel_dir=$($GIT_CMD -C "$script_dir" rev-parse --show-toplevel) || return $?
+
+    $SOPS_CMD exec-env "${toplevel_dir}/config/secrets.enc.json" "echo \$$key"
 }
 
 umount-fs ()
 {
     local mount_point=$1
-    local fs
+    local fs=''
 
     for fs in dev/pts dev proc sys ; do
-        if $FINDMNT "${mount_point}/${fs}" >/dev/null; then
-            $SUDO $UMOUNT -f "${mount_point}/${fs}" 2>/dev/null
+        if $FINDMNT_CMD "${mount_point}/${fs}" >/dev/null; then
+            $SUDO_CMD $UMOUNT_CMD -f "${mount_point}/${fs}" 2>/dev/null
         fi
     done
 }
@@ -125,17 +131,17 @@ mount-fs ()
 {
     local mount_point=$1
 
-    $SUDO $INSTALL -d -m 0755 -o root -g root "${mount_point}"
-    $SUDO $INSTALL -d -m 0555 -o root -g root "${mount_point}"/{dev,proc,sys}
-    $SUDO $INSTALL -d -m 0755 -o root -g root "${mount_point}/dev/pts"
+    $SUDO_CMD $INSTALL_CMD -d -m 0755 -o root -g root "${mount_point}" || return $?
+    $SUDO_CMD $INSTALL_CMD -d -m 0555 -o root -g root "${mount_point}"/{dev,proc,sys} || return $?
+    $SUDO_CMD $INSTALL_CMD -d -m 0755 -o root -g root "${mount_point}/dev/pts" || return $?
 
-    if ! $FINDMNT "${mount_point}/proc" >/dev/null; then
-        $SUDO $MOUNT -t proc /proc "${mount_point}/proc"
+    if ! $FINDMNT_CMD "${mount_point}/proc" >/dev/null; then
+        $SUDO_CMD $MOUNT_CMD -t proc /proc "${mount_point}/proc" || return $?
     fi
 
     for fs in /sys /dev /dev/pts; do
-        if ! $FINDMNT "${mount_point}${fs}" >/dev/null; then
-            $SUDO $MOUNT -o bind "$fs" "${mount_point}${fs}"
+        if ! $FINDMNT_CMD "${mount_point}${fs}" >/dev/null; then
+            $SUDO_CMD $MOUNT_CMD -o bind "$fs" "${mount_point}${fs}" || return $?
         fi
     done
 }
@@ -148,17 +154,19 @@ build-builder ()
     local build_script=$4
     local client=$5
 
-    # local old_image_id=$($SUDO $BUILDAH images -n --filter=reference="localhost/${name}" --format="{{.ID}}")
+    # local old_image_id=$($SUDO_CMD $BUILDAH_CMD images -n --filter=reference="localhost/${name}" --format="{{.ID}}")
 
     # if test ."$old_image_id" != .''; then
     #     pr-info "Removing old container image: localhost/${name}"
-    #     $SUDO $BUILDAH rmi "$old_image_id" >&2 || return $?
+    #     $SUDO_CMD $BUILDAH_CMD rmi "$old_image_id" >&2 || return $?
     # fi
 
-    local image_id=$(
-        $SUDO $BUILDAH images -n --filter=reference="localhost/${name}" \
-              --format="{{.ID}}"
-          )
+    local image_id=''
+
+    image_id=$(
+        $SUDO_CMD $BUILDAH_CMD images -n --filter=reference="localhost/${name}" \
+                  --format="{{.ID}}"
+            ) || return $?
 
     if test ."$image_id" != .''; then
         echo "$image_id"
@@ -167,28 +175,28 @@ build-builder ()
 
     pr-info "Pulling container image: ${image}:${tag}"
 
-    local container
-    local mount_point
+    local container=''
+    local mount_point=''
 
-    container=$($SUDO $BUILDAH from "${image}:${tag}") || return $?
-    mount_point=$($SUDO $BUILDAH mount "$container") || return $?
+    container=$($SUDO_CMD $BUILDAH_CMD from "${image}:${tag}") || return $?
+    mount_point=$($SUDO_CMD $BUILDAH_CMD mount "$container") || return $?
 
     if test -f "${mount_point}/etc/hosts"; then
-        $SUDO $CP -a "${mount_point}/etc/hosts"{,~}
+        $SUDO_CMD $CP_CMD -a "${mount_point}/etc/hosts"{,~} || return $?
     else
-        $SUDO $TOUCH  "${mount_point}/etc/hosts~"
+        $SUDO_CMD $TOUCH_CMD  "${mount_point}/etc/hosts~" || return $?
     fi
 
     if test -f "${mount_point}/etc/resolv.conf"; then
-        $SUDO $CP -a "${mount_point}/etc/resolv.conf"{,~}
+        $SUDO_CMD $CP_CMD -a "${mount_point}/etc/resolv.conf"{,~} || return $?
     else
-        $SUDO $TOUCH  "${mount_point}/etc/resolv.conf~"
+        $SUDO_CMD $TOUCH_CMD  "${mount_point}/etc/resolv.conf~" || return $?
     fi
 
-    $SUDO $INSTALL -m 0644 /etc/hosts "${mount_point}/etc"
-    $SUDO $INSTALL -m 0644 /etc/resolv.conf "${mount_point}/etc"
+    $SUDO_CMD $INSTALL_CMD -m 0644 /etc/hosts "${mount_point}/etc" || return $?
+    $SUDO_CMD $INSTALL_CMD -m 0644 /etc/resolv.conf "${mount_point}/etc" || return $?
 
-    $SUDO $TEE "${mount_point}/install-prerequisites" >/dev/null <<EOF
+    $SUDO_CMD $TEE_CMD "${mount_point}/install-prerequisites" >/dev/null <<EOF
 #!/bin/bash
 #
 # @(#) install-prerequisites
@@ -196,7 +204,7 @@ build-builder ()
 : \${HOST_GW_IPV4:=$(get-external-ip)}
 EOF
 
-    $SUDO $TEE -a "${mount_point}/install-prerequisites" >/dev/null <<'EOS'
+    $SUDO_CMD $TEE_CMD -a "${mount_point}/install-prerequisites" >/dev/null <<'EOS'
 
 install-packages ()
 {
@@ -254,41 +262,41 @@ EOF
 install-packages
 EOS
 
-    $SUDO $CHMOD 0755 "$mount_point/install-prerequisites" || return $?
+    $SUDO_CMD $CHMOD_CMD 0755 "$mount_point/install-prerequisites" || return $?
 
     trap 'umount-fs "$mount_point"; exit' 0 1 2 15
 
-    mount-fs "$mount_point"
+    mount-fs "$mount_point" || return $?
 
     pr-info "Installing builder prerequisites..."
 
-    $SUDO $CHROOT "$mount_point" ./install-prerequisites >&2
-    $SUDO $RM -f "${mount_point}/install-prerequisites"
+    $SUDO_CMD $CHROOT_CMD "$mount_point" ./install-prerequisites >&2 || return $?
+    $SUDO_CMD $RM_CMD -f "${mount_point}/install-prerequisites" || return $?
 
-    umount-fs "$mount_point"
+    umount-fs "$mount_point" || return $?
 
     trap - 0 1 2 15
 
     printf -v quoted_x509_genkey '%q' "$(get-secret X509_GENKEY_${client})"
     printf -v quoted_signing_key '%q' "$(get-secret SIGNING_KEY_${client})"
 
-    $SED -e "s;@GW_IPV4@;$(get-external-ip);"  \
+    $SED_CMD -e "s;@GW_IPV4@;$(get-external-ip);"  \
          -e "s;@CA_URL@;$(get-secret CA_URL);" \
          -e "s;@CA_FINGERPRINT@;$(get-secret CA_FINGERPRINT);" \
          -e "s;@X509_GENKEY@;${quoted_x509_genkey};" \
          -e "s;@SIGNING_KEY@;${quoted_signing_key};" \
          "$build_script" |
-        $SUDO tee "${mount_point}/root/${build_script##*/}" >/dev/null
-    $SUDO $CHMOD 0755 "${mount_point}/root/${build_script}"
-    $SUDO $BUILDAH unmount "$container" >&2
-    $SUDO $BUILDAH config --cmd "/root/${build_script}" \
-          --label name="$name" "$container" >&2
-    $SUDO $BUILDAH commit "$container" "$name" >&2
-    $SUDO sync
-    $SLEEP 5
-    $SUDO $BUILDAH rm "$container" >&2
-    $SUDO $BUILDAH images -n --filter=reference="localhost/${name}" \
-          --format="{{.ID}}"
+        $SUDO_CMD tee "${mount_point}/root/${build_script##*/}" >/dev/null || return $?
+    $SUDO_CMD $CHMOD_CMD 0755 "${mount_point}/root/${build_script}" || return $?
+    $SUDO_CMD $BUILDAH_CMD unmount "$container" >&2 || return $?
+    $SUDO_CMD $BUILDAH_CMD config --cmd "/root/${build_script}" \
+          --label name="$name" "$container" >&2 || return $?
+    $SUDO_CMD $BUILDAH_CMD commit "$container" "$name" >&2 || return $?
+    $SUDO_CMD sync || return $?
+    $SLEEP_CMD 5 || return $?
+    $SUDO_CMD $BUILDAH_CMD rm "$container" >&2 || return $?
+    $SUDO_CMD $BUILDAH_CMD images -n --filter=reference="localhost/${name}" \
+          --format="{{.ID}}" || return $?
 }
 
 reset-window-title ()
@@ -297,7 +305,7 @@ reset-window-title ()
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
-    declare script=$(readlink -e "$0")
+    declare script=$($READLINK_CMD -e "$0")
 
     declare client=${1:-'UD'}
     declare machine=${2:-'revo-roadrunner-mx7'}
@@ -309,7 +317,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare vendor_path=${script_dir}/../../revo
 
     # Load  variable definitions from ${machine}-${distribution}.conf.
-    load-configuration "${vendor_path}/${machine}/${machine}-${distribution}.conf"
+    load-configuration "${vendor_path}/${machine}/${machine}-${distribution}.conf" || exit $?
     enable-qemu-arm || exit $?
 
     declare builder_id
@@ -324,7 +332,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
         exit 2
     fi
 
-    $CAT >&2 <<EOF
+    $CAT_CMD >&2 <<EOF
 ════════════════════════════════════════════════════════════════════════════════
 Builder image: ${builder_name}
 Builder ID: ${builder_id}
