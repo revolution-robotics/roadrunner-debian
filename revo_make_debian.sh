@@ -106,6 +106,7 @@ Options:
                         usbfs and provisionfs
        bootloader    -- build U-Boot (SPL.mmc and u-boot.img.mmc)
        kernel        -- build Linux kernel (uImage)
+       devicetree    -- build Linux devicetree (*.dtb)
        modules       -- install kernel modules and headers to rootfs
        remodules     -- install kernel modules and headers to recoveryfs
        rootfs        -- build Debian root filesystem (rootfs.tar.gz),
@@ -420,6 +421,22 @@ make_kernel ()
 
     pr_info "Copy kernel and dtb files to output dir: $5"
     cp "${4}/${KERNEL_BOOT_IMAGE_SRC}/${BUILD_IMAGE_TYPE}" "$5"
+    cp "${4}/${KERNEL_DTB_IMAGE_PATH}"*.dtb "$5"
+}
+
+# make Linux devicetree
+# $1 -- cross compiler prefix
+# $2 -- Linux defconfig file
+# $3 -- Linux dtb files
+# $4 -- Linux dirname
+# $5 -- out path
+make_devicetree ()
+{
+    pr_info "make $2"
+    pr_info "make kernel .config"
+    make ARCH="$ARCH_ARGS" CROSS_COMPILE="$1" $G_CROSS_COMPILER_JOPTION -C "$4" "$2"
+    pr_info "make $3"
+    make CROSS_COMPILE="$1" ARCH="$ARCH_ARGS" $G_CROSS_COMPILER_JOPTION -C "$4" $3
     cp "${4}/${KERNEL_DTB_IMAGE_PATH}"*.dtb "$5"
 }
 
@@ -1089,6 +1106,13 @@ cmd_make_kernel ()
                 "$G_LINUX_KERNEL_SRC_DIR" "$PARAM_OUTPUT_DIR"
 }
 
+cmd_make_devicetree ()
+{
+    make_devicetree "${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
+                "$G_LINUX_KERNEL_DEF_CONFIG" "$G_LINUX_DTB" \
+                "$G_LINUX_KERNEL_SRC_DIR" "$PARAM_OUTPUT_DIR"
+}
+
 cmd_make_kmodules ()
 {
     local targetdir=$1
@@ -1377,6 +1401,9 @@ case $PARAM_CMD in
         ;;
     kernel)
         pr_elapsed_time cmd_make_kernel
+        ;;
+    devicetree)
+        pr_elapsed_time cmd_make_devicetree
         ;;
     modules)
         pr_elapsed_time cmd_make_kmodules $G_ROOTFS_DIR

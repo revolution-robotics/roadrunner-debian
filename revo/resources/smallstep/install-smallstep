@@ -12,28 +12,28 @@
 #     x86_64
 #
 : ${APT_CMD:='/usr/bin/apt'}
-: ${BASH_CMD:='/usr/bin/bash'}
-: ${CHMOD_CMD:='/usr/bin/chmod'}
-: ${CHOWN_CMD:='/usr/bin/chown'}
+: ${BASH_CMD:='/bin/bash'}
+: ${CHMOD_CMD:='/bin/chmod'}
+: ${CHOWN_CMD:='/bin/chown'}
 : ${CURL_CMD:='/usr/bin/curl'}
 : ${DNF_CMD:='/usr/bin/dnf5'}
 : ${FILE_CMD:='/usr/bin/file'}
 : ${FIND_CMD:='/usr/bin/find'}
 : ${GIT_CMD:='/usr/bin/git'}
-: ${GREP_CMD:='/usr/bin/grep'}
+: ${GREP_CMD:='/bin/grep'}
 : ${HEAD_CMD:='/usr/bin/head'}
 : ${INSTALL_CMD:='/usr/bin/install'}
-: ${LS_CMD:='/usr/bin/ls'}
+: ${LS_CMD:='/bin/ls'}
 : ${MAKE_CMD:='/usr/bin/make'}
-: ${MKTEMP_CMD:='/usr/bin/mktemp'}
-: ${READLINK_CMD:='/usr/bin/readlink'}
-: ${RM_CMD:='/usr/bin/rm'}
-: ${SED_CMD:='/usr/bin/sed'}
+: ${MKTEMP_CMD:='/bin/mktemp'}
+: ${READLINK_CMD:='/bin/readlink'}
+: ${RM_CMD:='/bin/rm'}
+: ${SED_CMD:='/bin/sed'}
 : ${SORT_CMD:='/usr/bin/sort'}
-: ${TAR_CMD:='/usr/bin/tar'}
-: ${SYSTEMCTL_CMD:='/usr/bin/systemctl'}
+: ${TAR_CMD:='/bin/tar'}
+: ${SYSTEMCTL_CMD:='/bin/systemctl'}
 : ${SUDO_CMD:='/usr/bin/sudo'}
-: ${UNAME_CMD:='/usr/bin/uname'}
+: ${UNAME_CMD:='/bin/uname'}
 
 : ${ASDF_SHIMS_PATH:="${HOME}/.asdf/shims"}
 
