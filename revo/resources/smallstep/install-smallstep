@@ -305,13 +305,14 @@ maybe-reshim-golang ()
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
     set -e -o pipefail
+    shopt -s lastpipe
 
     declare script=''
 
     script=$(resolve-existing "$0") || exit $?
 
     declare script_name=${script##*/}
-
+    declare allow_rc=${1:-'false'}
     declare cli_uri=https://github.com/smallstep/cli
     declare certificates_uri=https://github.com/smallstep/certificates
     declare go_path=''
@@ -320,21 +321,21 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
         export GOPATH=$(go env GOPATH)
     fi
 
-    if [[ ."$GOPATH" =~ ^\.$HOME ]]; then
-        build-step-cli || exit $?
-        build-step-ca || exit $?
-        deploy-smallstep $GOPATH || exit $?
-        maybe-reshim-golang "${go_path%/*}"
-    else
-        declare allow_rc=${1:-'false'}
+    case $(uname -m) in
+        aarch64|armv7l)
+            build-step-cli || exit $?
+            build-step-ca || exit $?
+            deploy-smallstep $GOPATH || exit $?
+            maybe-reshim-golang "${go_path%/*}"
+            ;;
+        amd64)
+            if (( UID != 0 )); then
+                echo "${script_name}: Must be run as user \`root'." >&2
+                exit 1
+            fi
 
-        if (( UID != 0 )); then
-            echo "${script_name}: Must be run as user \`root'." >&2
-            exit 1
-        fi
-
-        fetch-and-install-step-pkg "$cli_uri" "$allow_rc" || exit $?
-        fetch-and-install-step-pkg "$certificates_uri" "$allow_rc" || exit $?
-    fi
-
+            fetch-and-install-step-pkg "$cli_uri" "$allow_rc" || exit $?
+            fetch-and-install-step-pkg "$certificates_uri" "$allow_rc" || exit $?
+            ;;
+    esac
 fi
