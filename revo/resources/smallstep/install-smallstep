@@ -328,7 +328,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
             deploy-smallstep $GOPATH || exit $?
             maybe-reshim-golang "${go_path%/*}"
             ;;
-        amd64)
+        amd64|x86_64)
             if (( UID != 0 )); then
                 echo "${script_name}: Must be run as user \`root'." >&2
                 exit 1
