@@ -1,6 +1,6 @@
 {
   "name": "markov-pwgen",
-  "version": "1.0.3",
+  "version": "2.1.5",
   "babel": {
     "presets": [
       "@babel/preset-env"
@@ -12,21 +12,25 @@
   "description": "Markov chain password generator",
   "dependencies": {
     "foswig": "^3.0.1",
-    "minimist": "^1.2.5"
+    "piscina": "^4.1.0"
   },
+  "engines": { "node": ">=20.0.0" },
   "scripts": {
-    "preinstall": "test -f dictionary.js || ./scripts/filter-wordlist.py"
+    "preinstall": "test -f ./lib/word-list.js || ./scripts/filter-wordlist.js",
+    "filter-wordlist": "./scripts/filter-wordlist.js",
+    "update-wordlist": "install lib/word-list.js $(npm list -g | head -1)/node_modules/$(npm query :root | jq -r '.[]|.name')/lib/",
+    "simple-test": "bin/markov-pwgen.js | grep -oE '([^\" ]+-?){2,}'",
+    "uppercase-test": "bin/markov-pwgen.js -ut'-aeiou,_äëïöü' | grep -oE '([^\" ]+_?){2,}'",
+    "number-test": "bin/markov-pwgen.js -ut'-aeiougt,_äëïöü97' | grep -oE '([^\" ]+_?){2,}'",
+    "pretest": "test -d node_modules || npm install",
+    "test": "npm run simple-test && npm run uppercase-test && npm run number-test"
   },
   "type": "module",
   "main": "index.js",
   "bin": {
     "markov-pwgen": "bin/markov-pwgen.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/revolution-robotics/roadrunner-debian",
-    "directory": "contrib/markov-pwgen"
-  },
+  "repository": "github:revolution-robotics/markov-pwgen",
   "keywords": [
     "markov",
     "chain",

@@ -17,19 +17,12 @@ progress_bar ()
 
     for (( i = 0; i < 100; i += update_interval * 100 / runtime )); do
         dots=$(eval printf ".%.0s" {0..$(( dots_max * i / 100 ))})
-        printf "\r%-${dots_max}s(%2d%%)" "${dots%.}" "$i"
+        printf "\r%-${dots_max}s(%3d%%)" "${dots%.}" "$i"
         sleep "$update_interval"
     done
 
-    local -i columns=0
-
-    columns=$(
-        stty -a </dev/tty |
-            sed -n -e '/columns/s/.*columns \([^ ]*\);.*/\1/p'
-            ) || return $?
-
-    printf '\r'
-    eval printf '=%.0s' {1..$columns}
+    dots=$(eval printf ".%.0s" {0..$dots_max})
+    printf "\r%-${dots_max}s(100%%)" "${dots%.}"
 }
 
 collect_metrics ()

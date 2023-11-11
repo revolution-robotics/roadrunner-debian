@@ -2,7 +2,7 @@
 #
 # @(#) flash-diskimage
 #
-# Copyright © 2022 Revolution Robotics, Inc.
+# Copyright © 2023 Revolution Robotics, Inc.
 #
 # This script is intended for flashing a USB drive with a bootable
 # image file.
@@ -133,6 +133,7 @@ select-from-list ()
                 esac
             done
     esac
+
     echo "$choice"
 }
 
@@ -185,11 +186,15 @@ get-disk-images ()
 
     local image_suffixes='{bz2,gz,img,iso,lz,lzma,lzo,xz,zip}'
 
-    local -a archives
-    local archive
-    local image_cat
+    local -a archives=()
+    local archives_string=''
+    local archive=''
+    local image_cat=''
 
-    mapfile -t archives < <(eval $LS_CMD "${image_directory}/"*.${image_suffixes} 2>/dev/null)
+    archives_string=$(
+        eval $LS_CMD "${image_directory}/"*.${image_suffixes} 2>/dev/null
+                   ) || return $?
+    mapfile -t archives <<<"$archives_string"
 
     for archive in "${archives[@]}"; do
         image_cat=$(get-decompressor "$archive")
@@ -208,19 +213,22 @@ get-disk-images ()
 
 get-removable-devices ()
 {
-    local -a devices
-    local device
-    local vendor
-    local model
+    local devices_string=''
+    local -a devices=()
+    local device=''
+    local vendor=''
+    local model=''
 
-    mapfile -t devices < <(
+    devices_string=$(
         $GREP_CMD -lv '^0$' '/sys/block/'*'/removable' |
             $SED_CMD -e 's;removable$;device/uevent;' |
             $XARGS_CMD $GREP_CMD -l '^DRIVER=sd$' |
             $SED_CMD -e 's;device/uevent;size;' |
             $XARGS_CMD $GREP_CMD -lv '^0' |
             $CUT_CMD -d/ -f4
-    )
+                  ) || return $?
+
+    mapfile -t devices <<<"$devices_string"
 
     for device in "${devices[@]}"; do
         vendor=$(< "/sys/block/${device}/device/vendor")
@@ -234,17 +242,23 @@ select-disk-image ()
     local image_directory=$1
     local ex_dos_mbr=$2
 
-    local -a disk_images
+    local -a disk_images=()
+    local disk_images_string=''
 
-    mapfile -t disk_images < <(get-disk-images "$image_directory" "$ex_dos_mbr")
+    disk_images_string=$(
+        get-disk-images "$image_directory" "$ex_dos_mbr"
+                      ) || return $?
+    mapfile -t disk_images <<<"$disk_images_string"
     select-from-list disk_images 'Please choose an image to flash from:'
 }
 
 select-removable-device ()
 {
-    declare -a removable_devices
+    local -a removable_devices=()
+    local removable_devices_string=''
 
-    mapfile -t removable_devices < <(get-removable-devices)
+    removable_devices_string=$(get-removable-devices) || return $?
+    mapfile -t removable_devices <<<"$removable_devices_string"
     select-from-list removable_devices 'Please choose a device to flash to:'
 }
 
@@ -252,9 +266,9 @@ is-removable-device ()
 {
     local device=${1#/dev/}
 
-    local removable
-    local drive
-    local gdbus_is_removable
+    local -i is_removable=0
+    local drive=''
+    local is_gdbus_removable=false
 
     # Check that parameter is a valid block device
     if test ! -b "/dev/$device"; then
@@ -265,31 +279,31 @@ is-removable-device ()
     # Check that /sys/block/$dev exists
     if test ! -d "/sys/block/$device"; then
         pr-error "/sys/block/$device: No such directory"
-        return 1
+        return 2
     fi
 
     # Get device parameters
-    removable=$(< "/sys/block/${device}/removable")
+    is_removable=$(< "/sys/block/${device}/removable")
 
     # Non removable SD card readers require additional check
-    if test ."$removable" != .'1'; then
+    if (( is_removable != 1 )); then
         drive=$($UDISKSCTL_CMD info -b "/dev/$device" |
-                    $AWK_CMD -F\' '/Drive:/ { print $2 }')
-        gdbus_is_removable=$(
+                    $AWK_CMD -F\' '/Drive:/ { print $2 }') || return $?
+        is_gdbus_removable=$(
             $GDBUS_CMD call --system --dest org.freedesktop.UDisks2 \
                   --object-path "$drive" \
                   --method org.freedesktop.DBus.Properties.Get \
                   org.freedesktop.UDisks2.Drive MediaRemovable 2>/dev/null
-                          )
-        if [[ ."$gdbus_is_removable" =~ ^\..*true ]]; then
-            removable=1
+                          ) || return $?
+        if [[ ."$is_gdbus_removable" =~ ^\..*true ]]; then
+            is_removable=1
         fi
     fi
 
     # Device not removable
-    if test ."$removable" != .'1'; then
+    if (( is_removable != 1 )); then
         pr-error "/dev/$device: Not a removable device"
-        return 1
+        return 3
     fi
 }
 
@@ -303,7 +317,8 @@ get-image-file ()
         if test -f "${image_directory}/${image_file}"; then
             image_file=${image_directory}/${image_file}
         else
-            image_file=$(select-disk-image "$image_directory" "$ex_dos_mbr")
+            image_file=$(select-disk-image "$image_directory" "$ex_dos_mbr") \
+                || return $?
         fi
 
         if test ! -f "$image_file"; then
@@ -319,19 +334,23 @@ get-block-device ()
 {
     local block_device=$1
 
-    local total_size
-    local total_size_bytes
-    local total_size_gib
-    local -i i
+    is-removable-device "$block_device" >/dev/null 2>&1
+    case $? in
+        0)
+            : Nothing to do
+            ;;
+        *)
+            block_device=$(
+                select-removable-device |
+                    $AWK_CMD '{ print $1 }'
+                        ) || return $?
 
-    if ! is-removable-device "$block_device" >/dev/null 2>&1; then
-        block_device=$(select-removable-device | $AWK_CMD '{ print $1 }')
-
-        if test ! -b "$block_device"; then
-            pr-error "${block_device}: Device not available"
-            return 1
-        fi
-    fi
+            if test ! -b "$block_device"; then
+                pr-error "${block_device}: Device not available"
+                return 1
+            fi
+            ;;
+    esac
 
     echo "$block_device"
 }
@@ -341,9 +360,13 @@ verify-media ()
     local image_file=$1
     local block_device=$2
 
-    total_size=$($SUDO_CMD $BLOCKDEV_CMD --getsz "$block_device")
-    total_size_bytes=$(( total_size * 512 ))
-    total_size_gib=$($PERL_CMD -e "printf '%.1f', $total_size_bytes / 1024 ** 3")
+    local total_size_bytes=0
+    local total_size_gib=0
+
+    total_size_bytes=$($SUDO_CMD $BLOCKDEV_CMD --getsize64 "$block_device") \
+        || return $?
+    total_size_gib=$($PERL_CMD -e "printf '%.1f', $total_size_bytes / 1024 ** 3") \
+                  || return $?
 
     echo '═════════════════════════════════════════════' >&2
     pr-info "Image: ${image_file##*/}"
@@ -367,13 +390,15 @@ flash-image ()
 
     pr-info "Flashing image to device..."
 
+    local -i i=0
+
     for (( i=0; i < 10; i++ )); do
         if test -n "$($FINDMNT_CMD -n "${block_device}${i}")"; then
-            $SUDO_CMD $UMOUNT_CMD -f "${block_device}${i}"
+            $SUDO_CMD $UMOUNT_CMD -f "${block_device}${i}" || true
         fi
     done
 
-    errfile=$($MKTEMP_CMD "/tmp/${script_name}.XXXXX")
+    errfile=$($MKTEMP_CMD "/tmp/${script_name}.XXXXX") || return $?
     trap '$RM_CMD -f "$errfile"; exit' 0 1 2 15 RETURN
 
     if ! $image_cat "$image_file" |
@@ -383,7 +408,9 @@ flash-image ()
         return 1
     fi
 
-    local bytes_written=$($AWK_CMD '/bytes/ { print $1 }' "$errfile")
+    local bytes_written=0
+
+    bytes_written=$($AWK_CMD '/bytes/ { print $1 }' "$errfile") || return $?
 
     $RM_CMD -f "$errfile"
     trap - 0 1 2 15 RETURN
@@ -399,13 +426,18 @@ verify-diskimage ()
 
     pr-info "Verifying device against image..."
 
-    errfile=$($MKTEMP_CMD "/tmp/${script_name}.XXXXX")
+    errfile=$($MKTEMP_CMD "/tmp/${script_name}.XXXXX") || return $?
     trap '$RM_CMD -f "$errfile"; exit' 0 1 2 15 RETURN
 
     $image_cat "$image_file" |
-        $SUDO_CMD $CMP_CMD -n "$bytes_written" "$block_device" - >"$errfile" 2>&1
+        $SUDO_CMD $CMP_CMD -n "$bytes_written" "$block_device" - >"$errfile" 2>&1 \
+                  || true
 
-    local bytes_verified=$($SED_CMD -nr -e 's/.*differ: byte +([0-9]+).*$/\1/p' "$errfile")
+    local bytes_verified=0
+
+    bytes_verified=$(
+        $SED_CMD -nr -e 's/.*differ: byte +([0-9]+).*$/\1/p' "$errfile"
+                  ) || return $?
 
     if test -s "$errfile"; then
         pr-error "Device and image differ at byte: ${bytes_verified}"
@@ -420,6 +452,8 @@ verify-diskimage ()
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    set -o pipefail
+
     declare script=$($READLINK_CMD -e "$0")
     declare script_name=${script##*/}
 
@@ -433,10 +467,12 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare -r short_opts=b:d:f:hvx
     declare -r long_opts=block-device:,directory:,file:,help,verbose,ex-dos-mbr
 
-    declare ARGS=$(
+    declare ARGS=''
+
+    ARGS=$(
         $GETOPT_CMD -s bash --options "$short_opts"  \
-               --longoptions "$long_opts" --name "$script_name" -- "$@"
-            )
+                    --longoptions "$long_opts" --name "$script_name" -- "$@"
+        ) || exit $?
 
     eval set -- "$ARGS"
 
@@ -509,16 +545,26 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
             ;;
     esac
 
-    image_file=$(get-image-file "$image_directory" "$image_file" "$ex_dos_mbr") || exit $?
+    image_file=$(
+        get-image-file "$image_directory" "$image_file" "$ex_dos_mbr"
+              ) || exit $?
 
     declare image_cat=''
 
-    image_cat=$(get-decompressor "$image_file") || exit $?
-    block_device=$(get-block-device "$block_device") || exit $?
-    verify-media "$image_file" "$block_device" || exit $?
+    image_cat=$(
+        get-decompressor "$image_file"
+             ) || exit $?
+    block_device=$(
+        get-block-device "$block_device"
+                ) || exit $?
+    verify-media "$image_file" "$block_device" \
+        || exit $?
 
     declare -i bytes_written
 
-    bytes_written=$(flash-image "$image_file" "$image_cat" "$block_device") || exit $?
-    verify-diskimage "$image_file" "$block_device" "$bytes_written" || exit $?
+    bytes_written=$(
+        flash-image "$image_file" "$image_cat" "$block_device"
+                 ) || exit $?
+    verify-diskimage "$image_file" "$block_device" "$bytes_written" \
+        || exit $?
 fi
