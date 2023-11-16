@@ -927,13 +927,13 @@ cmd_make_deploy ()
 
     if test ."$X509_GENKEY" != .''; then
         install -d -m 0755 "${G_LINUX_KERNEL_SRC_DIR}/certs"
-        eval echo "$X509_GENKEY" |
+        printf "$X509_GENKEY" |
             base64 -d - >"${G_LINUX_KERNEL_SRC_DIR}/certs/x509.genkey"
     fi
 
     if test ."$SIGNING_KEY" != .''; then
         install -d -m 0755 "${G_LINUX_KERNEL_SRC_DIR}/certs/"
-        eval echo "$SIGNING_KEY" |
+        printf "$SIGNING_KEY" |
             base64 -d - >"${G_LINUX_KERNEL_SRC_DIR}/certs/signing_key.pem"
     fi
 
