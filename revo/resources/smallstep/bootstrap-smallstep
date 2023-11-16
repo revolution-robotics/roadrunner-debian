@@ -79,9 +79,11 @@ remove-golang ()
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare script=$($READLINK_CMD -e $0)
 
+    declare user=${1:-revo}
+
     # Run script as user revo.
     if test ."$LOCKED" != ."$script"; then
-        exec env LOCKED="$script" $SUDO_CMD -i -u revo \
+        exec env LOCKED="$script" $SUDO_CMD -i -u "$user" \
              --preserve-env=LOCKED "$script" "$@"
     fi
 

@@ -32,7 +32,6 @@
 : ${SORT_CMD:='/usr/bin/sort'}
 : ${TAR_CMD:='/bin/tar'}
 : ${SYSTEMCTL_CMD:='/bin/systemctl'}
-: ${SUDO_CMD:='/usr/bin/sudo'}
 : ${UNAME_CMD:='/bin/uname'}
 
 : ${ASDF_SHIMS_PATH:="${HOME}/.asdf/shims"}
@@ -251,13 +250,10 @@ EOF
     # $MAKE_CMD -C "$latest" lint || return $?
     $MAKE_CMD -C "$latest" build || return $?
     $INSTALL_CMD -m 0755 "${latest}/bin/step" "${GOPATH}/bin" || return $?
-
-    local bash_completion_path=$(
-        $SED_CMD -e 's;/bin.*;/share/bash-completion;' <(resolve-existing $(command -v bash))
-          )
-
-    $SUDO_CMD $INSTALL_CMD -m 0644 "${latest}/autocomplete/bash_autocomplete" \
-              "${bash_completion_path}/completions/step" || true
+    $INSTALL_CMD -d -m 0755 ~/bin || return $?
+    $INSTALL_CMD -m 0755 "${latest}/bin/step" ~/bin || return $?
+    $INSTALL_CMD -m 0644 "${latest}/autocomplete/bash_autocomplete" \
+              ~/bin/step_autocomplete || true
 }
 
 build-step-ca ()
@@ -286,11 +282,8 @@ EOF
     # $MAKE_CMD -C "$latest" lint || return $?
     $MAKE_CMD -C "$latest" build || return $?
     $INSTALL_CMD -m 0755 "${latest}/bin/step-ca" "${GOPATH}/bin" || return $?
-}
-
-deploy-smallstep ()
-{
-    $SUDO_CMD $INSTALL_CMD -m 0755 -o root "${GOPATH}/bin/step"{,-ca} /usr/bin/
+    $INSTALL_CMD -d -m 0755 ~/bin || return $?
+    $INSTALL_CMD -m 0755 "${latest}/bin/step-ca" ~/bin || return $?
 }
 
 maybe-reshim-golang ()
@@ -325,7 +318,6 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
         aarch64|armv7l)
             build-step-cli || exit $?
             build-step-ca || exit $?
-            deploy-smallstep $GOPATH || exit $?
             maybe-reshim-golang "${go_path%/*}"
             ;;
         amd64|x86_64)

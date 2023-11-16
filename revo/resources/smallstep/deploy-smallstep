@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+#
+# @(#) deploy-smallstep
+#
+# SYNOPSIS
+#     deploy-smallstep
+#
+: ${GREP_CMD:='/bin/grep'}
+: ${INSTALL_CMD:='/usr/bin/install'}
+: ${READLINK_CMD:='/bin/readlink'}
+: ${SED_CMD:='/bin/sed'}
+
+# OS-agnstoic readlink for existent files/directories.
+resolve-existing ()
+{
+    if $READLINK_CMD --version 2>&1 |
+            $GREP_CMD -q 'coreutils'; then
+        $READLINK_CMD -e "$@"
+    else
+        $READLINK_CMD -f N "$@"
+    fi
+}
+
+deploy-user-smallstep ()
+{
+    local user_dir=$1
+
+    if test -f "${user_dir}/bin/step"; then
+        $INSTALL_CMD -m 0755 -o root -g root "${user_dir}/bin/step" /usr/bin/
+    fi
+
+    if test -f "${user_dir}/bin/step-ca"; then
+        $INSTALL_CMD -m 0755 -o root -g root "${user_dir}/bin/step-ca" /usr/bin/
+    fi
+
+    if test -f "${user_dir}/step_autocomplete"; then
+        local bash_completion_path=$(
+            $SED_CMD -e 's;/bin.*;/share/bash-completion;' <(resolve-existing $(command -v bash))
+              )
+
+        $INSTALL_CMD -m 0644 -o root -g root "${user_dir}/step_autocomplete" \
+                     "${bash_completion_path}/completions/step" || true
+    fi
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare script_name=${script##*/}
+
+    if (( UID != 0 )); then
+        echo "${script_name}: Must be run as user \`root'." >&2
+        exit 1
+    fi
+
+    declare user_dir=${1:-~revo}
+
+    deploy-user-smallstep "$user_dir"
+fi
