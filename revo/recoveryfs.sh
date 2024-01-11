@@ -954,8 +954,12 @@ EOF
     #         "${RECOVERYFS_BASE}/usr/bin/curl"
 
     ## Install Smallstep CA installation script
-    install -m 0755 "${G_VENDOR_PATH}/resources/smallstep/install-smallstep" \
+    install -m 0755 "${G_VENDOR_PATH}/resources/smallstep/"{bootstrap,install}-smallstep \
             "${RECOVERYFS_BASE}/usr/bin"
+    if test -f "${ROOTFS_BASE}/usr/bin/step"; then
+        install -m 0755 "${ROOTFS_BASE}/usr/bin/step"{,-ca} \
+                "${RECOVERYFS_BASE}/usr/bin"
+    fi
 
     ## Install nodejs/reverse-tunnel-server installation script.
     sed -e "s;@NODE_BASE@;${NODE_BASE};" \
@@ -970,7 +974,9 @@ EOF
 #!/bin/bash
 
 ## Install Smallstep CA
-install-smallstep
+if test ! -f /usr/bin/step; then
+   bootstrap-smallstep
+fi
 
 ## Install reverse-tunnel-server
 install-reverse-tunnel-server "$CA_URL" "$CA_FINGERPRINT"

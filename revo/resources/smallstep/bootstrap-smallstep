@@ -3,13 +3,14 @@
 # @(#) bootstrap-smallstep
 #
 # SYNOPSIS
-#     bootstrap-smallstep
+#     bootstrap-smallstep [user]
 #
 # DESCRIPTION
-#     This script installs in the home directory of user revo:
-#        1) version manager `asdf',
+#     This script installs in the home directory of a given user:
+#        1) asdf-managed version of golang
 #        2) the latest version of golang,
 #        3) SmallStep CLI and Certificates (via script `install-smallstep').
+#     The Smallstep images are deployed to /usr/bin.
 #
 : ${CHMOD_CMD:='/bin/chmod'}
 : ${CAT_CMD:='/bin/cat'}
@@ -23,39 +24,61 @@
 
 fetch-asdf ()
 {
-    if test -d ~/.asdf; then
-        $GIT_CMD -C ~/.asdf pull || return $?
+    if test ."$ASDF_DIR" = .'' -o ! -f "${ASDF_DIR}/asdf.sh"; then
+        if command -v asdf >/dev/null; then
+            eval $(asdf info | grep ASDF_DIR)
+        else
+            ASDF_DIR=~/.asdf
+        fi
+    fi
+
+    export ASDF_DIR
+
+    if test -d "$ASDF_DIR"; then
+        $GIT_CMD -C "$ASDF_DIR" pull || return $?
     else
-        $GIT_CMD clone https://github.com/asdf-vm/asdf.git ~/.asdf || return $?
+        $GIT_CMD clone https://github.com/asdf-vm/asdf.git "$ASDF_DIR" || return $?
     fi
 }
 
 initialize-asdf ()
 {
-    source ~/.asdf/asdf.sh || return $?
+    source "${ASDF_DIR}/asdf.sh" || return $?
 
     if test ! -f ~/.bashrc || ! $GREP_CMD -q ASDF_DIR ~/.bashrc; then
         echo "Appending to bashrc..." >&2
-        $CAT_CMD >>~/.bashrc <<'EOF'
 
+        $CAT_CMD >>~/.bashrc <<EOF
 # Initialize asdf version manager.
-export ASDF_DIR=~/.asdf
+export ASDF_DIR=$ASDF_DIR
+EOF
+        $CAT_CMD >>~/.bashrc <<'EOF'
 if test -f "${ASDF_DIR}/asdf.sh"; then
     source "${ASDF_DIR}/asdf.sh"
     source "${ASDF_DIR}/completions/asdf.bash"
 fi
-
-if command -v go &>/dev/null; then
-    export GOPATH=$(go env GOPATH)
-fi
 EOF
+    fi
+}
+
+golang-locally-installed ()
+{
+    if asdf plugin list | $GREP_CMD -q golang; then
+        asdf plugin update golang &>/dev/null || return $?
+        if asdf which go &>/dev/null; then
+            echo true
+        else
+            echo false
+        fi
+    else
+        asdf plugin add golang &>/dev/null || return $?
+        echo false
     fi
 }
 
 install-golang ()
 {
     echo "Installing golang..."
-    asdf plugin add golang || true
 
     local latest=''
 
@@ -79,9 +102,9 @@ remove-golang ()
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare script=$($READLINK_CMD -e $0)
 
-    declare user=${1:-revo}
+    declare user=${1:-$USER}
 
-    # Run script as user revo.
+    # Run script as given user.
     if test ."$LOCKED" != ."$script"; then
         exec env LOCKED="$script" $SUDO_CMD -i -u "$user" \
              --preserve-env=LOCKED "$script" "$@"
@@ -89,8 +112,18 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
 
     fetch-asdf || exit $?
     initialize-asdf || exit $?
-    command -v asdf &>/dev/null || exit $?
-    install-golang || exit $?
+
+    declare have_golang=''
+
+    have_golang=$(golang-locally-installed) || exit $?
+
+    if ! $have_golang; then
+        install-golang || exit $?
+    fi
+
     install-smallstep || exit $?
-    remove-golang || exit $?
+
+    if ! $have_golang; then
+        remove-golang || exit $?
+    fi
 fi

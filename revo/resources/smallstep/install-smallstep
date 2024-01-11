@@ -4,46 +4,84 @@
 #
 # This script installs current versions of Smallstep CLI and CA.
 #
+# NB: On systems that must build SmallStep from source (e.g., armv7l),
+#     see script bootstrap-smallstep.
+#
 # Supported platforms:
-#     Centos/Fedora
-#     Debian/Ubuntu
-#     Darwin
-#     armv7l
-#     x86_64
+#     Centos/Fedora  (aarch64/x86_64)
+#     Debian/Ubuntu  (armv7l/x86_64)
+#     Darwin         (arm64/x86_64)
 #
 : ${APT_CMD:='/usr/bin/apt'}
 : ${BASH_CMD:='/bin/bash'}
+: ${CAT_CMD:='/bin/cat'}
 : ${CHMOD_CMD:='/bin/chmod'}
 : ${CHOWN_CMD:='/bin/chown'}
 : ${CURL_CMD:='/usr/bin/curl'}
 : ${DNF_CMD:='/usr/bin/dnf5'}
 : ${FILE_CMD:='/usr/bin/file'}
 : ${FIND_CMD:='/usr/bin/find'}
+: ${GETENT_CMD:='/usr/bin/getent'}
 : ${GIT_CMD:='/usr/bin/git'}
 : ${GREP_CMD:='/bin/grep'}
+: ${GROUPADD_CMD:='/usr/sbin/groupadd'}
 : ${HEAD_CMD:='/usr/bin/head'}
 : ${INSTALL_CMD:='/usr/bin/install'}
 : ${LS_CMD:='/bin/ls'}
-: ${MAKE_CMD:='/usr/bin/make'}
+: ${MAKE_CMD:='/usr/bin/gmake'}
 : ${MKTEMP_CMD:='/bin/mktemp'}
 : ${READLINK_CMD:='/bin/readlink'}
 : ${RM_CMD:='/bin/rm'}
 : ${SED_CMD:='/bin/sed'}
 : ${SORT_CMD:='/usr/bin/sort'}
-: ${TAR_CMD:='/bin/tar'}
 : ${SYSTEMCTL_CMD:='/bin/systemctl'}
+: ${SUDO_CMD:='/usr/bin/sudo'}
+: ${TAR_CMD:='/bin/tar'}
+: ${TEE_CMD:='/usr/bin/tee'}
 : ${UNAME_CMD:='/bin/uname'}
-
-: ${ASDF_SHIMS_PATH:="${HOME}/.asdf/shims"}
+: ${USERADD_CMD:='/usr/sbin/useradd'}
 
 # OS-agnstoic readlink for existent files/directories.
 resolve-existing ()
 {
     if $READLINK_CMD --version 2>&1 |
             $GREP_CMD -q 'coreutils'; then
-        $READLINK_CMD -e "$@"
+        $READLINK_CMD -e -- "$@"
     else
         $READLINK_CMD -f N "$@"
+    fi
+}
+
+install-smallstep-infrastructure ()
+{
+    if ! $GETENT_CMD passwd step >/dev/null; then
+        $SUDO_CMD $GROUPADD_CMD step
+        $SUDO_CMD $USERADD_CMD -rm -g step -s "$BASH_CMD" -c 'SmallStep Certificate Authority' step
+    fi
+
+    if test -d /usr/lib/tmpfiles.d -a ! -f /usr/lib/tmpfiles.d/step-ca.conf; then
+        $SUDO_CMD $TEE_CMD /usr/lib/tmpfiles.d/step-ca.conf >/dev/null <<EOF
+d /var/log/step 770 step step
+EOF
+    fi
+
+    if test -d  /usr/lib/systemd/system -a ! -f /usr/lib/systemd/system/step-ca.service; then
+        $SUDO_CMD $TEE_CMD /usr/lib/systemd/system/step-ca.service >/dev/null <<'EOF'
+[Unit]
+Description=Root Certificate Authority
+After=network.target
+
+[Service]
+Type=simple
+User=step
+Group=step
+ExecStart=/bin/bash -c "/usr/bin/step-ca '$(/usr/bin/step path)/config/ca.json' --password-file='$(/usr/bin/step path)/secrets/step-ca.pwd' >> /var/log/step/step-ca.log 2>&1"
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
     fi
 }
 
@@ -70,24 +108,29 @@ get-current-tag ()
             $HEAD_CMD -1
     else
         $GIT_CMD ls-remote --tags "$uri" |
-            $GREP_CMD -v -- '-rc[-.0-9]*' |
+            $GREP_CMD -Ev -- '-(rc|beta)' |
             $SED_CMD 's;.*refs/tags/;;' |
             $SORT_CMD -rV -k1.2 |
             $HEAD_CMD -1
     fi
 }
 
-fetch-and-install-step-pkg ()
+fetch-smallstep-pkg ()
 {
     local uri=$1
-    local allow_rc=$2
+    local dl_uri=$2
+    local pkg_dir=$3
+    local allow_rc=$4
 
     local ID=''
     local extension=${uri##*/}
+    extension=${extension%.git}
     local host=''
     local machine=''
     local pkg=''
     local tag=''
+
+    echo "*** Fetching step-${extension} ***" >&2
 
     tag=$(get-current-tag "$uri" "$allow_rc") || return $?
     case "$OSTYPE" in
@@ -160,139 +203,100 @@ fetch-and-install-step-pkg ()
             ;;
     esac
 
-    local tmpdir=''
+    $CURL_CMD -o "${pkg_dir}/${pkg}" -sSL "${dl_uri}/${tag}/${pkg}" || return $?
 
-    tmpdir=$($MKTEMP_CMD -d "/tmp/${FUNCNAME[0]}.XXXXX") || return $?
-
-    trap '$RM_CMD -rf "$tmpdir"; exit' 0 1 2 15
-
-    $CURL_CMD -o "${tmpdir}/${pkg}" -sSL \
-          "${uri}/releases/download/${tag}/${pkg}" || return $?
-
-    local step_ca_enabled=false
-
-    if test ."$extensions" = .'certificates' \
-            && command -v "$SYSTEMCTL_CMD" >/dev/null; then
-        if $SYSTEMCTL_CMD is-enabled step-ca &>/dev/null; then
-            step_ca_enabled=true
-            $SYSTEMCTL_CMD stop step-ca
-        fi
-    fi
-
-    case "$pkg" in
-        *.tar.gz)
-            $TAR_CMD -C "$tmpdir" --strip-components=1 -zxf "${tmpdir}/${pkg}" || return $?
-
-            if test -d "${tmpdir}/bin"; then
-                pushd "${tmpdir}/bin"
-            else
-                pushd "$tmpdir"
-            fi
-
-            $FIND_CMD . -type f |
-                while read candidate; do
-                    case $($FILE_CMD "$candidate") in
-                        *executable*)
-                            $INSTALL_CMD -m 0755 "$candidate" /usr/local/bin/
-                            ;;
-                    esac
-                done || { local status=$?; popd; return $status; }
-
-            if test -d "${tmpdir}/autocomplete"; then
-                $INSTALL_CMD -D -m 0644 "${tmpdir}/autocomplete"/bash* \
-                             /usr/local/share/bash-completion/completions/step || return $?
-            fi
-            ;;
-        *.deb)
-            $CHOWN_CMD -R _apt "${tmpdir}" || return $?
-            $APT_CMD install -y "${tmpdir}/${pkg}" || return $?
-            ;;
-        *.rpm)
-            $DNF_CMD install -y "${tmpdir}/${pkg}" || return $?
-            ;;
-        *.zip)
-            # TODO: Define $destdir.
-            $UNZIP_CMD -d "$destdir" "${tmpdir}/${pkg}" || return $?
-            ;;
-    esac
-
-    $RM_CMD -rf "$tmpdir" || return $?
-    trap - 0 1 2 15
-
-    if $step_ca_enabled; then
-        $SYSTEMCTL_CMD start step-ca || return $?
-    fi
+    echo "$pkg"
 }
 
-build-step-cli ()
+build-smallstep ()
 {
-    echo "Building SmallStep CLI..." >&2
-    go install -n github.com/smallstep/cli/cmd/step@latest &>/dev/null || true
+    local cmd=$1
 
-    local latest=''
+    local srcdir=${GOPATH}/src/github.com/smallstep/${cmd}
 
-    latest=$(
-        $LS_CMD -d  "${GOPATH}/pkg/mod/github.com/smallstep/cli@"* |
-            $SORT_CMD -rV |
-            $HEAD_CMD -1
-          ) || return $?
-    $CHMOD_CMD -R u+w "$latest" || return $?
+    echo "Building SmallStep ${cmd^^}..." >&2
 
-    local version=${latest##*@}
+    if test -d "$srcdir"; then
+        $GIT_CMD -C "$srcdir" pull
+    else
+        $INSTALL_CMD -d -m 0700 "$srcdir" || return $?
+        $GIT_CMD clone --single-branch --filter=tree:0 \
+                 "https://github.com/smallstep/${cmd}" "$srcdir" || return $?
+    fi
 
-    $CAT_CMD >"${latest}/make/version.sh" <<EOF
-#!/bin/sh
-echo ${version}-dev
-EOF
-
-    $CHMOD_CMD +x "${latest}/make/version.sh" || return $?
-    $MAKE_CMD -C "$latest" bootstrap || return $?
-    # $MAKE_CMD -C "$latest" lint || return $?
-    $MAKE_CMD -C "$latest" build || return $?
-    $INSTALL_CMD -m 0755 "${latest}/bin/step" "${GOPATH}/bin" || return $?
-    $INSTALL_CMD -d -m 0755 ~/bin || return $?
-    $INSTALL_CMD -m 0755 "${latest}/bin/step" ~/bin || return $?
-    $INSTALL_CMD -m 0644 "${latest}/autocomplete/bash_autocomplete" \
-              ~/bin/step_autocomplete || true
+    $MAKE_CMD -C "$srcdir" bootstrap || return $?
+    $MAKE_CMD -C "$srcdir" build || return $?
+    $INSTALL_CMD -m 0755 "${srcdir}/bin/"* "${GOPATH}/bin/" || return $?
 }
 
-build-step-ca ()
+deploy-smallstep ()
 {
-    echo "Building SmallStep CA..." >&2
-    go install -n github.com/smallstep/certificates/cmd/step-ca@latest &>/dev/null || true
+    local dest_dir=$1
+    local pkg_dir=$2
+    local pkg=$3
 
-    local latest=''
+    if test -f "${GOPATH}/bin/step"; then
+        $SUDO_CMD $INSTALL_CMD -m 0755 -o root -g root "${GOPATH}/bin/step"{,-ca} "$dest_dir" || return $?
+    elif test -f "${pkg_dir}/${pkg}"; then
+        case "$pkg" in
+            *.tar.gz)
+                $TAR_CMD -C "$pkg_dir" --strip-components=1 -zxf "${pkg_dir}/${pkg}" || return $?
 
-    latest=$(
-        $LS_CMD -d  "${GOPATH}/pkg/mod/github.com/smallstep/certificates@"* |
-            $SORT_CMD -rV |
-            $HEAD_CMD -1
-          ) || return $?
-    $CHMOD_CMD -R u+w "$latest" || return $?
+                if test -d "${pkg_dir}/bin"; then
+                    pushd "${pkg_dir}/bin" >/dev/null
+                else
+                    pushd "$pkg_dir" >/dev/null
+                fi
 
-    local version=${latest##*@}
+                $FIND_CMD . -type f |
+                    while read candidate; do
+                        case $($FILE_CMD "$candidate") in
+                            *executable*)
+                                $SUDO_CMD $INSTALL_CMD -m 0755 -o root -g root "$candidate" \
+                                          "$dest_dir" || return $?
+                                ;;
+                        esac
+                    done || { local status=$?; popd >/dev/null; return $status; }
+                ;;
+            *.deb)
+                $SUDO_CMD $CHOWN_CMD -R _apt "${pkg_dir}" || return $?
+                $SUDO_CMD $APT_CMD install -y "${pkg_dir}/${pkg}" || return $?
+                ;;
+            *.rpm)
+                $SUDO_CMD $DNF_CMD install -y "${pkg_dir}/${pkg}" || return $?
+                ;;
+            *.zip)
+                # TODO: Define $dest_dir.
+                $UNZIP_CMD -d "$dest_dir" "${pkg_dir}/${pkg}" || return $?
+                ;;
+        esac
+    fi
 
-    $CAT_CMD >"${latest}/.version.sh" <<EOF
-#!/usr/bin/env bash
-echo ${version}-dev
-EOF
+    local step_completion_path=''
 
-    $CHMOD_CMD +x "${latest}/.version.sh" || return $?
-    $MAKE_CMD -C "$latest" bootstrap || return $?
-    # $MAKE_CMD -C "$latest" lint || return $?
-    $MAKE_CMD -C "$latest" build || return $?
-    $INSTALL_CMD -m 0755 "${latest}/bin/step-ca" "${GOPATH}/bin" || return $?
-    $INSTALL_CMD -d -m 0755 ~/bin || return $?
-    $INSTALL_CMD -m 0755 "${latest}/bin/step-ca" ~/bin || return $?
+    step_completion_path=$(
+        resolve-existing $(command -v bash) |
+            $SED_CMD -e 's;/bin.*;/share/bash-completion/completions/step;'
+                        ) || return $?
+
+    if test ! -f "$step_completion_path"; then
+        "${dest_dir}/step" completion bash |
+            $SUDO_CMD $TEE_CMD "$step_completion_path" >/dev/null || return $?
+    fi
 }
 
 maybe-reshim-golang ()
 {
     local go_dir=$1
 
-    if test ."$go_dir" = ."$ASDF_SHIMS_PATH"; then
-        source "${ASDF_SHIMS_PATH}/../asdf.sh"
-        asdf reshim golang
+    local asdf_cmd=''
+
+    if asdf_cmd=$(command -v asdf); then
+        eval $($asdf_cmd info | $GREP_CMD ASDF_DIR)
+
+        if test ."$go_dir" = ."${ASDF_DIR}/shims"; then
+            asdf reshim golang
+        fi
     fi
 }
 
@@ -300,34 +304,62 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     set -e -o pipefail
     shopt -s lastpipe
 
+    declare dest_dir=${1:-'/usr/bin'}
+
     declare script=''
 
     script=$(resolve-existing "$0") || exit $?
 
     declare script_name=${script##*/}
-    declare allow_rc=${1:-'false'}
-    declare cli_uri=https://github.com/smallstep/cli
-    declare certificates_uri=https://github.com/smallstep/certificates
     declare go_path=''
 
     if go_path=$(command -v go); then
         export GOPATH=$(go env GOPATH)
     fi
 
+    declare allow_rc=${1:-'false'}
+    declare cli_uri=https://github.com/smallstep/cli.git
+    declare cli_dl_uri=https://dl.smallstep.com/gh-release/cli/gh-release-header
+    declare certificates_uri=https://github.com/smallstep/certificates.git
+    declare certificates_dl_uri=https://dl.smallstep.com/gh-release/certificates/gh-release-header
+    declare tmpdir=''
+    declare extension=''
+
+    install-smallstep-infrastructure || exit $?
+
+    if command -v "$SYSTEMCTL_CMD" >/dev/null \
+            && $SYSTEMCTL_CMD is-enabled step-ca &>/dev/null; then
+        $SUDO_CMD $SYSTEMCTL_CMD stop step-ca
+    fi
+
     case $(uname -m) in
         aarch64|armv7l)
-            build-step-cli || exit $?
-            build-step-ca || exit $?
+            build-smallstep cli || exit $?
+            build-smallstep certificates || exit $?
+            deploy-smallstep "$dest_dir" || exit $?
             maybe-reshim-golang "${go_path%/*}"
             ;;
         amd64|x86_64)
-            if (( UID != 0 )); then
-                echo "${script_name}: Must be run as user \`root'." >&2
-                exit 1
-            fi
+            tmpdir=$($MKTEMP_CMD -d "/tmp/${script_name}.XXXXX") || exit $?
 
-            fetch-and-install-step-pkg "$cli_uri" "$allow_rc" || exit $?
-            fetch-and-install-step-pkg "$certificates_uri" "$allow_rc" || exit $?
+            trap '$RM_CMD -rf "$tmpdir"; exit 1' 0 1 2 15
+
+            for name in cli certificates; do
+                eval uri=\$${name}_uri
+                eval dl_uri=\$${name}_dl_uri
+                pkg=$(fetch-smallstep-pkg "$uri" "$dl_uri" "$tmpdir" "$allow_rc") || exit $?
+                deploy-smallstep "$dest_dir" "$tmpdir" "$pkg" || exit $?
+            done
+
+            $RM_CMD -rf "$tmpdir" || exit $?
+
+            trap - 0 1 2 15
             ;;
     esac
+
+
+    if command -v "$SYSTEMCTL_CMD" >/dev/null \
+               && $SYSTEMCTL_CMD is-enabled step-ca >/dev/null; then
+        $SUDO_CMD $SYSTEMCTL_CMD start step-ca || return $?
+    fi
 fi
