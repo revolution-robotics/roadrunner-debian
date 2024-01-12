@@ -45,37 +45,65 @@
 
 declare script=$($READLINK -e $0)
 
-# fetch-remote-access-server: Must be called by user `root'.
-fetch-remote-access-server ()
+# deploy-remote-access-infrastructure Must be called by user `root'.
+deploy-remote-access-infrastructure ()
 {
     local uri_prefix=$1
 
-    local latest=$(
-        $CURL -s "${uri_prefix}/reverse-tunnel-server-latest.tgz"
-          )
-    local node_user_dir=$(
+    trap '$RM -f reverse-tunnel-server-latest.tgz; exit 1' 0 1 2 15 RETURN
+
+    $CURL -sSLO "${uri_prefix}/reverse-tunnel-server-latest.tgz" \
+        || return $?
+
+    local latest=''
+    local node_user_dir=''
+
+    latest=$(< reverse-tunnel-server-latest.tgz) || return $?
+
+    node_user_dir=$(
         $GETENT passwd "$NODE_USER" |
             $CUT -d: -f6
-          )
+                ) || return $?
 
-    $CURL -Lo "${node_user_dir}/${latest}" "${uri_prefix}/${latest}"
-    $TAR -C "$node_user_dir" -zxf "${node_user_dir}/reverse-tunnel-server"*.tgz
+    $CHOWN "$NODE_USER:$NODE_USER" reverse-tunnel-server-latest.tgz \
+        || return $?
+    $INSTALL -m 0664 -o "$NODE_USER" -g "$NODE_USER" \
+             reverse-tunnel-server-latest.tgz "${node_user_dir}" || return $?
+    $RM -f reverse-tunnel-server-latest.tgz
+
+    trap '$RM -f "${node_user_dir}/$latest"; exit 1' 0 1 2 15 RETURN
+
+    $CURL -Lo "${node_user_dir}/${latest}" "${uri_prefix}/${latest}" \
+        || return $?
+
+    # Do not delete - see below.
+    $CHOWN "$NODE_USER:$NODE_USER" "${node_user_dir}/$latest"
+
+    $TAR -C "$node_user_dir" -zxf "${node_user_dir}/${latest}" \
+        || return $?
+
+    trap '$RM -rf "${node_user_dir}/package"; exit 1' 0 1 2 15 RETURN
+
     $INSTALL -m 0644 "${node_user_dir}/package/config/reverse-tunnel"  \
-             /etc/default
+             /etc/default || return $?
     $INSTALL -m 0644 "${node_user_dir}/package/scripts/reverse-tunnel@.service"  \
-             /lib/systemd/system
-    $INSTALL -d -m 0755 ~/.ssh
+             /lib/systemd/system || return $?
+    $INSTALL -d -m 0755 ~/.ssh || return $?
 
-    local statedir=$(
+    local statedir=''
+
+    statedir=$(
         $AWK  '/^API_STATE_DIR/ { print $NF }' /etc/default/reverse-tunnel
-            )
+            ) || return $?
 
     $INSTALL -d -m 0755 -o "$NODE_USER" -g "$NODE_GROUP" \
-             "${statedir}"/{certs,config}
+             "${statedir}"/{certs,config} || return $?
     $INSTALL -d -m 0700 -o "$NODE_USER" -g "$NODE_GROUP" \
-             "${statedir}/secrets"
+             "${statedir}/secrets" || return $?
 
-    $RM -rf "${node_user_dir}/package"
+    $RM -rf "${node_user_dir}/package" || return $?
+
+    trap - 0 1 2 15 RETURN
 }
 
 fetch-asdf ()
@@ -83,13 +111,14 @@ fetch-asdf ()
     if test -d ~/.asdf; then
         $GIT -C ~/.asdf pull
     else
-        $GIT clone https://github.com/asdf-vm/asdf.git ~/.asdf
+        $GIT clone https://github.com/asdf-vm/asdf.git ~/.asdf || return $?
     fi
 }
 
 source-asdf ()
 {
     source ~/.asdf/asdf.sh
+
     if ! $GREP -q ASDF_DIR ~/.bashrc; then
         echo "Appending to bashrc..."
         $CAT >>~/.bashrc <<'EOF'
@@ -106,31 +135,42 @@ EOF
 
 install-node ()
 {
-    if type asdf >/dev/null 2>&1; then
+    if command -v asdf >/dev/null 2>&1; then
         echo "Installing node..."
-        asdf plugin add nodejs || true
+        asdf plugin add nodejs || return $?
 
-        local node_lts=$(
+        local node_lts=''
+
+        node_lts=$(
             asdf latest nodejs "$NODE_BASE"
-                )
+                ) || return $?
 
-        asdf install nodejs "$node_lts"
-        asdf global  nodejs "$node_lts"
-        npm i -g npm
-        asdf reshim nodejs
+        asdf install nodejs "$node_lts" || return $?
+        asdf global  nodejs "$node_lts" || return $?
+        npm i -g npm || return $?
+        asdf reshim nodejs || return $?
     fi
 }
 
 install-remote-access-server ()
 {
-    $INSTALL -d -m 0755 ~/.ssh
+    $INSTALL -d -m 0600 ~/.ssh || return $?
 
-    if test -f ~/reverse-tunnel-server*.tgz; then
-        NODE_ENV=production npm i -g ~/reverse-tunnel-server*.tgz
-        asdf reshim nodejs
-
-        $RM -f ~/reverse-tunnel-server*.tgz
+    if test ! -f ~/reverse-tunnel-server-latest.tgz; then
+        return 1
     fi
+
+    local latest=''
+
+    latest=$(< ~/reverse-tunnel-server-latest.tgz) || return $?
+    if test ! -f ~/"${latest}"; then
+       return 2
+    fi
+
+    NODE_ENV=production npm i -g ~/"${latest}" || return $?
+    asdf reshim nodejs || return $?
+
+    $RM -f ~/reverse-tunnel-server-latest.tgz ~/"${latest}" || return $?
 }
 
 bootstrap-ca ()
@@ -138,8 +178,9 @@ bootstrap-ca ()
     local ca_url=$1
     local fingerprint=$2
 
-    $STEP_CLI ca bootstrap --ca-url "$ca_url" --fingerprint "$fingerprint"
-    $INSTALL -d -m 0700 ~/.step/secrets
+    $STEP_CLI ca bootstrap --ca-url "$ca_url" --fingerprint "$fingerprint" \
+        || return $?
+    $INSTALL -d -m 0700 ~/.step/secrets || return $?
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
@@ -152,18 +193,21 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
             exit 1
         fi
 
-        declare uri_prefix=https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_buster_rr01/revo/resources/reverse-tunnel-server
+        declare uri_prefix=https://github.com/revolution-robotics/roadrunner-debian/raw/debian_bullseye_rr01/revo/resources/reverse-tunnel-server
 
-        fetch-remote-access-server "$uri_prefix"
+        deploy-remote-access-infrastructure "$uri_prefix" || exit $?
 
         # Run remainder of script as user $NODE_USER.
         exec env LOCKED="$script" $SUDO -i -u "$NODE_USER" \
              --preserve-env=LOCKED "$script" "$@"
+
+        # Not reached...
+        exit 2
     fi
 
-    fetch-asdf
-    source-asdf
-    install-node
-    install-remote-access-server
-    bootstrap-ca "$ca_url" "$fingerprint"
+    fetch-asdf || exit $?
+    source-asdf || exit $?
+    install-node || exit $?
+    install-remote-access-server || exit $?
+    bootstrap-ca "$ca_url" "$fingerprint" || exit $?
 fi
