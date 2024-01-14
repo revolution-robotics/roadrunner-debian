@@ -353,7 +353,8 @@ protected_install ed
 #     /etc/lightdm/lightdm.conf
 
 ## Enable remote login to via XDMCP.
-ed -s /etc/lightdm/lightdm.conf <<'EOT'
+if test -f /etc/lightdm/lightdm.conf; then
+   ed -s /etc/lightdm/lightdm.conf <<'EOT'
 /^#* *\\(start-default-seat=\\).*/s//\\1false/
 /^#* *\\(greeter-user=\\).*/s//\\1lightdm/
 /^#* *\\(xserver-allow-tcp=\\).*/s//\\1true/
@@ -363,13 +364,14 @@ port=177
 .
 wq
 EOT
+fi
 
 ## lightdm-gtk-greeter wants to launch at-spi-bus-launcher via an old path
-install -d -m 0755 /usr/lib/at-spi2-core/
-ln -sf /usr/libexec/at-spi-bus-launcher /usr/lib/at-spi2-core/
+# install -d -m 0755 /usr/lib/at-spi2-core/
+# ln -sf /usr/libexec/at-spi-bus-launcher /usr/lib/at-spi2-core/
 
 # Create missing data directory.
-install -d -m 0755 /var/lib/lightdm/data
+# install -d -m 0755 /var/lib/lightdm/data
 
 ## Add ALSA & ALSA utilites.
 # protected_install alsa-utils
@@ -461,8 +463,8 @@ printf "\n\n" | DEBIAN_FRONTEND=noninteractive apt -y install network-manager
 # apt -y install --reinstall libgdk-pixbuf2.0-0
 
 ## Register GdkPixbuf loaders
-/usr/lib/arm-linux-gnueabihf/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders \\
-    --update-cache
+# /usr/lib/arm-linux-gnueabihf/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders \\
+#     --update-cache
 
 ## Create users and set password
 echo "root:root" | chpasswd

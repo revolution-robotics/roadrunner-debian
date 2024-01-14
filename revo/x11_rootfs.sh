@@ -344,8 +344,8 @@ protected_install gvfs-daemons
 protected_install net-tools
 
 ## Enable graphical desktop.
-protected_install xorg
-protected_install xfce4
+# protected_install xorg
+# protected_install xfce4
 # protected_install xfce4-goodies
 
 ## Network Manager.
@@ -360,7 +360,8 @@ protected_install ed
 #     /etc/lightdm/lightdm.conf
 
 ## Enable remote login to via XDMCP.
-ed -s /etc/lightdm/lightdm.conf <<'EOT'
+if test -f /etc/lightdm/lightdm.conf; then
+   ed -s /etc/lightdm/lightdm.conf <<'EOT'
 /^#* *\\(start-default-seat=\\).*/s//\\1false/
 /^#* *\\(greeter-user=\\).*/s//\\1lightdm/
 /^#* *\\(xserver-allow-tcp=\\).*/s//\\1true/
@@ -370,13 +371,14 @@ port=177
 .
 wq
 EOT
+fi
 
 ## lightdm-gtk-greeter wants to launch at-spi-bus-launcher via an old path
-install -d -m 0755 /usr/lib/at-spi2-core/
-ln -s /usr/libexec/at-spi-bus-launcher /usr/lib/at-spi2-core/
+# install -d -m 0755 /usr/lib/at-spi2-core/
+# ln -s /usr/libexec/at-spi-bus-launcher /usr/lib/at-spi2-core/
 
 ## Create missing data directory.
-install -d -m 0755 /var/lib/lightdm/data
+# install -d -m 0755 /var/lib/lightdm/data
 
 ## Add ALSA & ALSA utilites.
 protected_install alsa-utils
@@ -473,8 +475,8 @@ apt -y install --reinstall libgdk-pixbuf2.0-0
 ## Create users and set password...
 echo "root:root" | chpasswd
 
-useradd -m -G audio,video -s /bin/bash user
-useradd -m -G audio,video -s /bin/bash x_user
+# useradd -m -G audio,video -s /bin/bash user
+# useradd -m -G audio,video -s /bin/bash x_user
 # echo "user:user" | chpasswd
 # passwd -d x_user
 
@@ -851,10 +853,10 @@ EOF
             "${ROOTFS_BASE}/usr/share/images/desktop-base/default"
 
     ## Disable LightDM session locking
-    install -m 0755 "${G_VENDOR_PATH}/resources/disable-lightlocker" \
-            "${ROOTFS_BASE}/usr/local/bin/"
-    install -m 0644 "${G_VENDOR_PATH}/resources/disable-lightlocker.desktop" \
-            "${ROOTFS_BASE}/etc/xdg/autostart/"
+    # install -m 0755 "${G_VENDOR_PATH}/resources/disable-lightlocker" \
+    #         "${ROOTFS_BASE}/usr/local/bin/"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/disable-lightlocker.desktop" \
+    #         "${ROOTFS_BASE}/etc/xdg/autostart/"
 
     ## Redirect all system mail user `revo'.
     sed -i "\$a root: revo" "${ROOTFS_BASE}/etc/aliases"
@@ -977,7 +979,7 @@ EOF
 #!/bin/bash
 
 ## Install Smallstep CA
-bootstrap-smallstep revo
+bootstrap-smallstep
 
 ## Install reverse-tunnel-server
 install-reverse-tunnel-server "$CA_URL" "$CA_FINGERPRINT"
