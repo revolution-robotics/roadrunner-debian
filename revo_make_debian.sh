@@ -479,7 +479,7 @@ install_kernel_modules ()
          INSTALL_MOD_PATH="$4" modules_install
 
     local kernel_version=$(< "${3}/include/config/kernel.release")
-    $CHROOTFS "$4" depmod "$kernel_version"
+    $CHROOTFS "$4" /sbin/depmod "$kernel_version"
 }
 
 # make U-Boot
