@@ -162,7 +162,6 @@ if test ."$ARCH_CPU" = .'64BIT'; then
     declare G_EXT_CROSS_COMPILER_LINK=$G_EXT_CROSS_64BIT_COMPILER_LINK
     declare G_CROSS_COMPILER_ARCHIVE=$G_CROSS_COMPILER_ARCHIVE_64BIT
     declare G_CROSS_COMPILER_PREFIX=$G_CROSS_COMPILER_64BIT_PREFIX
-    declare ARCH_ARGS=arm64
     declare BUILD_IMAGE_TYPE=Image.gz
     declare KERNEL_BOOT_IMAGE_SRC=arch/arm64/boot/
     declare KERNEL_DTB_IMAGE_PATH=arch/arm64/boot/dts/freescale/
@@ -174,7 +173,6 @@ elif test ."$ARCH_CPU" = .'32BIT'; then
     declare G_EXT_CROSS_COMPILER_LINK=$G_EXT_CROSS_32BIT_COMPILER_LINK
     declare G_CROSS_COMPILER_ARCHIVE=$G_CROSS_COMPILER_ARCHIVE_32BIT
     declare G_CROSS_COMPILER_PREFIX=$G_CROSS_COMPILER_32BIT_PREFIX
-    declare ARCH_ARGS=arm
     # Include backend rootfs and recoveryfs helpers
     source "${G_VENDOR_PATH}/x11_rootfs.sh"
     if ! $USE_ALT_RECOVERYFS; then
@@ -346,51 +344,28 @@ get_git_src ()
 {
     # clone src code
     git clone  --single-branch --filter=tree:0  "$1" -b "$2" "$3"
-    (cd "$3" && git reset --hard "$4")
-}
-
-# get remote file
-# $1 - remote file
-# $2 - local directory
-get_remote_file ()
-{
-    uri=$1
-    destdir=$2
-
-    # download remote file
-    # wget -c "$1" -O "$2"
-    (cd "$destdir" && curl -C - -LO "$uri")
+    git -C "$3" reset --hard "$4"
 }
 
 make_prepare ()
 {
-    # create src dir
-    mkdir -p "$DEF_SRC_DIR"
-
-    # create out dir
-    mkdir -p "$PARAM_OUTPUT_DIR"
-
-    # create tmp dir
-    mkdir -p "$G_TMP_DIR"
+    # create src, out and tmp directories.
+    mkdir -p "$DEF_SRC_DIR" "$PARAM_OUTPUT_DIR" "$G_TMP_DIR"
 }
 
 
-# make tarball from footfs
+# make tarball from filesystem
 # $1 -- packet folder
 # $2 -- output tarball file (full name)
 make_tarball ()
 {
+    pr_info "Create $2 from $1, overwriting any existing."
+
     (
         cd "$1"
+        rm -f "$2" root/.bash_history
         chown root:root .
         chmod 775 .
-        pr_info "make tarball from folder $1"
-        pr_info "Remove old tarball $2"
-        rm -f "$2"
-
-        pr_info "Create $2"
-
-        rm -f root/.bash_history
         tar -zcf "$2" --sort=name --exclude='*~' . || {
             rm -f "$2"
             exit 1
@@ -912,14 +887,18 @@ make_bcm_fw ()
 cmd_make_deploy ()
 {
     # get U-Boot repository
-    if (( $(ls "$G_UBOOT_SRC_DIR" 2>/dev/null | wc -l) == 0 )); then
+    if test -d "${G_UBOOT_SRC_DIR}/.git"; then
+        git -C "$G_UBOOT_SRC_DIR" pull
+    else
         pr_info "Get U-Boot repository"
         get_git_src "$G_UBOOT_GIT" "$G_UBOOT_BRANCH" \
                     "$G_UBOOT_SRC_DIR" "$G_UBOOT_REV"
     fi
 
     # get kernel repository
-    if (( $(ls "$G_LINUX_KERNEL_SRC_DIR" 2>/dev/null | wc -l) == 0 )); then
+    if test -d "${G_LINUX_KERNEL_SRC_DIR}/.git"; then
+        git -C "$G_LINUX_KERNEL_SRC_DIR" pull
+    else
         pr_info "Get kernel repository"
         get_git_src "$G_LINUX_KERNEL_GIT" "$G_LINUX_KERNEL_BRANCH" \
                     "$G_LINUX_KERNEL_SRC_DIR" "$G_LINUX_KERNEL_REV"
@@ -939,7 +918,9 @@ cmd_make_deploy ()
 
     if test ."$G_BCM_FW_GIT" != .''; then
         # get bcm firmware repository
-        if (( $(ls "$G_BCM_FW_SRC_DIR"  2>/dev/null | wc -l) == 0 )); then
+        if test -d "${G_BCM_FW_SRC_DIR}/.git"; then
+            git -C "$G_BCM_FW_SRC_DIR" pull
+        else
             pr_info "Get bcmhd firmware repository"
             get_git_src "$G_BCM_FW_GIT" "$G_BCM_FW_GIT_BRANCH" \
                         "$G_BCM_FW_SRC_DIR" "$G_BCM_FW_GIT_REV"
@@ -948,7 +929,9 @@ cmd_make_deploy ()
 
     if test ."$G_IMXBOOT_GIT" != .''; then
         # get IMXBoot Source repository
-        if (( $(ls "$G_IMXBOOT_SRC_DIR"  2>/dev/null | wc -l) == 0 )); then
+        if test -d "${G_IMXBOOT_SRC_DIR}/.git"; then
+            git -C "$G_IMXBOOT_SRC_DIR" pull
+        else
             pr_info "Get imx-boot"
             get_git_src "$G_IMXBOOT_GIT" \
                         "$G_IMXBOOT_BRACH" "$G_IMXBOOT_SRC_DIR" "$G_IMXBOOT_REV"
@@ -956,12 +939,31 @@ cmd_make_deploy ()
     fi
 
     # get REVO web dispatch
-    if (( $(ls "$G_REVO_WEB_DISPATCH_SRC_DIR" 2>/dev/null | wc -l) == 0 )); then
+    if test -d "${G_REVO_WEB_DISPATCH_SRC_DIR}/.git"; then
+        git -C "$G_REVO_WEB_DISPATCH_SRC_DIR" pull
+    else
         pr_info "Get REVO web dispatch repository"
         get_git_src "$G_REVO_WEB_DISPATCH_GIT" "$G_REVO_WEB_DISPATCH_BRANCH" \
                     "$G_REVO_WEB_DISPATCH_SRC_DIR" "$G_REVO_WEB_DISPATCH_REV"
     fi
 
+    # get Smallstep CLI
+    if test -d "${G_SMALLSTEP_CLI_SRC_DIR}/.git"; then
+        git -C "$G_SMALLSTEP_CLI_SRC_DIR" pull
+    else
+        pr_info "Get SmallStep CLI"
+        get_git_src "$G_SMALLSTEP_CLI_GIT" "$G_SMALLSTEP_CLI_BRANCH" \
+                    "$G_SMALLSTEP_CLI_SRC_DIR" "$G_SMALLSTEP_CLI_REV"
+    fi
+
+    # get Smallstep Certificates
+    if test -d "${G_SMALLSTEP_CERTIFICATES_SRC_DIR}/.git"; then
+        git -C "$G_SMALLSTEP_CERTIFICATES_SRC_DIR" pull
+    else
+        pr_info "Get SmallStep Certificates"
+        get_git_src "$G_SMALLSTEP_CERTIFICATES_GIT" "$G_SMALLSTEP_CERTIFICATES_BRANCH" \
+                    "$G_SMALLSTEP_CERTIFICATES_SRC_DIR" "$G_SMALLSTEP_CERTIFICATES_REV"
+    fi
 }
 
 cmd_make_rootfs ()

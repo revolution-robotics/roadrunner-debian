@@ -680,6 +680,9 @@ EOF
     ## Create /var/www/html. TODO: Add index.html.
     install -d -m 0755 "${RECOVERYFS_BASE}/var/www/html"
 
+    # Add golang to PATH.
+    source /root/.asdf/asdf.sh
+
     ## Build and install REVO web dispatch.
     make -C "${G_REVO_WEB_DISPATCH_SRC_DIR}" clean all
     install -m 0755 "${G_REVO_WEB_DISPATCH_SRC_DIR}/revo-web-dispatch" \
@@ -698,6 +701,21 @@ EOF
     ## Install redirect-web-ports.
     install -m 0755 "${G_VENDOR_PATH}/resources/redirect-web-ports" \
             "${RECOVERYFS_BASE}/usr/sbin"
+
+    ## Build and install Smallstep CLI with asdf-vm golang.
+    pr_info "recoveryfs: Install Smallstep"
+
+    GOOS=linux GOARCH=$ARCH_ARGS GOARM=$ARCH_VERSION go \
+               -C "${G_SMALLSTEP_CLI_SRC_DIR}/cmd/step" build -ldflags='-s -w'
+    install -m 0755 "${G_SMALLSTEP_CLI_SRC_DIR}/cmd/step/step" \
+            "${RECOVERYFS_BASE}/usr/bin"
+
+    ## Build and install Smallstep CERTIFICATES.
+    GOOS=linux GOARCH=$ARCH_ARGS GOARM=$ARCH_VERSION go \
+               -C "${G_SMALLSTEP_CERTIFICATES_SRC_DIR}/cmd/step-ca" \
+               build -ldflags='-s -w'
+    install -m 0755 "${G_SMALLSTEP_CERTIFICATES_SRC_DIR}/cmd/step-ca/step-ca" \
+            "${RECOVERYFS_BASE}/usr/bin"
 
     ## END -- REVO i.MX7D update
 
@@ -955,14 +973,6 @@ EOF
     # install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
     #         "${RECOVERYFS_BASE}/usr/bin/curl"
 
-    ## Install Smallstep CA installation script
-    install -m 0755 "${G_VENDOR_PATH}/resources/smallstep/"{bootstrap,install}-smallstep \
-            "${RECOVERYFS_BASE}/usr/bin"
-    if test -f "${ROOTFS_BASE}/usr/bin/step"; then
-        install -m 0755 "${ROOTFS_BASE}/usr/bin/step"{,-ca} \
-                "${RECOVERYFS_BASE}/usr/bin"
-    fi
-
     ## Install nodejs/reverse-tunnel-server installation script.
     sed -e "s;@NODE_BASE@;${NODE_BASE};" \
         -e "s;@NODE_GROUP@;${NODE_GROUP};" \
@@ -974,11 +984,6 @@ EOF
     ## post-packages command
     cat >"${RECOVERYFS_BASE}/post-packages" <<EOF
 #!/bin/bash
-
-## Install Smallstep CA
-if test ! -f /usr/bin/step; then
-   bootstrap-smallstep
-fi
 
 ## Install reverse-tunnel-server
 install-reverse-tunnel-server "$CA_URL" "$CA_FINGERPRINT"
@@ -1007,7 +1012,7 @@ apt clean
 
 rm -f /post-packages
 EOF
-    pr_info "recoveryfs: Install SmallStep and reverse-tunnel server"
+    pr_info "recoveryfs: Install reverse-tunnel server"
 
     chmod +x "${RECOVERYFS_BASE}/post-packages"
     $CHROOTFS "$RECOVERYFS_BASE" /post-packages

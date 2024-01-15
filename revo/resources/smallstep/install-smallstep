@@ -208,78 +208,121 @@ fetch-smallstep-pkg ()
     echo "$pkg"
 }
 
-build-smallstep ()
+install-build-prerequisites ()
 {
-    local cmd=$1
+    if test -f /etc/os-release; then
+        source /etc/os-release
+    elif test -f /etc/asl.conf; then
+        ID=darwin
+    else
+        ID=windows
+    fi
 
-    local srcdir=${GOPATH}/src/github.com/smallstep/${cmd}
+    case "$ID" in
+        ubuntu|debian)
+            $SUDO_CMD $APT_CMD update || return $?
+            $SUDO_CMD $APT_CMD install -y pkgconf libudev{1,-dev} libusb-1.0-0{,-dev} \
+                      libpcsclite{1,-dev} || return $?
+            ;;
+        darwin|windows)
+            if ! pcscd --version &> /dev/null; then
+                echo "${script_name}: Don't know how to install libpcsclite library." >&2
+                return $?
+            fi
+            ;;
+        *)
+            $SUDO_CMD $DNF_CMD install -y pkgconf libusb1{,-devel} pcsc-lite-{devel,libs} \
+                      --refresh || retun $?
+            ;;
+    esac
+}
+build-and-install-smallstep ()
+{
+    local -n binary=$1
+    local repo=$2
+    local go_cmd=$3
 
-    echo "Building SmallStep ${cmd^^}..." >&2
+    local srcdir=${GOMODCACHE}/github.com/smallstep/${repo}
+
+    echo "Building and installing SmallStep ${repo^^}..." >&2
 
     if test -d "$srcdir"; then
         $GIT_CMD -C "$srcdir" pull
     else
         $INSTALL_CMD -d -m 0700 "$srcdir" || return $?
         $GIT_CMD clone --single-branch --filter=tree:0 \
-                 "https://github.com/smallstep/${cmd}" "$srcdir" || return $?
+                 "https://github.com/smallstep/${repo}" "$srcdir" || return $?
     fi
 
-    $MAKE_CMD -C "$srcdir" bootstrap || return $?
-    $MAKE_CMD -C "$srcdir" build || return $?
-    $INSTALL_CMD -m 0755 "${srcdir}/bin/"* "${GOPATH}/bin/" || return $?
+    $go_cmd -C "${srcdir}/cmd/${binary[$repo]}" build -ldflags='-s -w' || return $?
+    $SUDO_CMD $INSTALL_CMD -m 0755 "${srcdir}/cmd/${binary[$repo]}/${binary[$repo]}" \
+              /usr/bin/ || return $?
 }
 
 deploy-smallstep ()
 {
-    local dest_dir=$1
-    local pkg_dir=$2
-    local pkg=$3
+    local pkg=$1
+    local dest_dir=$2
+    local pkg_dir=$3
 
-    if test -f "${GOPATH}/bin/step"; then
-        $SUDO_CMD $INSTALL_CMD -m 0755 -o root -g root "${GOPATH}/bin/step"{,-ca} "$dest_dir" || return $?
-    elif test -f "${pkg_dir}/${pkg}"; then
-        case "$pkg" in
-            *.tar.gz)
-                $TAR_CMD -C "$pkg_dir" --strip-components=1 -zxf "${pkg_dir}/${pkg}" || return $?
-
-                if test -d "${pkg_dir}/bin"; then
-                    pushd "${pkg_dir}/bin" >/dev/null
-                else
-                    pushd "$pkg_dir" >/dev/null
-                fi
-
-                $FIND_CMD . -type f |
-                    while read candidate; do
-                        case $($FILE_CMD "$candidate") in
-                            *executable*)
-                                $SUDO_CMD $INSTALL_CMD -m 0755 -o root -g root "$candidate" \
-                                          "$dest_dir" || return $?
-                                ;;
-                        esac
-                    done || { local status=$?; popd >/dev/null; return $status; }
-                ;;
-            *.deb)
-                $SUDO_CMD $CHOWN_CMD -R _apt "${pkg_dir}" || return $?
-                $SUDO_CMD $APT_CMD install -y "${pkg_dir}/${pkg}" || return $?
-                ;;
-            *.rpm)
-                $SUDO_CMD $DNF_CMD install -y "${pkg_dir}/${pkg}" || return $?
-                ;;
-            *.zip)
-                # TODO: Define $dest_dir.
-                $UNZIP_CMD -d "$dest_dir" "${pkg_dir}/${pkg}" || return $?
-                ;;
-        esac
+    if test ! -f "${pkg_dir}/${pkg}"; then
+        echo "${script_name}: $pkg: No such file or directory" >&2
+        return
     fi
+
+    case "$pkg" in
+        *.tar.gz)
+            $TAR_CMD -C "$pkg_dir" --strip-components=1 -zxf "${pkg_dir}/${pkg}" || return $?
+
+            if test -d "${pkg_dir}/bin"; then
+                pushd "${pkg_dir}/bin" >/dev/null
+            else
+                pushd "$pkg_dir" >/dev/null
+            fi
+
+            $FIND_CMD . -type f |
+                while read candidate; do
+                    case $($FILE_CMD "$candidate") in
+                        *executable*)
+                            $SUDO_CMD $INSTALL_CMD -m 0755 -o root -g root "$candidate" \
+                                      "$dest_dir" || return $?
+                            ;;
+                    esac
+                done || { local status=$?; popd >/dev/null; return $status; }
+            ;;
+        *.deb)
+            $SUDO_CMD $CHOWN_CMD -R _apt "${pkg_dir}" || return $?
+            $SUDO_CMD $APT_CMD install -y "${pkg_dir}/${pkg}" || return $?
+            ;;
+        *.rpm)
+            $SUDO_CMD $DNF_CMD install -y "${pkg_dir}/${pkg}" || return $?
+            ;;
+        *.zip)
+            # TODO: Define $dest_dir.
+            $UNZIP_CMD -d "$dest_dir" "${pkg_dir}/${pkg}" || return $?
+            ;;
+    esac
+}
+
+install-completion ()
+{
+    local dest_dir=$1
 
     local step_completion_path=''
 
-    step_completion_path=$(
-        resolve-existing $(command -v bash) |
-            $SED_CMD -e 's;/bin.*;/share/bash-completion/completions/step;'
-                        ) || return $?
+    case "$(command -v bash)" in
+        /bin/bash)
+            step_completion_path=/usr/share/bash-completion/completions/step
+            ;;
+        *)
+            step_completion_path=$(
+                resolve-existing $(command -v bash) |
+                    $SED_CMD -e 's;/bin.*;/share/bash-completion/completions/step;'
+                                ) || return $?
+            ;;
+    esac
 
-    if test ! -f "$step_completion_path"; then
+    if test -d "${step_completion_path%/*}" -a ! -f "$step_completion_path"; then
         "${dest_dir}/step" completion bash |
             $SUDO_CMD $TEE_CMD "$step_completion_path" >/dev/null || return $?
     fi
@@ -311,12 +354,16 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     script=$(resolve-existing "$0") || exit $?
 
     declare script_name=${script##*/}
-    declare go_path=''
+    declare go_cmd=''
 
-    if go_path=$(command -v go); then
-        export GOPATH=$(go env GOPATH)
+    if go_cmd=$(command -v go); then
+        export GOMODCACHE=$($go_cmd env GOMODCACHE)
     fi
 
+    declare -A repo_binary=(
+        [cli]=step
+        [certificates]=step-ca
+    )
     declare allow_rc=${1:-'false'}
     declare cli_uri=https://github.com/smallstep/cli.git
     declare cli_dl_uri=https://dl.smallstep.com/gh-release/cli/gh-release-header
@@ -334,22 +381,31 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
 
     case $(uname -m) in
         aarch64|armv7l)
-            build-smallstep cli || exit $?
-            build-smallstep certificates || exit $?
-            deploy-smallstep "$dest_dir" || exit $?
-            maybe-reshim-golang "${go_path%/*}"
+            if test ! -x "$go_cmd"; then
+                echo "${script_name}: go: No such file or directory" >&2
+                exit 1
+            fi
+
+            install-build-prerequisites || exit $?
+
+            for repo in cli certificates; do
+                build-and-install-smallstep repo_binary "$repo" "$go_cmd" || exit $?
+            done
+            maybe-reshim-golang "${go_cmd%/*}"
             ;;
         amd64|x86_64)
             tmpdir=$($MKTEMP_CMD -d "/tmp/${script_name}.XXXXX") || exit $?
 
             trap '$RM_CMD -rf "$tmpdir"; exit 1' 0 1 2 15
 
-            for name in cli certificates; do
-                eval uri=\$${name}_uri
-                eval dl_uri=\$${name}_dl_uri
+            for repo in cli certificates; do
+                eval uri=\$${repo}_uri
+                eval dl_uri=\$${repo}_dl_uri
                 pkg=$(fetch-smallstep-pkg "$uri" "$dl_uri" "$tmpdir" "$allow_rc") || exit $?
-                deploy-smallstep "$dest_dir" "$tmpdir" "$pkg" || exit $?
+                deploy-smallstep "$pkg" "$dest_dir" "$tmpdir" || exit $?
             done
+
+            install-completion "$dest_dir"
 
             $RM_CMD -rf "$tmpdir" || exit $?
 
