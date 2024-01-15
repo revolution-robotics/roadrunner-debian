@@ -1,29 +1,46 @@
 #!/usr/bin/env bash
 #
 # SYNOPSIS
-#     chrootfs fs cmd [arg ...]
+#     chrootfs NEWROOT [COMMAND [ARG ...]]
 #
 # DESCRIPTION
 #     This script mounts /proc, /sys, /dev and /dev/pts on a given
-#     filesystem, FS, then chroots to FS and runs a command, CMD. The
-#     mounted filesystems are unmounted on exit.
+#     filesystem, NEWROOT, then chroots to NEWROOT and runs COMMAND
+#     with one or more ARGs. The mounted filesystems are unmounted on
+#     exit.
 #
-: ${CHROOT:='/usr/sbin/chroot'}
-: ${FINDMNT:='/bin/findmnt'}
-: ${INSTALL:='/usr/bin/install'}
-: ${MKDIR:='/bin/mkdir'}
-: ${MOUNT:='/bin/mount'}
-: ${UMOUNT:='/bin/umount'}
-: ${READLINK:='/bin/readlink'}
-: ${SUDO:='/usr/bin/sudo'}
+: ${CHROOT_CMD:='/usr/sbin/chroot'}
+: ${FINDMNT_CMD:='/bin/findmnt'}
+: ${GREP_CMD:='/bin/grep'}
+: ${INSTALL_CMD:='/usr/bin/install'}
+: ${MKDIR_CMD:='/bin/mkdir'}
+: ${MOUNT_CMD:='/bin/mount'}
+: ${UMOUNT_CMD:='/bin/umount'}
+: ${READLINK_CMD:='/bin/readlink'}
+: ${SUDO_CMD:='/usr/bin/sudo'}
+
+usage ()
+{
+    echo "Usage: ${script_name} NEWROOT [COMMAND [ARG ...]]" >&2
+}
+
+# OS-agnstoic readlink for existent files/directories.
+resolve-existing ()
+{
+    if $READLINK_CMD --version 2>&1 | $GREP_CMD -q 'coreutils'; then
+        $READLINK_CMD -e -- "$@"
+    else
+        $READLINK_CMD -f N "$@"
+    fi
+}
 
 umount-fs ()
 {
     local fs_base=$1
 
     for fs in /proc /sys /dev/pts /dev; do
-        if $FINDMNT "${fs_base}${fs}" >/dev/null; then
-            $SUDO $UMOUNT -f "${fs_base}${fs}" 2>/dev/null
+        if $FINDMNT_CMD "${fs_base}${fs}" >/dev/null; then
+            $SUDO_CMD $UMOUNT_CMD -f "${fs_base}${fs}" 2>/dev/null
         fi
     done
 }
@@ -32,32 +49,46 @@ mount-fs ()
 {
     local fs_base=$1
 
-    $SUDO $INSTALL -d -m 0755 -o root -g root "${fs_base}"
-    $SUDO $INSTALL -d -m 0555 -o root -g root "${fs_base}"/{dev,proc,sys}
-    $SUDO $INSTALL -d -m 0755 -o root -g root "${fs_base}/dev/pts"
+    $SUDO_CMD $INSTALL_CMD -d -m 0755 -o root -g root "${fs_base}"
+    $SUDO_CMD $INSTALL_CMD -d -m 0555 -o root -g root "${fs_base}"/{dev,proc,sys}
+    $SUDO_CMD $INSTALL_CMD -d -m 0755 -o root -g root "${fs_base}/dev/pts"
 
-    if ! $FINDMNT "${fs_base}/proc" >/dev/null; then
-        $SUDO $MOUNT -t proc /proc "${fs_base}/proc"
+    if ! $FINDMNT_CMD "${fs_base}/proc" >/dev/null; then
+        $SUDO_CMD $MOUNT_CMD -t proc /proc "${fs_base}/proc"
     fi
 
     for fs in /sys /dev /dev/pts; do
-        if ! $FINDMNT "${fs_base}/${fs}" >/dev/null; then
-            $SUDO $MOUNT -o bind "$fs" "${fs_base}${fs}"
+        if ! $FINDMNT_CMD "${fs_base}/${fs}" >/dev/null; then
+            $SUDO_CMD $MOUNT_CMD -o bind "$fs" "${fs_base}${fs}"
         fi
     done
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
-    declare script=$($READLINK -e $0)
+    declare script=''
+
+    script=$(resolve-existing "$0") || exit $?
+
+    declare script_name=${script##*/}
     declare script_dir=${script%/*}
-    declare fs_base=${1:-"${script_dir}/../rootfs"}
+
+    declare fs_base=$1
+
+    if test ! -d "$fs_base"; then
+        echo "$script_name: $fs_base: No such file or directory" >&2
+        usage
+        exit 1
+    fi
 
     if test ."$2" = .''; then
         declare cmd=/bin/bash
     fi
 
-    trap 'umount-fs "$fs_base"; exit' 0 1 2 15
+    trap 'umount-fs "$fs_base"; exit 1' 0 1 2 15
 
-    mount-fs "$fs_base"
-    $SUDO $CHROOT "$fs_base" ${cmd-"${@:2}"}
+    mount-fs "$fs_base" || exit $?
+    $SUDO_CMD $CHROOT_CMD "$fs_base" ${cmd-"${@:2}"} || exit $?
+    umount-fs "$fs_base" || exit $?
+
+    trap - 0 1 2 15
 fi
