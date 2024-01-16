@@ -718,6 +718,9 @@ EOF
                build -ldflags='-s -w'
     install -m 0755 "${G_SMALLSTEP_CERTIFICATES_SRC_DIR}/cmd/step-ca/step-ca" \
             "${RECOVERYFS_BASE}/usr/bin"
+    if command -v upx >/dev/null; then
+        upx "${RECOVERYFS_BASE}/usr/bin/step-ca"
+    fi
 
     ## END -- REVO i.MX7D update
 
