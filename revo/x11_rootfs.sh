@@ -688,7 +688,9 @@ EOF
     install -d -m 0755 "${ROOTFS_BASE}/var/www/html"
 
     # Add golang to PATH.
-    source /root/.asdf/asdf.sh
+    if test -f /root/.asdf/asdf.sh; then
+        source /root/.asdf/asdf.sh
+    fi
 
     ## Build and install REVO web dispatch.
     make -C "${G_REVO_WEB_DISPATCH_SRC_DIR}" clean all
