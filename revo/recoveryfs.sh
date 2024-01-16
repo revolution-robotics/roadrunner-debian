@@ -822,6 +822,12 @@ EOF
     install -m 0644 ~/".step/certs/root_ca.crt" \
             "${RECOVERYFS_BASE}/usr/local/share/ca-certificates/${ca_root_cert}"
 
+    ## Add missing root and class3 certificates.
+    curl -sSLo  "${ROOTFS_BASE}/usr/local/share/ca-certificates/root.crt" \
+         http://www.cacert.org/certs/root.crt
+    curl -sSLo  "${ROOTFS_BASE}/usr/local/share/ca-certificates/class3.crt" \
+         http://www.cacert.org/certs/class3.crt
+
     ## End packages stage ##
     if test ."${G_USER_MINIMAL_PACKAGES}" != .''; then
 
