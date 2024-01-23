@@ -1166,7 +1166,8 @@ make_x11_image ()
         local cmdline
 
         pr_info "Flashing \"${LPARAM_TARBALL%%.*}\" partition"
-        if ! tar -C "$P2_MOUNT_DIR" -zxpf "${LPARAM_OUTPUT_DIR}/${LPARAM_TARBALL}"; then
+        # if ! tar -C "$P2_MOUNT_DIR" -zxpf "${LPARAM_OUTPUT_DIR}/${LPARAM_TARBALL}"; then
+        if ! $ZCAT "${LPARAM_OUTPUT_DIR}/${LPARAM_TARBALL}" | tar -C "$P2_MOUNT_DIR" -xpf -; then
             pr_error "Flash did not complete successfully."
             echo "*** Please check media and try again! ***"
             return 1

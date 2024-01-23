@@ -22,19 +22,22 @@ declare USE_ALT_RECOVERYFS=false
 declare -r ABSOLUTE_FILENAME=$(readlink -e "$0")
 declare -r ABSOLUTE_DIRECTORY=${ABSOLUTE_FILENAME%/*}
 declare -r LOOP_MAJOR=7
-declare COMPRESSION_SUFFIX='{bz2,gz,img,lz,lzma,lzo,xz,zip}'
-declare ZCAT='gzip -dc'
-declare -r ZIP=gzip
-declare -r ZIP_SUFFIX=gz
+declare COMPRESSION_SUFFIX={bz2,gz,img,lz,lzma,lzo,xz,zip,zst}
+# declare ZCAT='gzip -dc'
+# declare -r ZIP=gzip
+# declare -r ZIP_SUFFIX=gz
+declare ZCAT='zstdmt -dc'
+declare -r ZIP='zstdmt'
+declare -r ZIP_SUFFIX=zst
 
 # default mirror
 declare -r DEF_DEBIAN_MIRROR=http://deb.debian.org/debian/
 # declare -r DEB_RELEASE=buster
 declare -r DEB_RELEASE=bullseye
-declare -r DEF_ROOTFS_TARBALL_NAME=rootfs.tar.gz
-declare -r DEF_RECOVERYFS_TARBALL_NAME=recoveryfs.tar.gz
-declare -r DEF_USBFS_TARBALL_NAME=usbfs.tar.gz
-declare -r DEF_PROVISIONFS_TARBALL_NAME=provisionfs.tar.gz
+declare -r DEF_ROOTFS_TARBALL_NAME=rootfs.tar.${ZIP_SUFFIX}
+declare -r DEF_RECOVERYFS_TARBALL_NAME=recoveryfs.tar.${ZIP_SUFFIX}
+declare -r DEF_USBFS_TARBALL_NAME=usbfs.tar.zst
+declare -r DEF_PROVISIONFS_TARBALL_NAME=provisionfs.tar.${ZIP_SUFFIX}
 
 # base paths
 declare -r CHROOTFS=${ABSOLUTE_DIRECTORY}/contrib/chrootfs
@@ -366,10 +369,12 @@ make_tarball ()
         rm -f "$2" root/.bash_history
         chown root:root .
         chmod 775 .
-        tar -zcf "$2" --sort=name --exclude='*~' . || {
-            rm -f "$2"
-            exit 1
-        }
+
+        trap 'rm -f "$2"; exit 1' 0 1 2 15 RETURN
+
+        tar -cf - --sort=name --exclude='*~' . | $ZIP -c >"$2" ||  return $?
+
+        trap - 0 1 2 15 RETURN
     )
 }
 
@@ -780,6 +785,9 @@ get-decompressor ()
             ;;
         *Zip*)
             ZCAT='unzip -p'
+            ;;
+        *Zstandard*)
+            image_cat="$ZSTD_CMD -T0 -dc"
             ;;
         *'ISO 9660'*|*'DOS/MBR boot sector'*)
             ZCAT=cat
