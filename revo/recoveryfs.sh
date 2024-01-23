@@ -458,7 +458,7 @@ printf "\n\n" | DEBIAN_FRONTEND=noninteractive apt -y install network-manager
 # update-alternatives --set ebtables /usr/sbin/ebtables-nft
 # END -- REVO i.MX7D networking
 
-# apt -y autoremove
+apt -y autoremove
 
 # apt -y install --reinstall libgdk-pixbuf2.0-0
 
@@ -469,14 +469,16 @@ printf "\n\n" | DEBIAN_FRONTEND=noninteractive apt -y install network-manager
 ## Create users and set password
 echo "root:root" | chpasswd
 
-useradd -m -G audio,video -s /bin/bash user
-useradd -m -G audio,video -s /bin/bash x_user
+# useradd -m -G audio,video -s /bin/bash user
+# useradd -m -G audio,video -s /bin/bash x_user
 # echo "user:user" | chpasswd
 # passwd -d x_user
 
 # BEGIN -- REVO i.MX7D users
-useradd -m -G audio,bluetooth,lp,video -s /bin/bash -c "REVO Roadrunner" revo
-useradd -m -s /bin/bash -c "Smallstep PKI" step
+groupadd -g 1000 revo
+groupadd -g 1001 step
+useradd -m -u 1000 -g 1000 -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
+useradd -m -u 1001 -g 1001 -s /bin/bash -c "Smallstep PKI" step
 # END -- REVO i.MX7D users
 
 rm -f /third-stage

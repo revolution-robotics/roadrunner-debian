@@ -138,7 +138,7 @@ make_debian_x11_rootfs ()
     pr_info "rootfs: Generate default configs"
 
     install -d -m 0750 "${ROOTFS_BASE}/etc/sudoers.d/"
-    echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > "${ROOTFS_BASE}/etc/sudoers.d/user"
+    echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-geroadrunner-5.4.142_20240116T071414Zt, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > "${ROOTFS_BASE}/etc/sudoers.d/user"
     chmod 0440 "${ROOTFS_BASE}/etc/sudoers.d/user"
     install -d -m 0755 "${ROOTFS_BASE}/srv/local-apt-repository"
 
@@ -481,8 +481,10 @@ echo "root:root" | chpasswd
 # passwd -d x_user
 
 # BEGIN -- REVO i.MX7D users
-useradd -m -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
-useradd -m -s /bin/bash -c "Smallstep PKI" step
+groupadd -g 1000 revo
+groupadd -g 1001 step
+useradd -m -u 1000 -g 1000 -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
+useradd -m -u 1001 -g 1001 -s /bin/bash -c "Smallstep PKI" step
 # END -- REVO i.MX7D users
 
 rm -f /third-stage
