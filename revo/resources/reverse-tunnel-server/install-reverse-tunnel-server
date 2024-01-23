@@ -16,43 +16,43 @@
 #
 # Edit these ...
 : ${NODE_BASE:='@NODE_BASE@'}
-: ${NODE_GROUP:='@NODE_GROUP@'}
 : ${NODE_USER:='@NODE_USER@'}
+: ${NODE_GROUP:='@NODE_GROUP@'}
 
 # Command paths
-: ${AWK:='/usr/bin/awk'}
-: ${BASH:='/bin/bash'}
-: ${CHMOD:='/bin/chmod'}
-: ${CHOWN:='/bin/chown'}
-: ${CAT:='/bin/cat'}
-: ${CURL:='/usr/bin/curl'}
-: ${CUT:='/usr/bin/cut'}
-: ${GETENT:='/usr/bin/getent'}
-: ${GIT:='/usr/bin/git'}
-: ${GREP:='/bin/grep'}
-: ${INSTALL:='/usr/bin/install'}
-: ${READLINK:='/bin/readlink'}
-: ${RM:='/bin/rm'}
-: ${SED:='/bin/sed'}
-: ${SCRIPT:='/usr/bin/script'}
-: ${SORT:='/usr/bin/sort'}
-: ${STEP_CLI:='/usr/bin/step'}
-: ${SUDO:='/usr/bin/sudo'}
-: ${TAIL:='/usr/bin/tail'}
-: ${TAR:='/bin/tar'}
+: ${AWK_CMD:='/usr/bin/awk'}
+: ${BASH_CMD:='/bin/bash'}
+: ${CHMOD_CMD:='/bin/chmod'}
+: ${CHOWN_CMD:='/bin/chown'}
+: ${CAT_CMD:='/bin/cat'}
+: ${CURL_CMD:='/usr/bin/curl'}
+: ${CUT_CMD:='/usr/bin/cut'}
+: ${GETENT_CMD:='/usr/bin/getent'}
+: ${GIT_CMD:='/usr/bin/git'}
+: ${GREP_CMD:='/bin/grep'}
+: ${INSTALL_CMD:='/usr/bin/install'}
+: ${READLINK_CMD:='/bin/readlink'}
+: ${RM_CMD:='/bin/rm'}
+: ${SED_CMD:='/bin/sed'}
+: ${SCRIPT_CMD:='/usr/bin/script'}
+: ${SORT_CMD:='/usr/bin/sort'}
+: ${STEP_CLI_CMD:='/usr/bin/step'}
+: ${SUDO_CMD:='/usr/bin/sudo'}
+: ${TAIL_CMD:='/usr/bin/tail'}
+: ${TAR_CMD:='/bin/tar'}
 
-: ${LOCK:=''}
+: ${LOCK_CMD:=''}
 
-declare script=$($READLINK -e $0)
+declare script=$($READLINK_CMD -e $0)
 
 # deploy-remote-access-infrastructure Must be called by user `root'.
 deploy-remote-access-infrastructure ()
 {
     local uri_prefix=$1
 
-    trap '$RM -f reverse-tunnel-server-latest.tgz; exit 1' 0 1 2 15 RETURN
+    trap '$RM_CMD -f reverse-tunnel-server-latest.tgz; exit 1' 0 1 2 15 RETURN
 
-    $CURL -sSLO "${uri_prefix}/reverse-tunnel-server-latest.tgz" \
+    $CURL_CMD -sSLO "${uri_prefix}/reverse-tunnel-server-latest.tgz" \
         || return $?
 
     local latest=''
@@ -61,47 +61,47 @@ deploy-remote-access-infrastructure ()
     latest=$(< reverse-tunnel-server-latest.tgz) || return $?
 
     node_user_dir=$(
-        $GETENT passwd "$NODE_USER" |
-            $CUT -d: -f6
+        $GETENT_CMD passwd "$NODE_USER" |
+            $CUT_CMD -d: -f6
                 ) || return $?
 
-    $CHOWN "$NODE_USER:$NODE_USER" reverse-tunnel-server-latest.tgz \
+    $CHOWN_CMD "$NODE_USER:$NODE_USER" reverse-tunnel-server-latest.tgz \
         || return $?
-    $INSTALL -m 0664 -o "$NODE_USER" -g "$NODE_USER" \
+    $INSTALL_CMD -m 0664 -o "$NODE_USER" -g "$NODE_USER" \
              reverse-tunnel-server-latest.tgz "${node_user_dir}" || return $?
-    $RM -f reverse-tunnel-server-latest.tgz
+    $RM_CMD -f reverse-tunnel-server-latest.tgz
 
-    trap '$RM -f "${node_user_dir}/$latest"; exit 1' 0 1 2 15 RETURN
+    trap '$RM_CMD -f "${node_user_dir}/$latest"; exit 1' 0 1 2 15 RETURN
 
-    $CURL -Lo "${node_user_dir}/${latest}" "${uri_prefix}/${latest}" \
+    $CURL_CMD -Lo "${node_user_dir}/${latest}" "${uri_prefix}/${latest}" \
         || return $?
 
     # Do not delete - see below.
-    $CHOWN "$NODE_USER:$NODE_USER" "${node_user_dir}/$latest"
+    $CHOWN_CMD "$NODE_USER:$NODE_USER" "${node_user_dir}/$latest"
 
-    $TAR -C "$node_user_dir" -zxf "${node_user_dir}/${latest}" \
+    $TAR_CMD -C "$node_user_dir" -zxf "${node_user_dir}/${latest}" \
         || return $?
 
-    trap '$RM -rf "${node_user_dir}/package"; exit 1' 0 1 2 15 RETURN
+    trap '$RM_CMD -rf "${node_user_dir}/package"; exit 1' 0 1 2 15 RETURN
 
-    $INSTALL -m 0644 "${node_user_dir}/package/config/reverse-tunnel"  \
+    $INSTALL_CMD -m 0644 "${node_user_dir}/package/config/reverse-tunnel"  \
              /etc/default || return $?
-    $INSTALL -m 0644 "${node_user_dir}/package/scripts/reverse-tunnel@.service"  \
+    $INSTALL_CMD -m 0644 "${node_user_dir}/package/scripts/reverse-tunnel@.service"  \
              /lib/systemd/system || return $?
-    $INSTALL -d -m 0755 ~/.ssh || return $?
+    $INSTALL_CMD -d -m 0755 ~/.ssh || return $?
 
     local statedir=''
 
     statedir=$(
-        $AWK  '/^API_STATE_DIR/ { print $NF }' /etc/default/reverse-tunnel
+        $AWK_CMD  '/^API_STATE_DIR/ { print $NF }' /etc/default/reverse-tunnel
             ) || return $?
 
-    $INSTALL -d -m 0755 -o "$NODE_USER" -g "$NODE_GROUP" \
+    $INSTALL_CMD -d -m 0755 -o "$NODE_USER" -g "$NODE_GROUP" \
              "${statedir}"/{certs,config} || return $?
-    $INSTALL -d -m 0700 -o "$NODE_USER" -g "$NODE_GROUP" \
+    $INSTALL_CMD -d -m 0700 -o "$NODE_USER" -g "$NODE_GROUP" \
              "${statedir}/secrets" || return $?
 
-    $RM -rf "${node_user_dir}/package" || return $?
+    $RM_CMD -rf "${node_user_dir}/package" || return $?
 
     trap - 0 1 2 15 RETURN
 }
@@ -109,9 +109,9 @@ deploy-remote-access-infrastructure ()
 fetch-asdf ()
 {
     if test -d ~/.asdf; then
-        $GIT -C ~/.asdf pull
+        $GIT_CMD -C ~/.asdf pull
     else
-        $GIT clone https://github.com/asdf-vm/asdf.git ~/.asdf || return $?
+        $GIT_CMD clone https://github.com/asdf-vm/asdf.git ~/.asdf || return $?
     fi
 }
 
@@ -119,9 +119,9 @@ source-asdf ()
 {
     source ~/.asdf/asdf.sh
 
-    if ! $GREP -q ASDF_DIR ~/.bashrc; then
+    if ! $GREP_CMD -q ASDF_DIR ~/.bashrc; then
         echo "Appending to bashrc..."
-        $CAT >>~/.bashrc <<'EOF'
+        $CAT_CMD >>~/.bashrc <<'EOF'
 
 # Initialize asdf version manager.
 export ASDF_DIR=~/.asdf
@@ -154,7 +154,7 @@ install-node ()
 
 install-remote-access-server ()
 {
-    $INSTALL -d -m 0600 ~/.ssh || return $?
+    $INSTALL_CMD -d -m 0600 ~/.ssh || return $?
 
     if test ! -f ~/reverse-tunnel-server-latest.tgz; then
         return 1
@@ -170,7 +170,7 @@ install-remote-access-server ()
     NODE_ENV=production npm i -g ~/"${latest}" || return $?
     asdf reshim nodejs || return $?
 
-    $RM -f ~/reverse-tunnel-server-latest.tgz ~/"${latest}" || return $?
+    $RM_CMD -f ~/reverse-tunnel-server-latest.tgz ~/"${latest}" || return $?
 }
 
 bootstrap-ca ()
@@ -178,19 +178,22 @@ bootstrap-ca ()
     local ca_url=$1
     local fingerprint=$2
 
-    $STEP_CLI ca bootstrap --ca-url "$ca_url" --fingerprint "$fingerprint" \
+    $STEP_CLI_CMD ca bootstrap --ca-url "$ca_url" --fingerprint "$fingerprint" \
         || return $?
-    $INSTALL -d -m 0700 ~/.step/secrets || return $?
+    $INSTALL_CMD -d -m 0700 ~/.step/secrets || return $?
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
     declare ca_url=$1
     declare fingerprint=$2
 
-    if test ."$LOCKED" != ."$script"; then
+    if ! getent passwd $NODE_USER >/dev/null; then
+        echo "${script##*/}: Create user ${NODE_USER} before running this script."
+        exit 1
+    elif test ."$LOCKED" != ."$script"; then
         if (( EUID != 0 )); then
             echo "${script##*/}: Must be run by user root" >&2
-            exit 1
+            exit 2
         fi
 
         declare uri_prefix=https://github.com/revolution-robotics/roadrunner-debian/raw/debian_bullseye_rr01/revo/resources/reverse-tunnel-server
@@ -198,7 +201,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
         deploy-remote-access-infrastructure "$uri_prefix" || exit $?
 
         # Run remainder of script as user $NODE_USER.
-        exec env LOCKED="$script" $SUDO -i -u "$NODE_USER" \
+        exec env LOCKED="$script" $SUDO_CMD -i -u "$NODE_USER" \
              --preserve-env=LOCKED "$script" "$@"
 
         # Not reached...

@@ -55,17 +55,19 @@ resolve-existing ()
 install-smallstep-infrastructure ()
 {
     if ! $GETENT_CMD passwd step >/dev/null; then
-        $SUDO_CMD $GROUPADD_CMD step
-        $SUDO_CMD $USERADD_CMD -rm -g step -s "$BASH_CMD" -c 'SmallStep Certificate Authority' step
+        $SUDO_CMD $GROUPADD_CMD -r step
+        $SUDO_CMD $USERADD_CMD -rm -s "$BASH_CMD" -c 'Smallstep PKI' step
     fi
 
-    if test -d /usr/lib/tmpfiles.d -a ! -f /usr/lib/tmpfiles.d/step-ca.conf; then
+    if test -d /usr/lib/tmpfiles.d \
+            -a ! -f /usr/lib/tmpfiles.d/step-ca.conf; then
         $SUDO_CMD $TEE_CMD /usr/lib/tmpfiles.d/step-ca.conf >/dev/null <<EOF
 d /var/log/step 770 step step
 EOF
     fi
 
-    if test -d  /usr/lib/systemd/system -a ! -f /usr/lib/systemd/system/step-ca.service; then
+    if test -d  /usr/lib/systemd/system \
+            -a ! -f /usr/lib/systemd/system/step-ca.service; then
         $SUDO_CMD $TEE_CMD /usr/lib/systemd/system/step-ca.service >/dev/null <<'EOF'
 [Unit]
 Description=Root Certificate Authority

@@ -103,9 +103,16 @@ make_debian_recoveryfs ()
     pr_info "recoveryfs: First stage debootstrap"
 
     mount-fs "$RECOVERYFS_BASE"
+
+    trap 'umount-fs "$RECOVERYFS_BASE"; exit 1' 0 1 2 15
+
     debootstrap --variant=minbase --verbose  --foreign --arch armhf \
                 --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
                 "${DEB_RELEASE}" "${RECOVERYFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
+
+    umount-fs "$RECOVERYFS_BASE"
+
+    trap - 0 1 2 15
 
     ## Install /etc/passwd, et al.
     install -m 0644 "${G_VENDOR_PATH}/resources/etc"/{passwd,group} \
@@ -158,8 +165,6 @@ make_debian_recoveryfs ()
 
     ## BEGIN -- REVO i.MX7D security
     # pr_info "recoveryfs: Install security infrastructure"
-    echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${RECOVERYFS_BASE}/etc/sudoers.d/revo
-    chmod 0440 "${RECOVERYFS_BASE}/etc/sudoers.d/revo"
 
     # for pkg in firewalld iptables libcurl libedit libnftnl nftables; do
     #     install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
@@ -235,6 +240,8 @@ EOF
 #!/bin/bash
 exit 101
 EOF
+
+    trap 'rm -f "${RECOVERYFS_BASE}/usr/sbin/policy-rc.d"; exit 1' 0 1 2 15
 
     chmod +x "${RECOVERYFS_BASE}/usr/sbin/policy-rc.d"
 
@@ -405,6 +412,10 @@ protected_install usbutils
 protected_install bluetooth
 # protected_install bluez-obexd
 # protected_install bluez-tools
+
+# sed -i -e '/^ExecStart/s/\$/ --noplugin=sap/' \\
+#      /lib/systemd/system/bluetooth.service
+
 # protected_install blueman
 # protected_install gconf2
 
@@ -433,7 +444,7 @@ echo '#!/usr/sbin/nft -f' >/etc/nftables.conf
 protected_install firewalld
 
 # Switch firewalld backend to nftables.
-sed -i -e '/^\(FirewallBackend=\).*$/s//\1nftables/' \\
+sed -i -e '/^\(FirewallBackend=\).*\$/s//\1nftables/' \\
     /etc/firewalld/firewalld.conf
 
 ## ifupdown is superceded by NetworkManager...
@@ -474,19 +485,48 @@ echo "root:root" | chpasswd
 # echo "user:user" | chpasswd
 # passwd -d x_user
 
+EOF
+
+    if getent passwd revo >/dev/null; then
+        cat >>"${RECOVERYFS_BASE}/third-stage" <<EOF
 # BEGIN -- REVO i.MX7D users
-groupadd -g 1000 revo
-groupadd -g 1001 step
-useradd -m -u 1000 -g 1000 -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
-useradd -m -u 1001 -g 1001 -s /bin/bash -c "Smallstep PKI" step
+
+groupadd -g $(id -g revo) revo
+useradd -m -u $(id -u revo) -g $(id -g revo) -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
+EOF
+    else
+        cat >>"${RECOVERYFS_BASE}/third-stage" <<EOF
+# BEGIN -- REVO i.MX7D users
+
+useradd -m -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
+EOF
+    fi
+
+    if getent passwd step >/dev/null; then
+        cat >>"${RECOVERYFS_BASE}/third-stage" <<EOF
+groupadd -g $(id -g step) step
+useradd -rm -u $(id -u step) -g $(id -g step) -s /bin/bash -c "Smallstep PKI" step
+
 # END -- REVO i.MX7D users
 
 rm -f /third-stage
 EOF
+    else
+        cat >>"${RECOVERYFS_BASE}/third-stage" <<EOF
+useradd -rm  -s /bin/bash -c "Smallstep PKI" step
+
+# END -- REVO i.MX7D users
+
+rm -f /third-stage
+EOF
+    fi
 
     pr_info "recoveryfs: Begin post-bootstrap package installation"
     chmod +x ${RECOVERYFS_BASE}/third-stage
     $CHROOTFS ${RECOVERYFS_BASE} /third-stage
+
+    echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${RECOVERYFS_BASE}/etc/sudoers.d/revo
+    chmod 0440 "${RECOVERYFS_BASE}/etc/sudoers.d/revo"
 
     ## Begin packages stage ##
     pr_info "recoveryfs: Install updates and local packages"
@@ -864,7 +904,6 @@ EOF
 
         chmod +x "${RECOVERYFS_BASE}/user-stage"
         LANG=C $CHROOTFS "$RECOVERYFS_BASE" /user-stage
-
     fi
 
     ## recoveryfs startup patches
@@ -1055,6 +1094,8 @@ EOF
 
     rm -f "${RECOVERYFS_BASE}/usr/sbin/policy-rc.d"
 
+    trap - 0 1 2 15
+
     ## Limit kernel messages to the console.
     sed -i -e '/^#* *kernel.printk/s/^#* *//' "${RECOVERYFS_BASE}/etc/sysctl.conf"
 
@@ -1081,9 +1122,6 @@ EOF
 
     rm -f "${RECOVERYFS_BASE}/usr/bin/qemu-arm-static"
     ## END -- REVO i.MX7D cleanup
-
-    umount-fs "$RECOVERYFS_BASE"
-    trap - 0 1 2 15
 }
 
 # Must be called after make_debian_recoveryfs in main script

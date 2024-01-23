@@ -106,10 +106,17 @@ make_debian_x11_rootfs ()
     pr_info "rootfs: First stage debootstrap"
 
     mount-fs "$ROOTFS_BASE"
+
+    trap 'umount-fs "$ROOTFS_BASE"; exit 1' 0 1 2 15
+
     debootstrap --verbose  --foreign --arch armhf \
                 --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
                 "${DEB_RELEASE}" "${ROOTFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
 
+
+    umount-fs "$ROOTFS_BASE"
+
+    trap - 0 1 2 15
 
     ## Install /etc/passwd, et al.
     install -m 0644 "${G_VENDOR_PATH}/resources/etc"/{passwd,group} \
@@ -121,7 +128,6 @@ make_debian_x11_rootfs ()
     install -m 0755 "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" \
             "${ROOTFS_BASE}/usr/bin/qemu-arm-static"
 
-    trap 'umount-fs "$ROOTFS_BASE"; exit' 0 1 2 15
 
     if test ! -f "${ROOTFS_BASE}/debootstrap/mirror"; then
         echo "${PARAM_DEB_LOCAL_MIRROR}" > "${ROOTFS_BASE}/debootstrap/mirror"
@@ -163,9 +169,6 @@ make_debian_x11_rootfs ()
     ## BEGIN -- REVO i.MX7D security
 
     # pr_info "rootfs: Install security infrastructure"
-
-    echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > "${ROOTFS_BASE}/etc/sudoers.d/revo"
-    chmod 0440 "${ROOTFS_BASE}/etc/sudoers.d/revo"
 
     # for pkg in firewalld iptables libcurl libedit libnftnl nftables; do
     #     install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
@@ -242,6 +245,8 @@ EOF
 #!/bin/sh
 exit 101
 EOF
+
+    trap 'rm -f "${ROOTFS_BASE}/usr/sbin/policy-rc.d"; exit 1' 0 1 2 15
 
     chmod +x "${ROOTFS_BASE}/usr/sbin/policy-rc.d"
 
@@ -410,7 +415,7 @@ protected_install bluetooth
 protected_install bluez-tools
 protected_install bluez-obexd
 
-sed -i -e '/^ExecStart/s/$/ --noplugin=sap/' \\
+sed -i -e '/^ExecStart/s/\$/ --noplugin=sap/' \\
     /lib/systemd/system/bluetooth.service
 
 protected_install blueman
@@ -441,7 +446,7 @@ echo '#!/usr/sbin/nft -f' >/etc/nftables.conf
 protected_install firewalld
 
 ## Switch firewalld backend to nftables.
-sed -i -e '/^\(FirewallBackend=\).*$/s//\1nftables/' \\
+sed -i -e '/^\(FirewallBackend=\).*\$/s//\1nftables/' \\
     /etc/firewalld/firewalld.conf
 
 ## ifupdown is superceded by Network Manager...
@@ -480,19 +485,49 @@ echo "root:root" | chpasswd
 # echo "user:user" | chpasswd
 # passwd -d x_user
 
+EOF
+
+    if getent passwd revo >/dev/null; then
+        cat >>"${ROOTFS_BASE}/third-stage" <<EOF
 # BEGIN -- REVO i.MX7D users
-groupadd -g 1000 revo
-groupadd -g 1001 step
-useradd -m -u 1000 -g 1000 -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
-useradd -m -u 1001 -g 1001 -s /bin/bash -c "Smallstep PKI" step
+
+groupadd -g $(id -g revo) revo
+useradd -m -u $(id -u revo) -g $(id -g revo) -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
+EOF
+    else
+        cat >>"${ROOTFS_BASE}/third-stage" <<EOF
+# BEGIN -- REVO i.MX7D users
+
+useradd -m -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
+EOF
+    fi
+
+    if getent passwd step >/dev/null; then
+        cat >>"${ROOTFS_BASE}/third-stage" <<EOF
+groupadd -g $(id -g step) step
+useradd -rm -u $(id -u step) -g $(id -g step) -s /bin/bash -c "Smallstep PKI" step
+
 # END -- REVO i.MX7D users
 
 rm -f /third-stage
 EOF
+    else
+        cat >>"${ROOTFS_BASE}/third-stage" <<EOF
+useradd -rm  -s /bin/bash -c "Smallstep PKI" step
+
+# END -- REVO i.MX7D users
+
+rm -f /third-stage
+EOF
+    fi
+
 
     pr_info "rootfs: Begin post-bootstrap package installation"
     chmod +x "${ROOTFS_BASE}/third-stage"
     $CHROOTFS "$ROOTFS_BASE" /third-stage
+
+    echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > "${ROOTFS_BASE}/etc/sudoers.d/revo"
+    chmod 0640 "${ROOTFS_BASE}/etc/sudoers.d/revo"
 
     ## Begin packages stage ##
     pr_info "rootfs: Install updates and local packages"
@@ -870,7 +905,6 @@ EOF
 
         chmod +x "${ROOTFS_BASE}/user-stage"
         $CHROOTFS "$ROOTFS_BASE" /user-stage
-
     fi
 
     ## rootfs startup patches
@@ -1076,6 +1110,8 @@ EOF
 
     rm -f "${ROOTFS_BASE}/usr/sbin/policy-rc.d"
 
+    trap - 0 1 2 15
+
     ## Limit kernel messages to the console.
     sed -i -e '/^#* *kernel.printk/s/^#* *//' "${ROOTFS_BASE}/etc/sysctl.conf"
 
@@ -1102,9 +1138,6 @@ EOF
 
     rm "${ROOTFS_BASE}/usr/bin/qemu-arm-static"
     ## END -- REVO i.MX7D cleanup
-
-    umount-fs "$ROOTFS_BASE"
-    trap - 0 1 2 15
 }
 
 # Must be called after make_debian_x11_rootfs in main script

@@ -73,6 +73,8 @@ declare -r G_SMALLSTEP_CLI_REV=HEAD
 declare -r G_SMALLSTEP_CLI_SRC_DIR=${DEF_SRC_DIR}/smallstep-cli
 
 # Smallstep CERTIFICATES
+declare -r STEP_GROUP=999
+declare -r STEP_USER=999
 declare -r G_SMALLSTEP_CERTIFICATES_GIT=https://github.com/smallstep/certificates.git
 declare -r G_SMALLSTEP_CERTIFICATES_BRANCH=master
 declare -r G_SMALLSTEP_CERTIFICATES_REV=HEAD
@@ -80,8 +82,8 @@ declare -r G_SMALLSTEP_CERTIFICATES_SRC_DIR=${DEF_SRC_DIR}/smallstep-certificate
 
 # Node version and user
 declare -r NODE_BASE=20.
-declare -r NODE_GROUP=revo
 declare -r NODE_USER=revo
+declare -r NODE_GROUP=revo
 
 # Smallstep certificate authority bootstrap parameters
 : ${CA_URL:=''}
