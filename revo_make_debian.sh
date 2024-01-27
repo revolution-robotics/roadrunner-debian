@@ -22,7 +22,7 @@ declare USE_ALT_RECOVERYFS=false
 declare -r ABSOLUTE_FILENAME=$(readlink -e "$0")
 declare -r ABSOLUTE_DIRECTORY=${ABSOLUTE_FILENAME%/*}
 declare -r LOOP_MAJOR=7
-declare COMPRESSION_SUFFIX={bz2,gz,img,lz,lzma,lzo,xz,zip,zst}
+declare COMPRESSION_SUFFIX='{bz2,gz,img,lz,lzma,lzo,xz,zip,zst}'
 # declare ZCAT='gzip -dc'
 # declare -r ZIP=gzip
 # declare -r ZIP_SUFFIX=gz
@@ -89,8 +89,6 @@ declare PARAM_DEB_LOCAL_MIRROR=$DEF_DEBIAN_MIRROR
 declare PARAM_OUTPUT_DIR=${DEF_BUILDENV}/output
 declare PARAM_DEBUG=0
 declare PARAM_CMD=''
-declare PARAM_BLOCK_DEVICE=na
-declare PARAM_DISK_IMAGE=na
 
 ### usage ###
 usage ()
@@ -129,14 +127,9 @@ Options:
        usbimage      -- create a bootable recovery image file from usbfs
        provisionimage
                      -- create a bootable provision image file from provisionfs
-       flashimage    -- flash a disk image to SD card
-       webdispatch   -- build and install web dispatch
   --debug            -- enable debug mode for this script
-  -d|--dev           -- removable block device to write to (e.g., -d /dev/sdg)
-  -i|--image image-file
-                     -- image file to flash (image directory -- cf. option -o)
   -j|--jobs n        -- Specifies the number of jobs to run simultaneously (default: ${G_CROSS_COMPILER_JOPTION#-j })
-  -o|--output dir    -- destination directory for build images (default: "$PARAM_OUTPUT_DIR")
+  -o|--output dir    -- destination directory for build images (default: $PARAM_OUTPUT_DIR)
   -p|--proxy http-proxy
                      -- specify a Debian mirror (default: $PARAM_DEB_LOCAL_MIRROR)
 
@@ -146,7 +139,6 @@ Examples:
   make rootfs only:                 sudo ./${SCRIPT_NAME} --cmd rootfs
   make recoveryfs only:             sudo ./${SCRIPT_NAME} --cmd recoveryfs
   create boot image:                sudo ./${SCRIPT_NAME} --cmd diskimage
-  flash image to SD card:           sudo ./${SCRIPT_NAME} --cmd flashimage
 EOF
 }
 
@@ -228,21 +220,9 @@ while true; do
         --debug) # enable debug
             PARAM_DEBUG=1
             ;;
-        -d|--dev) # SD card block device
-            shift
-            if test -e "$1"; then
-                PARAM_BLOCK_DEVICE=$1
-            fi
-            ;;
         -h|--help) # get help
             usage
             exit 0
-            ;;
-        -i|--image) # Disk image
-            shift
-            if test -e "$1"; then
-                PARAM_DISK_IMAGE=$1
-            fi
             ;;
         -j|--jobs)
             shift
@@ -276,16 +256,16 @@ if test ."$PARAM_DEBUG" = .'1'; then
     set -x
 fi
 
-if test ."$PARAM_CMD" != .'flashimage'; then
-    echo "=============== Build summary ==============="
-    echo "Building Debian $DEB_RELEASE for $MACHINE"
-    echo "U-Boot config:      $G_UBOOT_DEF_CONFIG_MMC"
-    echo "Kernel config:      $G_LINUX_KERNEL_DEF_CONFIG"
-    echo "Default kernel dtb: $DEFAULT_BOOT_DTB"
-    echo "kernel dtbs:        $G_LINUX_DTB"
-    echo "============================================="
-    echo
-fi
+cat <<EOF
+=============== Build summary ===============
+Building Debian $DEB_RELEASE for $MACHINE
+U-Boot config:      $G_UBOOT_DEF_CONFIG_MMC
+Kernel config:      $G_LINUX_KERNEL_DEF_CONFIG
+Default kernel dtb: $DEFAULT_BOOT_DTB
+kernel dtbs:        $G_LINUX_DTB
+=============================================
+EOF
+
 
 ## declarate dynamic variables ##
 declare -r G_ROOTFS_TARBALL_PATH="${PARAM_OUTPUT_DIR}/${DEF_ROOTFS_TARBALL_NAME}"
@@ -658,6 +638,13 @@ clean_uboot ()
     make ARCH="$ARCH_ARGS" -C "$1" mrproper
 }
 
+is_loop_device ()
+{
+    local device=$1
+
+    (( $(stat -c '%t' "$device") == LOOP_MAJOR ))
+}
+
 is_removable_device ()
 {
     local device=${1#/dev/}
@@ -708,148 +695,6 @@ is_removable_device ()
     fi
 }
 
-is_loop_device ()
-{
-    local device=$1
-
-    (( $(stat -c '%t' "$device") == LOOP_MAJOR ))
-}
-
-get_range ()
-{
-    size=$1
-
-    if (( size > 9 )); then
-        echo "1-$size"
-    else
-        echo $(seq $size) | tr ' ' '|'
-    fi
-}
-
-select_from_list ()
-{
-    local -n choices=$1
-    local prompt=$2
-
-    local choice
-    local count
-
-    count=${#choices[*]}
-    case "$count" in
-        0)
-            pr_error "Nothing to choose"
-            return 1
-            ;;
-        1)
-            choice=${choices[0]}
-            ;;
-        *)
-            echo "$prompt" >&2
-            PS3="Selection [$(get_range $count)]? "
-            select choice in "${choices[@]}"; do
-                case "$choice" in
-                    '')
-                        echo "$REPLY: Invalid choice - Please try again:" >&2
-                        ;;
-                    *)
-                        break
-                        ;;
-                esac
-            done
-    esac
-    echo "$choice"
-}
-
-get-decompressor ()
-{
-    local archive=$1
-
-    case $(file "$archive") in
-        *bzip2*)
-            ZCAT='bzip2 -dc'
-            ;;
-        *lzip*)
-            ZCAT='lzip -dc'
-            ;;
-        *LZMA*)
-            ZCAT='lzma -dc'
-            ;;
-        *lzop*)
-            ZCAT='lzop -dc'
-            ;;
-        *gzip*)
-            ZCAT='gzip -dc'
-            ;;
-        *XZ*)
-            ZCAT='xz -dc'
-            ;;
-        *Zip*)
-            ZCAT='unzip -p'
-            ;;
-        *Zstandard*)
-            image_cat="$ZSTD_CMD -T0 -dc"
-            ;;
-        *'ISO 9660'*|*'DOS/MBR boot sector'*)
-            ZCAT=cat
-            ;;
-    esac
-}
-
-get_disk_images ()
-{
-    local -a archives
-    local archive
-    local kind
-
-    mapfile -t archives < <(ls "${PARAM_OUTPUT_DIR}/"*.$COMPRESSION_SUFFIX 2>/dev/null)
-    for archive in "${archives[@]}"; do
-        get-decompressor "$archive"
-        case $($ZCAT "$archive" | file -) in
-            *DOS/MBR*)
-                echo "$archive"
-                ;;
-        esac
-    done
-}
-
-get_removable_devices ()
-{
-    local -a devices
-    local device
-    local vendor
-    local model
-
-    mapfile -t devices < <(
-        grep -lv '^0$' '/sys/block/'*'/removable' |
-            sed -e 's;removable$;device/uevent;' |
-            xargs grep -l '^DRIVER=sd$' |
-            sed -e 's;device/uevent;size;' |
-            xargs grep -lv '^0' |
-            cut -d/ -f4
-    )
-
-    for device in "${devices[@]}"; do
-        vendor=$(echo $(< "/sys/block/${device}/device/vendor"))
-        model=$(echo $(< "/sys/block/${device}/device/model"))
-        echo "/dev/$device ($vendor $model)"
-    done
-}
-
-select_disk_image ()
-{
-    declare -a disk_images
-
-    mapfile -t disk_images < <(get_disk_images)
-    select_from_list disk_images 'Please choose an image to flash from:'
-}
-
-select_removable_device ()
-{
-    declare -a removable_devices
-
-    mapfile -t removable_devices < <(get_removable_devices)
-    select_from_list removable_devices 'Please choose a device to flash to:'
-}
 
 # make imx sdma firmware
 # $1 -- SDMA firmware directory
@@ -1138,16 +983,6 @@ cmd_make_kmodules ()
                            "$G_LINUX_KERNEL_SRC_DIR" "$targetdir"
 }
 
-cmd_make_web_dispatch ()
-{
-    local target_base=$1
-
-    # Build and install REVO web dispatch.
-    make -C "${G_REVO_WEB_DISPATCH_SRC_DIR}" clean all
-    install -m 0755 "${G_REVO_WEB_DISPATCH_SRC_DIR}/revo-web-dispatch" \
-            "${target_base}/usr/sbin"
-}
-
 cmd_make_rfs_ubi ()
 {
     make_ubi "$G_ROOTFS_DIR" "$G_TMP_DIR" "$PARAM_OUTPUT_DIR" \
@@ -1257,84 +1092,6 @@ cmd_make_diskimage ()
     )
 }
 
-cmd_flash_diskimage ()
-{
-    local LPARAM_DISK_IMAGE=$PARAM_DISK_IMAGE
-    local LPARAM_BLOCK_DEVICE=$PARAM_BLOCK_DEVICE
-
-    local total_size
-    local total_size_bytes
-    local total_size_gib
-    local -i i
-
-    if test ! -f "$LPARAM_DISK_IMAGE"; then
-        if test -f "${PARAM_OUTPUT_DIR}/${LPARAM_DISK_IMAGE}"; then
-            LPARAM_DISK_IMAGE=${PARAM_OUTPUT_DIR}/${LPARAM_DISK_IMAGE}
-        else
-            LPARAM_DISK_IMAGE=$(select_disk_image)
-        fi
-        if test ! -f "$LPARAM_DISK_IMAGE"; then
-            pr_error "Image not available"
-            exit 1
-        fi
-    fi
-
-    if ! is_removable_device "$LPARAM_BLOCK_DEVICE" >/dev/null 2>&1; then
-        LPARAM_BLOCK_DEVICE=$(select_removable_device | awk '{ print $1 }')
-        if test ! -b "$LPARAM_BLOCK_DEVICE"; then
-            pr_error "Device not available"
-            exit 1
-        fi
-    fi
-
-    total_size=$(blockdev --getsz "$LPARAM_BLOCK_DEVICE")
-    total_size_bytes=$(( total_size * 512 ))
-    total_size_gib=$(bc <<< "scale=1; ${total_size_bytes}/(1024*1024*1024)")
-
-    echo '============================================='
-    pr_info "Image: ${LPARAM_DISK_IMAGE##*/}"
-    pr_info "Device: $LPARAM_BLOCK_DEVICE, $total_size_gib GiB"
-    echo '============================================='
-    read -p "Press Enter to continue"
-
-    pr_info "Flashing image to device..."
-
-    for (( i=0; i < 10; i++ )); do
-        if test -n "$(findmnt -n "${LPARAM_BLOCK_DEVICE}${i}")"; then
-            umount -f "${LPARAM_BLOCK_DEVICE}${i}"
-        fi
-    done
-
-    case $(file "$LPARAM_DISK_IMAGE") in
-        *bzip2*)
-            ZCAT='bzip2 -dc'
-            ;;
-        *lzip*)
-            ZCAT='lzip -dc'
-            ;;
-        *LZMA*)
-            ZCAT='lzma -dc'
-            ;;
-        *lzop*)
-            ZCAT='lzop -dc'
-            ;;
-        *gzip*)
-            ZCAT='gzip -dc'
-            ;;
-        *XZ*)
-            ZCAT='xz -dc'
-            ;;
-        *'ISO 9660'*|*'DOS/MBR boot sector'*)
-            ZCAT=cat
-            ;;
-    esac
-
-    if ! $ZCAT "$LPARAM_DISK_IMAGE" | dd of="$LPARAM_BLOCK_DEVICE" bs=1M; then
-        pr_error "Flash did not complete successfully."
-        pr_error "*** Please check media and try again! ***"
-    fi
-}
-
 cmd_make_bcmfw ()
 {
     local targetdir=$1
@@ -1440,13 +1197,6 @@ case $PARAM_CMD in
             pr_elapsed_time cmd_make_firmware $G_RECOVERYFS_DIR
         fi
         ;;
-    webdispatch)
-        pr_elapsed_time cmd_make_web_dispatch $G_ROOTFS_DIR
-
-        if ! $USE_ALT_RECOVERYFS; then
-            pr_elapsed_time cmd_make_web_dispatch $G_RECOVERYFS_DIR
-        fi
-        ;;
     diskimage)
         pr_elapsed_time cmd_make_diskimage $DEF_ROOTFS_TARBALL_NAME
         ;;
@@ -1455,9 +1205,6 @@ case $PARAM_CMD in
         ;;
     provisionimage)
         pr_elapsed_time cmd_make_diskimage $DEF_PROVISIONFS_TARBALL_NAME
-        ;;
-    flashimage)
-        pr_elapsed_time cmd_flash_diskimage
         ;;
     rubi)
         pr_elapsed_time cmd_make_rfs_ubi
