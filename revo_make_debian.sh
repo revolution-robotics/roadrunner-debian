@@ -1068,19 +1068,19 @@ cmd_make_diskimage ()
     dd if=/dev/zero of="$IMAGE_FILE" bs="$IMAGE_SIZE" seek=1 count=0 >/dev/null 2>&1
     LOOP_DEVICE=$(losetup --nooverlap --find --show "$IMAGE_FILE")
 
-    trap 'cleanup_make_diskimage "$LOOP_DEVICE"; exit' 0 1 2 15
+    trap 'cleanup_make_diskimage "$LOOP_DEVICE"; exit 1' 0 1 2 15 RETURN
 
     if test ."$MACHINE" = .'imx6ul-var-dart' ||
            test ."$MACHINE" = .'var-som-mx7' ||
            test ."$MACHINE" = .'revo-roadrunner-mx7'; then
-        make_x11_image "$LOOP_DEVICE" "$PARAM_OUTPUT_DIR" "$LPARAM_TARBALL"
+        make_x11_image "$LOOP_DEVICE" "$PARAM_OUTPUT_DIR" "$LPARAM_TARBALL" || return 1
     else
-        make_weston_image "$LOOP_DEVICE" "$PARAM_OUTPUT_DIR"
+        make_weston_image "$LOOP_DEVICE" "$PARAM_OUTPUT_DIR" || return 1
     fi
 
     losetup -d "$LOOP_DEVICE"
 
-    trap - 0 1 2 15
+    trap - 0 1 2 15 RETURN
 
     pr_info "Compressing image file \"$(basename $IMAGE_FILE)\"..."
     $ZIP "$IMAGE_FILE"
