@@ -154,7 +154,7 @@ install-node ()
 
 install-remote-access-server ()
 {
-    $INSTALL_CMD -d -m 0600 ~/.ssh || return $?
+    $INSTALL_CMD -d -m 0755 ~/.ssh || return $?
 
     if test ! -f ~/reverse-tunnel-server-latest.tgz; then
         return 1
