@@ -44,6 +44,8 @@ get-version-codename ()
             9*) echo 'stretch' ;;
             10*) echo 'buster' ;;
             11*) echo 'bullseye' ;;
+            12*) echo 'bookworm' ;;
+            13*) echo 'trixie' ;;
             *)
                 echo "${script_name}: $debian_version: Unknown version" >&2
                 return 1

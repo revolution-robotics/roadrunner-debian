@@ -196,7 +196,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
             exit 2
         fi
 
-        declare uri_prefix=https://github.com/revolution-robotics/roadrunner-debian/raw/debian_bullseye_rr01/revo/resources/reverse-tunnel-server
+        declare uri_prefix=https://github.com/revolution-robotics/roadrunner-debian/raw/debian_bookworm_rr01/revo/resources/reverse-tunnel-server
 
         deploy-remote-access-infrastructure "$uri_prefix" || exit $?
 

@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-#
-sudo buildah containers -n --all |
-    while read id rest; do
-        sudo buildah rm "$id"
-    done
