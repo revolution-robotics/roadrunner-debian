@@ -10,8 +10,8 @@
 #
 declare -r SCRIPT_NAME=${0##*/}
 
-declare -r COMPRESSION_SUFFIX=gz
-declare -r ZCAT=zcat
+declare -r COMPRESSION_SUFFIX=zst
+declare -r ZCAT='zstd -T0 -cd'
 
 declare -r IMGS_PATH=/opt/images/Debian
 declare -r EMMC_DEVICE=mmcblk2
@@ -354,7 +354,7 @@ flash_emmc ()
 
     pr_info "Flashing eMMC \"rootfs\" partition"
 
-    if ! tar -C "$rootfsdir" -zxpf "${IMGS_PATH}/${ROOTFS_IMAGE}" \
+    if ! $ZCAT "${IMGS_PATH}/${ROOTFS_IMAGE}" | tar -C "$rootfsdir" -xpf - \
          --checkpoint=4096 --checkpoint-action=.; then
         pr_error "$rootfsdir: eMMC flash did not complete successfully."
         return 1
@@ -366,7 +366,7 @@ flash_emmc ()
 
     pr_info "Flashing eMMC \"recoveryfs\" partition"
 
-    if ! tar -C "$recoveryfsdir" -zxpf "${IMGS_PATH}/${RECOVERYFS_IMAGE}" \
+    if ! $ZCAT "${IMGS_PATH}/${RECOVERYFS_IMAGE}" | tar -C "$recoveryfsdir" -xpf - \
          --checkpoint=4096 --checkpoint-action=.; then
         pr_error "$recoveryfsdir: eMMC flash did not complete successfully."
         return 1
