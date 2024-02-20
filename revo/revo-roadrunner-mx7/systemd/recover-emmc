@@ -2,100 +2,90 @@
 #
 # @(#) recover-emmc
 #
-# Copyright © 2021 Revolution Robotics, Inc.
+# Copyright © 2021,2024 Revolution Robotics, Inc.
 #
 # This script creates a bootable eMMC device with Debian root
 # file system. It is intended to be run from the eMMC recovery partition.
 #
-declare -r SCRIPT_NAME=${0##*/}
-
-declare -r COMPRESSION_SUFFIX=zst
-declare -r ZCAT='zstd -T0 -cd'
-
-declare -r IMGS_PATH=/opt/images/Debian
-declare -r EMMC_DEVICE=mmcblk2
-
-declare -r UBOOT_IMAGE=u-boot.img.mmc
-declare -r UBOOT_SCRIPT=boot.scr
-declare -r SPL_IMAGE=SPL.mmc
-declare -r KERNEL_IMAGE=uImage
-declare -r KERNEL_DTBS='imx7d-roadrunner-gpio16.dtb imx7d-roadrunner-iomix.dtb'
-declare -r ROOTFS_IMAGE=rootfs.tar.${COMPRESSION_SUFFIX}
-declare -r SYSTEM_UPDATE_LOG=/root/system-update.log
-
-declare interactive=true
-
-if (( EUID != 0 )); then
-    echo "This script must be run with super-user privileges"
-    exit 1
-fi
+: ${COMPRESSION_SUFFIX:=zst}
+: ${ZCAT_CMD:='/usr/bin/zstdmt -cd'}
+: ${IMAGES_PATH:=/opt/images/Debian}
+: ${PAYLOADS_PATH:=/opt/images/payloads}
+: ${EMMC_DEVICE:=mmcblk2}
+: ${UBOOT_IMAGE:=u-boot.img.mmc}
+: ${UBOOT_SCRIPT:=boot.scr}
+: ${SPL_IMAGE:=SPL.mmc}
+: ${KERNEL_IMAGE:=uImage}
+: ${KERNEL_DTBS:='imx7d-roadrunner-blade.dtb imx7d-roadrunner-gpio16.dtb imx7d-roadrunner-iomix.dtb'}
+: ${ROOTFS_IMAGE:="rootfs.tar.${COMPRESSION_SUFFIX}"}
+: ${SYSTEM_UPDATE_LOG:=/root/system-update.log}
 
 usage ()
 {
     cat <<EOF
-Usage: $SCRIPT_NAME OPTIONS
+Usage: $script_name OPTIONS
 Options:
   -h|--help              -- print this help, then exit.
 EOF
 }
 
-pr_error ()
+pr-error ()
 {
     echo "E: $@"
 }
 
-pr_info ()
+pr-info ()
 {
     echo "I: $@"
 }
 
-pwr_led_on ()
+pwr-led-on ()
 {
     echo 1 >/sys/class/leds/pwr-green-led/brightness
 }
 
-pwr_led_off ()
+pwr-led-off ()
 {
     echo 0 >/sys/class/leds/pwr-green-led/brightness
 }
 
-stat_led_on ()
+stat-led-on ()
 {
     echo 1 >/sys/class/leds/stat-blue-led/brightness
 }
 
-stat_led_off ()
+stat-led-off ()
 {
     echo 0 >/sys/class/leds/stat-blue-led/brightness
 }
 
-link_led_on ()
+link-led-on ()
 {
     echo 1 >/sys/class/leds/link-blue-led/brightness
 }
 
-link_led_off ()
+link-led-off ()
 {
     echo 0 >/sys/class/leds/link-blue-led/brightness
 }
 
-cycle_leds ()
+cycle-leds ()
 {
     while true; do
-        pwr_led_on
+        pwr-led-on
         sleep 1
-        pwr_led_off
-        stat_led_on
+        pwr-led-off
+        stat-led-on
         sleep 1
-        stat_led_off
-        link_led_on
+        stat-led-off
+        link-led-on
         sleep 1
-        link_led_off
+        link-led-off
     done
 }
 
 # Check that none of the partitions to be flashed is mounted as root.
-sanity_check ()
+sanity-check ()
 {
     local device=$1
     local part=$2
@@ -106,13 +96,13 @@ sanity_check ()
     local rootmount=$(findmnt -n "$rootdevice" | awk '{ print $1 }')
 
     if test ."$rootmount" = .'/'; then
-        pr_error "$rootdevice: Cannot flash device mounted on root"
+        pr-error "$rootdevice: Cannot flash device mounted on root"
         return 1
     fi
 
     if ! $interactive; then
         if test ."$system_update" != .'opt/images/Debian'; then
-            pr_error "/system-update: Not symlinked to opt/images/Debian"
+            pr-error "/system-update: Not symlinked to opt/images/Debian"
             return 1
         else
 
@@ -131,7 +121,7 @@ sanity_check ()
     fi
 }
 
-check_images ()
+check-images ()
 {
     local dtb
     local image
@@ -144,22 +134,22 @@ check_images ()
         )
 
     for dtb in $KERNEL_DTBS; do
-        if test ! -f "${IMGS_PATH}/${dtb}"; then
-            pr_error "${IMGS_PATH}/${dtb}: No such file"
+        if test ! -f "${IMAGES_PATH}/${dtb}"; then
+            pr-error "${IMAGES_PATH}/${dtb}: No such file"
             return 1
         fi
     done
 
     for image in "${distribution_images[@]}"; do
-        if test ! -f "${IMGS_PATH}/${image}"; then
-            pr_error "${IMGS_PATH}/${image}: No such file"
+        if test ! -f "${IMAGES_PATH}/${image}"; then
+            pr-error "${IMAGES_PATH}/${image}: No such file"
             return 1
         fi
     done
 }
 
 # $1 is the full path of the config file
-set_fw_env_config_to_emmc ()
+set-fw-env-config-to-emmc ()
 {
     local fw_env_config=$1
 
@@ -167,7 +157,7 @@ set_fw_env_config_to_emmc ()
     sed -i -e "s;#*/dev/mmcblk.;/dev/${EMMC_DEVICE};" "$fw_env_config"
 }
 
-set_fw_utils_to_emmc_on_emmc ()
+set-fw-utils-to-emmc-on-emmc ()
 {
     local mountpoint=$1
 
@@ -178,11 +168,11 @@ set_fw_utils_to_emmc_on_emmc ()
     fi
 
     if test -f "${mountpoint}/etc/fw_env.config"; then
-        set_fw_env_config_to_emmc "${mountpoint}/etc/fw_env.config"
+        set-fw-env-config-to-emmc "${mountpoint}/etc/fw_env.config"
     fi
 }
 
-partition_emmc ()
+partition-emmc ()
 {
     local device=$1
     local part=$2
@@ -190,7 +180,7 @@ partition_emmc ()
     # Sizes in MiB
     # RECOVERYFS_SIZE must match that in flash-emmc.
     # local RECOVERYFS_SIZE=1792
-    local RECOVERYFS_SIZE=2000
+    local RECOVERYFS_SIZE=2300
     local BOOTLOAD_RESERVE_SIZE=4
     local SPARE_SIZE=12
 
@@ -205,16 +195,16 @@ partition_emmc ()
     local rootfs_size=$(( total_size - rootfs_offset - RECOVERYFS_SIZE ))
     local recoveryfs_offset=$(( rootfs_offset + rootfs_size ))
 
-    pr_info "Device: $device, $total_size_gib GiB"
-    pr_info "============================================="
+    pr-info "Device: $device, $total_size_gib GiB"
+    pr-info "============================================="
     if $interactive; then
         read -p "Press Enter to continue"
     fi
 
-    pr_info "Creating new partitions:"
-    pr_info "Root file system size: $rootfs_size MiB"
-    pr_info "Recovery file system size: $RECOVERYFS_SIZE MiB"
-    pr_info "Total size: $total_size MiB"
+    pr-info "Creating new partitions:"
+    pr-info "Root file system size: $rootfs_size MiB"
+    pr-info "Recovery file system size: $RECOVERYFS_SIZE MiB"
+    pr-info "Total size: $total_size MiB"
 
     local part1_start="${BOOTLOAD_RESERVE_SIZE}MiB"
     local part1_size="${SPARE_SIZE}MiB"
@@ -249,27 +239,27 @@ EOF
     sync
 }
 
-format_emmc ()
+format-emmc ()
 {
     local device=$1
     local part=$2
     local bootpart=$3
     local rootfspart=$4
 
-    pr_info "Formating eMMC partitions"
+    pr-info "Formating eMMC partitions"
 
     if ! mkfs.vfat -n BOOT "${device}${part}${bootpart}" >/dev/null 2>&1; then
-        pr_error "${device}${part}${bootpart}: format failed"
+        pr-error "${device}${part}${bootpart}: format failed"
         return 1
     elif ! mkfs.ext4 -F -L rootfs "${device}${part}${rootfspart}" >/dev/null 2>&1; then
-        pr_error "${device}${part}${rootfspart}: format failed"
+        pr-error "${device}${part}${rootfspart}: format failed"
         return 1
     fi
     sleep 2
     sync
 }
 
-mount_partitions ()
+mount-partitions ()
 {
     local mountdir_prefix=$1
     local device=$2
@@ -280,24 +270,24 @@ mount_partitions ()
     local bootdir="${mountdir_prefix}${bootpart}"
     local rootfsdir="${mountdir_prefix}${rootfspart}"
 
-    pr_info "Mounting eMMC partitions"
+    pr-info "Mounting eMMC partitions"
 
     # Mount the partitions
     mkdir -p "$bootdir"
     mkdir -p "$rootfsdir"
 
     if ! mount -t vfat "${device}${part}${bootpart}" "$bootdir" >/dev/null 2>&1; then
-        pr_error "${device}${part}${bootpart}: mount failed"
+        pr-error "${device}${part}${bootpart}: mount failed"
         return 1
     elif ! mount -t ext4 "${device}${part}${rootfspart}" "$rootfsdir" >/dev/null 2>&1; then
-        pr_error "${device}${part}${rootfspart}: mount failed"
+        pr-error "${device}${part}${rootfspart}: mount failed"
         return 1
     fi
     sleep 2
     sync
 }
 
-flash_emmc ()
+flash-emmc-partitions ()
 {
     local mountdir_prefix=$1
     local bootpart=$2
@@ -306,53 +296,87 @@ flash_emmc ()
     local bootdir="${mountdir_prefix}${bootpart}"
     local rootfsdir="${mountdir_prefix}${rootfspart}"
 
-    pr_info "Flashing eMMC \"BOOT\" partition"
+    pr-info "Flashing eMMC \"BOOT\" partition"
 
-    if test -f "${IMGS_PATH}/${UBOOT_SCRIPT}"; then
-        install -m 0644 "${IMGS_PATH}/${UBOOT_SCRIPT}" "$bootdir"
+    if test -f "${IMAGES_PATH}/${UBOOT_SCRIPT}"; then
+        install -m 0644 "${IMAGES_PATH}/${UBOOT_SCRIPT}" "$bootdir"
     fi
-    cp "${IMGS_PATH}/${KERNEL_IMAGE}" "$bootdir"
+    cp "${IMAGES_PATH}/${KERNEL_IMAGE}" "$bootdir"
     for dtb in $KERNEL_DTBS; do
-        cp "${IMGS_PATH}/${dtb}" "$bootdir"
+        cp "${IMAGES_PATH}/${dtb}" "$bootdir"
     done
     sync
 
-    pr_info "Flashing eMMC \"rootfs\" partition"
+    pr-info "Flashing eMMC \"rootfs\" partition"
 
-    if ! $ZCAT "${IMGS_PATH}/${ROOTFS_IMAGE}" | tar -C "$rootfsdir" -xpf -  \
+    if ! $ZCAT_CMD "${IMAGES_PATH}/${ROOTFS_IMAGE}" | tar -C "$rootfsdir" -xpf -  \
          --checkpoint=4096 --checkpoint-action=.; then
-        pr_error "$rootfsdir: eMMC flash did not complete successfully."
+        pr-error "$rootfsdir: eMMC flash did not complete successfully."
         return 1
     fi
-    pr_info ""
+    pr-info ""
 
-    set_fw_utils_to_emmc_on_emmc "$rootfsdir"
+    set-fw-utils-to-emmc-on-emmc "$rootfsdir"
     sync
 }
 
-flash_u-boot ()
+deploy-payloads ()
+{
+    local rootfsdir=$1
+
+    pr-info 'Deploying paylods to "rootfs" partition'
+
+    find "$PAYLOADS_PATH" -type f -name "*.${COMPRESSION_SUFFIX}" 2>/dev/null |
+        while read payload; do
+            if ! $ZCAT_CMD "$payload" |
+                    tar -C "$rootfsdir" -xpf -; then
+                pr-error "${rootfsdir}: Payload deployment failed."
+                return 1
+            fi
+        done
+}
+
+run-post-install ()
+{
+    local script=$1
+    local rootfsdir=$2
+
+    if test ! -f "$script"; then
+        return
+    fi
+
+    trap 'rm -f "${rootfs}/post-install"; exit 1' 0 1 2 15 RETURN
+
+    install -m 0755 "$script" "${rootfsdir}/post-install" || return $?
+    chrootfs "${rootfsdir}" /post-install || return $?
+    rm -f "${rootfs}/post-install" || return $?
+
+    trap - 0 1 2 15 RETURN
+}
+
+flash-uboot ()
 {
     local device=$1
 
-    local spl_image=${IMGS_PATH}/${SPL_IMAGE}
-    local uboot_image=${IMGS_PATH}/${UBOOT_IMAGE}
+    local spl_image=${IMAGES_PATH}/${SPL_IMAGE}
+    local uboot_image=${IMAGES_PATH}/${UBOOT_IMAGE}
 
-    pr_info "Flashing eMMC U-Boot"
+    pr-info "Flashing eMMC U-Boot"
 
     if ! dd if="$spl_image" of="$device" bs=1K seek=1 >/dev/null 2>&1; then
-        pr_error "eMMC flash did not complete successfully."
+        pr-error "eMMC flash did not complete successfully."
         return 1
     fi
     sync
     if ! dd if="$uboot_image" of="$device" bs=1K seek=69 >/dev/null 2>&1; then
-        pr_error "eMMC flash did not complete successfully."
+        pr-error "eMMC flash did not complete successfully."
         return 1
     fi
     sync
     sleep 2
 }
 
-clean_up ()
+clean-up ()
 {
 
     local mountdir_prefix=$1
@@ -368,60 +392,93 @@ clean_up ()
         rm -rf "${mountdir_prefix%/*}"
     fi
 
-    pr_info "eMMC flash completed successfully"
+    pr-info "eMMC flash completed successfully"
 }
 
-while getopts hq c;
-do
-    case $c in
-        h|\?)
-            usage
-            exit 1
-            ;;
-        q)
-            interactive=false
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare script=''
+    declare script_name=''
 
-            # Log all stdout and stderr to SYSTEM_UPDATE_LOG
-            exec >"$SYSTEM_UPDATE_LOG" 2>&1
-            ;;
-    esac
-    shift
-done
+    script=$(readlink -e "$0") || exit $?
+    script_name=${script##*/}
 
-declare soc=$(cat /sys/bus/soc/devices/soc0/soc_id)
-declare device=/dev/$EMMC_DEVICE
-declare part=p
-declare mountdir_prefix=/tmp/media/${EMMC_DEVICE}${part}
-declare bootpart=1
-declare rootfspart=2
+    declare interactive=true
 
-if test ."$soc" != .'i.MX7D'; then
-    pr_error "This script is for imaging an i.MX7D board's eMMC device"
-    exit 1
-elif test ! -b $device; then
-    pr_error "$device: Device not found"
-    exit 1
+    while getopts hq c;
+    do
+        case $c in
+            h|\?)
+                usage
+                exit 1
+                ;;
+            q)
+                interactive=false
+
+                # Log all stdout and stderr to SYSTEM_UPDATE_LOG
+                exec >"$SYSTEM_UPDATE_LOG" 2>&1
+                ;;
+        esac
+        shift
+    done
+
+    if (( EUID != 0 )); then
+        echo "This script must be run with super-user privileges"
+        exit 1
+    fi
+
+    declare soc=$(< /sys/bus/soc/devices/soc0/soc_id)
+    declare device=/dev/$EMMC_DEVICE
+    declare part=p
+    declare mountdir_prefix=/tmp/media/${EMMC_DEVICE}${part}
+    declare bootpart=1
+    declare rootfspart=2
+    declare post_install_script=${PAYLOADS_PATH}/post-install
+
+    if test ."$soc" != .'i.MX7D'; then
+        pr-error "This script is for imaging an i.MX7D board's eMMC device"
+        exit 1
+    elif test ! -b $device; then
+        pr-error "$device: Device not found"
+        exit 1
+    fi
+
+    pr-info "Board: $soc"
+    pr-info "Internal storage: eMMC"
+
+    sanity-check "$device" "$part" "$rootfspart" || exit $?
+    check-images || exit $?
+
+    if ! $interactive; then
+        declare cycle_leds_pid=''
+
+        cycle-leds &
+        cycle_leds_pid=$!
+    fi
+
+    # Repartitioning eMMC might cause recovery partition to be lost,
+    # which is likely lost in the event of partition table corruption.
+    # So be conservative and avoid re-partitioning during recovery.
+
+    # partition-emmc "$device" "$part" || exit $?
+    format-emmc "$device" "$part" "$bootpart" "$rootfspart" || exit $?
+    mount-partitions "$mountdir_prefix" "$device" "$part" "$bootpart" \
+                     "$rootfspart"  || exit $?
+    flash-emmc-partitions "$mountdir_prefix" "$bootpart" \
+                          "$rootfspart" || exit $?
+    deploy-payloads "${mountdir_prefix}${rootfspart}" || exit $?
+    run-post-install "$post_install_script" \
+                     "${mountdir_prefix}${rootfspart}" || exit $?
+    flash-uboot "$device" || exit $?
+    clean-up "$mountdir_prefix" "$bootpart" "$rootfspart" || exit $?
+
+    # Per /BOOT/boot.scr, setting `usbboot_request' to `override' forces
+    # boot to eMMC prior to restoring USB boot.
+    fw_setenv usbboot_request override
+
+    if ! $interactive; then
+        pwr-led-on
+        stat-led-off
+        link-led-off
+        kill "$cycle_leds_pid"
+    fi
 fi
-
-pr_info "Board: $soc"
-pr_info "Internal storage: eMMC"
-
-sanity_check "$device" "$part" "$rootfspart" || exit $?
-check_images || exit $?
-
-if ! $interactive; then
-    trap 'turn_pwr_on; turn_stat_off; turn_link_off; kill $cycle_leds_pid; exit' 0 1 2 15
-
-    cycle_leds &
-    cycle_leds_pid=$!
-fi
-
-format_emmc "$device" "$part" "$bootpart" "$rootfspart" || exit $?
-mount_partitions "$mountdir_prefix" "$device" "$part" "$bootpart" "$rootfspart"  || exit $?
-flash_emmc "$mountdir_prefix" "$bootpart" "$rootfspart" || exit $?
-flash_u-boot "$device" || exit $?
-clean_up "$mountdir_prefix" "$bootpart" "$rootfspart"
-
-# Per /BOOT/boot.scr, setting `usbboot_request' to `override' forces
-# boot to eMMC prior to restoring USB boot.
-fw_setenv usbboot_request override

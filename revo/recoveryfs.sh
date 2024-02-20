@@ -653,6 +653,8 @@ EOF
     ## Install REVO recover eMMC service.
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc" \
             "${RECOVERYFS_BASE}/usr/sbin"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/chrootfs" \
+            "${RECOVERYFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
     install -d -m 0755 "${RECOVERYFS_BASE}/lib/systemd/system/system-update.target.wants"

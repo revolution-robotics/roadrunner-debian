@@ -654,6 +654,8 @@ EOF
     ## Install REVO flash eMMC service.
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/flash-emmc" \
             "${ROOTFS_BASE}/usr/sbin"
+    install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/chrootfs" \
+            "${ROOTFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/flash-emmc.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
     install -d -m 0755 "${ROOTFS_BASE}/lib/systemd/system/system-update.target.wants"
