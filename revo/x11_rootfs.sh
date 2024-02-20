@@ -438,6 +438,7 @@ protected_install can-utils
 protected_install pm-utils
 
 # BEGIN -- REVO i.MX7D networking and security
+protected_install chrony
 protected_install nftables
 
 ## Remove entries from nftables.conf which might interfere with firewalld.
