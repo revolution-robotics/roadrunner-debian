@@ -394,11 +394,11 @@ run-post-install ()
         return
     fi
 
-    trap 'rm -f "${rootfs}/post-install"; exit 1' 0 1 2 15 RETURN
+    trap 'rm -f "${rootfsdir}/post-install"; exit 1' 0 1 2 15 RETURN
 
     install -m 0755 "$script" "${rootfsdir}/post-install" || return $?
     chrootfs "${rootfsdir}" /post-install || return $?
-    rm -f "${rootfs}/post-install" || return $?
+    rm -f "${rootfsdir}/post-install" || return $?
 
     trap - 0 1 2 15 RETURN
 }
