@@ -5,27 +5,31 @@
 # @(#) update-hostname
 #
 # This script attempts to update the system hostname across various
-# files/certs. The system should be immediately reboot thereafter to
+# files/certs. The system should be immediately rebooted thereafter to
 # eliminate transients. Assumptions are made that won't be valid on
 # most systems.
 #
 # In general, changing the system hostname is a bad idea, so use this
 # script only as a last resort!
 #
-set -e
+: ${AWK_CMD:='/usr/bin/awk'}
+: ${CUT_CMD:='/usr/bin/cut'}
+: ${FLOCK_CMD:='/usr/bin/flock'}
+: ${GREP_CMD:='/bin/grep'}
+: ${HOSTNAMECTL_CMD:='/usr/bin/hostnamectl'}
+: ${IP_CMD:='/bin/ip'}
+: ${OPENSSL_CMD:='/usr/bin/openssl'}
+: ${RM_CMD:='/bin/rm'}
+: ${SED_CMD:='/bin/sed'}
+: ${SSH_KEYGEN_CMD:='/usr/bin/ssh-keygen'}
+: ${TLS_GENERATE_SELF_SIGNED_CMD:='/usr/sbin/tls-generate-self-signed'}
+: ${SYSTEMCTL_CMD:='/bin/systemctl'}
 
 : ${LOCKED:=''}
 
-if test ."$0" != ."$LOCKED"; then
-
-    #  Avoid running multiple instances of this script.
-    exec env LOCKED=$0 flock -en "$0" "$0" "$@" || true
-fi
-
 confirm-update ()
 {
-    local hn=$1
-    local msg=$2
+    local msg=$1
 
     echo "$msg"
     read -n 1 -p "Continue? [y/N]? "
@@ -35,20 +39,28 @@ confirm-update ()
     fi
 }
 
+get-mac-digest ()
+{
+    $IP_CMD -o -br link show |
+        $GREP_CMD -E '^(e|w)' |
+        $AWK_CMD '{ print $3; exit }' |
+        $OPENSSL_CMD dgst -r -sha256 |
+        $CUT_CMD -c1-6
+}
+
 update-hostnames ()
 {
     local hn=$1
 
-    hostnamectl --static --transient --pretty set-hostname "$hn"
+    $HOSTNAMECTL_CMD --static --transient --pretty set-hostname "$hn"
 }
 
 update-hosts ()
 {
     local hn=$1
 
-    sed -i -e '/^127.0.0.1/s;\([[:space:]]\{1,\}\)[^[:space:]].*;\1localhost;' \
-        -e '/^127.0.1.1/s;\([[:space:]]\{1,\}\)[^[:space:]].*;\1'"$hn"';' \
-        /etc/hosts
+    $SED_CMD -i -E -e 's;^(127.0.0.1).*;\1\tlocalhost;' \
+        -e "s;^(127.0.1.1).*;\1\t$hn;" /etc/hosts
 }
 
 update-mailname ()
@@ -60,62 +72,93 @@ update-mailname ()
 
 update-ssh-certificates ()
 {
-    rm -f /etc/ssh/ssh_host_*_key*
-    ssh-keygen -A
+    $RM_CMD -f /etc/ssh/ssh_host_*_key*
+    $SSH_KEYGEN_CMD -A
 }
 
 update-tls-certificates ()
 {
-    tls-generate-self-signed
+    $TLS_GENERATE_SELF_SIGNED_CMD
 }
 
 restart-zeroconf ()
 {
-    systemctl restart avahi-daemon
+    if $SYSTEMCTL_CMD is-active avahi-daemon >/dev/null; then
+        $SYSTEMCTL_CMD restart avahi-daemon
+    fi
 }
 
 restart-web-services ()
 {
-    systemctl restart cockpit
-    systemctl restart revo-web-dispatch
+    if $SYSTEMCTL_CMD is-active cockpit >/dev/null; then
+        $SYSTEMCTL_CMD restart cockpit
+    fi
+
+    if $SYSTEMCTL_CMD is-active revo-web-dispatch >/dev/null; then
+        $SYSTEMCTL_CMD restart revo-web-dispatch
+    fi
+}
+
+process-command-line ()
+{
+    local -n new_hostname=$1
+    local update=$2
+
+    # Remove any domain part.
+    new_hostname=${update%%.*}
+
+    local msg=''
+
+    if test ."$new_hostname" = .''; then
+        new_hostname=revoedge-$(get-mac-digest)
+
+        if test ."$new_hostname" = ."$HOSTNAME" -a -f /etc/hostname; then
+            if test ."$new_hostname" = .$(< /etc/hostname); then
+                msg="$new_hostname: Hostname appears already set."
+                confirm-update "$msg" || exit
+            fi
+        fi
+    elif test ."${new_hostname:0:1}" = .'-'; then
+        echo "Usage: ${0##*/} [hostname]"
+        exit
+    elif test ! ."$update" = ."$new_hostname"; then
+        msg="NB: Only short name (i.e., $new_hostname) will be updated.
+    Domain name records must be updated separately."
+        confirm-update "$msg" || exit
+    elif test ."$new_hostname" = ."$HOSTNAME" -a -f /etc/hostname; then
+        if test ."$new_hostname" = .$(< /etc/hostname); then
+            msg="$new_hostname: Hostname appears set already."
+            confirm-update "$msg" || exit
+        fi
+    fi
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
 
-    # Don't use FQDN - that's what DNS is for.
-    declare hn=${1%%.*}
-    declare msg=''
+    if test ."$LOCKED" != ."$0"; then
 
-    if test ."$hn" = .'' -o ."${hn:0:1}" = .'-'; then
-        echo "Usage: ${0##*/} hostname"
-        exit
-    elif test ! ."$1" = ."$hn"; then
-        msg="NB: Only short name (i.e., $hn) will be updated.
-    Domain name records must be updated separately."
-        confirm-update "$hn" "$msg" || exit
+        #  Avoid running multiple instances of this script.
+        exec env LOCKED=$0 $FLOCK_CMD -en "$0" "$0" "$@" || exit 1
     fi
 
-    if test ."$hn" = ."$HOSTNAME" -a -f /etc/hostname; then
-        if test ."$hn" = .$(< /etc/hostname); then
-            msg="$hn: Hostname appears set already."
-            confirm-update "$hn" "$msg" || exit
-        fi
-    fi
+    declare requested_hostname=''
+
+    process-command-line requested_hostname "$@" || exit $?
 
     cat <<EOF
-Updating: $HOSTNAME → $hn
+Updating: $HOSTNAME → $requested_hostname
 EOF
 
-    update-hostnames "$hn"
-    update-hosts "$hn"
-    update-mailname "$hn"
+    update-hostnames "$requested_hostname" || exit $?
+    update-hosts "$requested_hostname" || exit $?
+    update-mailname "$requested_hostname" || exit $?
 
     # NB: Certificates must be regenerated last!
-    update-ssh-certificates
-    update-tls-certificates
+    update-ssh-certificates || exit $?
+    update-tls-certificates || exit $?
 
-    restart-zeroconf
-    restart-web-services
+    restart-zeroconf || exit $?
+    restart-web-services || exit $?
 
     cat <<EOF
 Update complete! Adjust DNS records accordingly.

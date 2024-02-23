@@ -347,6 +347,7 @@ run-post-install ()
 
     trap 'rm -f "${rootfsdir}/post-install"; exit 1' 0 1 2 15 RETURN
 
+    install -m 0644 /etc/hosts "${rootfsdir}/etc" || return $?
     install -m 0755 "$script" "${rootfsdir}/post-install" || return $?
     chrootfs "${rootfsdir}" /post-install || return $?
     rm -f "${rootfsdir}/post-install" || return $?

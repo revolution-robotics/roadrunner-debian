@@ -363,6 +363,7 @@ flash-emmc-partitions ()
         pr-error "$recoveryfsdir: eMMC flash failed."
         return 1
     fi
+    install -m 0644 /etc/hosts "${recoveryfsdir}/etc"
     pr-info ''
 
     set-fw-utils-to-emmc-on-emmc "$recoveryfsdir"
@@ -396,6 +397,7 @@ run-post-install ()
 
     trap 'rm -f "${rootfsdir}/post-install"; exit 1' 0 1 2 15 RETURN
 
+    install -m 0644 /etc/hosts "${rootfsdir}/etc" || return $?
     install -m 0755 "$script" "${rootfsdir}/post-install" || return $?
     chrootfs "${rootfsdir}" /post-install || return $?
     rm -f "${rootfsdir}/post-install" || return $?

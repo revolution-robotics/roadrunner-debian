@@ -2,7 +2,7 @@
 #
 # @(#) commit-hostname
 #
-# Copyright © 2021 Revolution Robotics, Inc.
+# Copyright © 2021,2024 Revolution Robotics, Inc.
 #
 # This script generates and sets a unique hostname. It is intended to
 # be run by hostname-commit.service. The following files are affected:
@@ -22,43 +22,43 @@
 #     systemd reaching network.target, a brief delay must be added
 #     before running this script.
 #
-: ${CUT:='/usr/bin/cut'}
-: ${GREP:='/bin/grep'}
-: ${HOSTNAMECTL:='/usr/bin/hostnamectl'}
-: ${IP:='/bin/ip'}
-: ${OPENSSL:='/usr/bin/openssl'}
-: ${RM:='/bin/rm'}
-: ${SED:='/bin/sed'}
-: ${SSH_KEYGEN:='/usr/bin/ssh-keygen'}
-: ${TLS_GENERATE_SELF_SIGNED:='/usr/sbin/tls-generate-self-signed'}
+: ${AWK_CMD:='/usr/bin/awk'}
+: ${CUT_CMD:='/usr/bin/cut'}
+: ${GREP_CMD:='/bin/grep'}
+: ${HOSTNAMECTL_CMD:='/usr/bin/hostnamectl'}
+: ${IP_CMD:='/bin/ip'}
+: ${OPENSSL_CMD:='/usr/bin/openssl'}
+: ${RM_CMD:='/bin/rm'}
+: ${SED_CMD:='/bin/sed'}
+: ${SSH_KEYGEN_CMD:='/usr/bin/ssh-keygen'}
+: ${TLS_GENERATE_SELF_SIGNED_CMD:='/usr/sbin/tls-generate-self-signed'}
 
-get-hashed-mac-prefix ()
+get-mac-digest ()
 {
-    $IP -o link show |
-        $SED -nE -e '/qdisc mq/{s/.*ether ([^ ]*) .*$/\1/p;q}' |
-        $OPENSSL dgst -r -sha256 |
-        $CUT -c1-6
+    $IP_CMD -o -br link show |
+        $GREP_CMD -E '^(e|w)' |
+        $AWK_CMD '{ print $3; exit }' |
+        $OPENSSL_CMD dgst -r -sha256 |
+        $CUT_CMD -c1-6
 }
 
 update-hostnames ()
 {
     local hn=$1
 
-    $HOSTNAMECTL  --static --transient --pretty set-hostname "$hn"
+    $HOSTNAMECTL_CMD  --static --transient --pretty set-hostname "$hn"
 }
 
 update-hosts ()
 {
     local hn=$1
 
-    if $GREP -q '^127.0.1.1' /etc/hosts; then
-        $SED -i -e '/^127.0.0.1/s;\([[:space:]]\{1,\}\)[^[:space:]].*;\1localhost;' \
-             -e '/^127.0.1.1/s;\([[:space:]]\{1,\}\)[^[:space:]].*;\1'"$hn"';' \
-             /etc/hosts
+    if $GREP_CMD -q '^127.0.1.1' /etc/hosts; then
+        $SED_CMD -i -E -e 's;^(127.0.0.1).*;\1\tlocalhost;' \
+             -e "s;^(127.0.1.1).*;\1\t$hn;" /etc/hosts
     else
-        $SED -i -e '/^127.0.0.1/s;\([[:space:]]\{1,\}\)[^[:space:]].*;\1localhost;' \
-             -e '/^127.0.0.1/a 127.0.1.1	'"$hn" \
-             /etc/hosts
+        $SED_CMD -i -E -e 's;^(127.0.0.1).*;\1\tlocalhost;' \
+             -e "/^127.0.0.1/a 127.0.1.1\t$hn" /etc/hosts
     fi
 }
 
@@ -71,16 +71,18 @@ update-mailname ()
 
 ssh-generate-keys ()
 {
-    $RM -f /etc/ssh/ssh_host_*_key*
-    $SSH_KEYGEN -A
+    $RM_CMD -f /etc/ssh/ssh_host_*_key*
+    $SSH_KEYGEN_CMD -A
 }
 
-declare hn=revoedge-$(get-hashed-mac-prefix)
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare hn=revoedge-$(get-mac-digest)
 
-update-hostnames "$hn"
-update-hosts "$hn"
-update-mailname "$hn"
+    update-hostnames "$hn"
+    update-hosts "$hn"
+    update-mailname "$hn"
 
-# NB: Certificates must be regenerated last!
-ssh-generate-keys
-$TLS_GENERATE_SELF_SIGNED
+    # NB: Certificates must be regenerated last!
+    ssh-generate-keys
+    $TLS_GENERATE_SELF_SIGNED_CMD
+fi

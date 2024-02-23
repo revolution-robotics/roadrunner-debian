@@ -9,6 +9,7 @@ After=network.target
 #   -cgi=/path/to/CGI
 #   -uri=/cgi-trigger
 #   -www=/path/to/HTML
+ExecStartPre=/bin/sleep 4
 ExecStart=/usr/sbin/revo-web-dispatch --config=/etc/default/web-dispatch
 ExecStop=/bin/kill -INT $MAINPID
 

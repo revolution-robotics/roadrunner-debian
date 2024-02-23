@@ -10,30 +10,26 @@
 # $certsdir, then for the purposes of updating that file, it's assumed
 # that the section `[alt_names]' exists and is the last.
 #
-: ${CAT:='/bin/cat'}
-: ${CHOWN:='/bin/chown'}
-: ${CHMOD:='/bin/chmod'}
-: ${CP:='/bin/cp'}
-: ${ED:='/bin/ed'}
-: ${INSTALL:='/usr/bin/install'}
-: ${MKTEMP:='/bin/mktemp'}
-: ${OPENSSL:='/usr/bin/openssl'}
-: ${RM:='/bin/rm'}
+: ${CAT_CMD:='/bin/cat'}
+: ${CHOWN_CMD:='/bin/chown'}
+: ${CHMOD_CMD:='/bin/chmod'}
+: ${CP_CMD:='/bin/cp'}
+: ${ED_CMD:='/bin/ed'}
+: ${INSTALL_CMD:='/usr/bin/install'}
+: ${MKTEMP_CMD:='/bin/mktemp'}
+: ${OPENSSL_CMD:='/usr/bin/openssl'}
+: ${RM_CMD:='/bin/rm'}
 
-declare script_name=${0##*/}
+configure-certificate ()
+{
+    local template=$1
 
-declare certsdir=/etc/web-dispatch/certs
-declare cockpit_tls_certificate=/etc/cockpit/ws-certs.d/0-self-signed.cert
-declare tmpfile=$($MKTEMP -p /tmp "${script_name}.XXXXX")
+    # If certificate template does not exist or is empty...
+    if test ! -s "${certsdir}/self-signed.conf"; then
 
-trap '$RM -f "$tmpfile"; exit' 0 1 2 15
-
-# If certificate template does not exist.
-if test ! -f "${certsdir}/self-signed.conf"; then
-
-    # Create default certificate
-    $INSTALL -d -m 0755 "$certsdir"
-    $CAT >"${certsdir}/self-signed.conf" <<EOF
+        # Create default certificate
+        $INSTALL_CMD -d -m 0755 "$certsdir"
+        $CAT_CMD >"${certsdir}/self-signed.conf" <<EOF
 [req]
 default_bits = 2048
 distinguished_name = req_distinguished_name
@@ -58,12 +54,12 @@ subjectAltName = @alt_names
 IP.1 = 127.0.0.1
 DNS.1 = localhost
 EOF
-    $CP "${certsdir}/self-signed.conf" "$tmpfile"
-else
+        $CP_CMD "${certsdir}/self-signed.conf" "$template"
+    else
 
-    # Update only hostname and IPs.
-    # Assert: [alt_names] is last section!
-    $ED -s "${certsdir}/self-signed.conf" <<EOF
+        # Update only hostname and IPs.
+        # Assert: [alt_names] is last section!
+        $ED_CMD -s "${certsdir}/self-signed.conf" <<EOF
 /^CN/c
 CN = $HOSTNAME
 .
@@ -71,40 +67,72 @@ CN = $HOSTNAME
 IP.1 = 127.0.0.1
 DNS.1 = localhost
 .
-wq $tmpfile
+wq $template
 EOF
 
-fi
+    fi
 
-declare -i i=2
-declare ip
+    declare -i i=2
+    declare ip
 
-# Add alternate names for each IP.
-for ip in $(hostname -I); do
-    $CAT >>"$tmpfile" <<EOF
+    # Add alternate names for each IP.
+    for ip in $(hostname -I); do
+        $CAT_CMD >>"$template" <<EOF
 IP.$i = $ip
 DNS.$i = ${HOSTNAME}.local
 EOF
-    (( ++i ))
-done
-echo $tmpfile
+        (( ++i ))
+    done
 
-# Regenerate certificate
-cd "${certsdir}"
-if test -f self-signed.crt; then
-    $CP -a self-signed.crt{,~}
-    $CP -a self-signed.key{,~}
-fi
-$OPENSSL req -x509 -nodes -newkey rsa:2048 \
-        -keyout self-signed.key -config "$tmpfile" \
-        -out self-signed.crt -days 3650
+    echo $template
+}
 
-# Copy to Cockpit
+generate-certificate ()
 {
-    $CAT self-signed.crt
-    echo
-    $CAT self-signed.key
-    echo
-} >"$cockpit_tls_certificate"
-$CHOWN root:cockpit-ws "$cockpit_tls_certificate"
-$CHMOD 640 "$cockpit_tls_certificate"
+    local template=$1
+    local certsdir=$2
+    local cockpit_tls_certificate=$3
+
+    # Regenerate certificate
+    cd "${certsdir}"
+    if test -f self-signed.crt; then
+        $CP_CMD -a self-signed.crt{,~}
+        $CP_CMD -a self-signed.key{,~}
+    fi
+    $OPENSSL_CMD req -x509 -nodes -newkey rsa:4096 \
+                 -keyout self-signed.key -config "$tmpfile" \
+                 -out self-signed.crt -days 36500
+
+    # Copy to Cockpit
+    {
+        $CAT_CMD self-signed.crt
+        echo
+        $CAT_CMD self-signed.key
+        echo
+    } >"$cockpit_tls_certificate"
+    $CHOWN_CMD root:cockpit-ws "$cockpit_tls_certificate"
+    $CHMOD_CMD 640 "$cockpit_tls_certificate"
+}
+
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare script_name=${0##*/}
+
+    if (( UID != 0 )); then
+       echo "${script_name}: Run as user \`root'."
+       exit 1
+    fi
+
+    declare certsdir=/etc/web-dispatch/certs
+    declare cockpit_tls_certificate=/etc/cockpit/ws-certs.d/0-self-signed.cert
+
+    $INSTALL_CMD -d -m 0755 "$certsdir"
+
+    declare tmpfile=''
+
+    tmpfile=$($MKTEMP_CMD -p "$certsdir" "${script_name}.XXXXX") || exit $?
+
+    trap '$RM_CMD -f "$tmpfile"; exit' 0 1 2 15
+
+    configure-certificate "$tmpfile" || exit $?
+    generate-certificate "$tmpfile" "$certsdir" "cockpit_tls_certificate" || exit $?
+fi

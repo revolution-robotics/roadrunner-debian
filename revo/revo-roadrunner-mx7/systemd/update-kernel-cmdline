@@ -7,28 +7,20 @@
 # This script updates the kernel command-line from the contents of
 # /boot/cmdline.txt.
 #
-: ${AWK:='/usr/bin/awk'}
-: ${FINDMNT:='/bin/findmnt'}
-: ${FLOCK:='/usr/bin/flock'}
-: ${INSTALL:='/usr/bin/install'}
-: ${MAKE:='/usr/bin/make'}
-: ${MKIMAGE:='/usr/bin/mkimage'}
-: ${MKTEMP:='/usr/bin/mktemp'}
-: ${MOUNT:='/bin/mount'}
-: ${RM:='/bin/rm'}
-: ${SED:='/bin/sed'}
-: ${SUDO:='/usr/bin/sudo'}
-: ${UMOUNT:='/bin/umount'}
+: ${AWK_CMD:='/usr/bin/awk'}
+: ${FINDMNT_CMD:='/bin/findmnt'}
+: ${FLOCK_CMD:='/usr/bin/flock'}
+: ${INSTALL_CMD:='/usr/bin/install'}
+: ${MAKE_CMD:='/usr/bin/make'}
+: ${MKIMAGE_CMD:='/usr/bin/mkimage'}
+: ${MKTEMP_CMD:='/usr/bin/mktemp'}
+: ${MOUNT_CMD:='/bin/mount'}
+: ${RM_CMD:='/bin/rm'}
+: ${SED_CMD:='/bin/sed'}
+: ${SUDO_CMD:='/usr/bin/sudo'}
+: ${UMOUNT_CMD:='/bin/umount'}
 
-: ${LOCKED:=''}
-
-declare script_name=${0##*/}
-
-if test -x "$FLOCK" -a ."$0" != ."$LOCKED"; then
-
-    #  Avoid running multiple instances of this script.
-    exec env LOCKED=$0 $FLOCK -en "$0" "$0" "$@" || true
-fi
+: ${LOCKED_CMD:=''}
 
 process-cmdline ()
 {
@@ -36,23 +28,23 @@ process-cmdline ()
     local tmpdir=$2
 
     local cmdline=$(
-        $SED -n -e '/^[[:space:]]*#/d' \
-            -e '/^[[:space:]]*$/d' \
-            -e '/[[:alnum:]]/{s/^[[:space:]]*//;p;q}' \
+        $SED_CMD -nE -e '/^\s*#/d' \
+            -e '/^\s*$/d' \
+            -e '/[[:alnum:]]/{s/^\s*//;p;q}' \
             "/boot/cmdline.txt"
             )
 
-    $INSTALL -m 0644 /usr/share/boot/boot.sh "${tmpdir}"
-    $SED -i -e "0,/^setenv kernelargs/s;\$; ${cmdline};" "${tmpdir}/boot.sh"
-    $MAKE -C "$tmpdir" -f "/usr/share/boot/Makefile"
+    $INSTALL_CMD -m 0644 /usr/share/boot/boot.sh "${tmpdir}"
+    $SED_CMD -i -e "0,/^setenv kernelargs/s;\$; ${cmdline};" "${tmpdir}/boot.sh"
+    $MAKE_CMD -C "$tmpdir" -f "/usr/share/boot/Makefile"
 
     if test -f "${tmpdir}/boot.scr"; then
         local boot_device=$(
-            $FINDMNT -n / |
-                $AWK '{ sub(/p[0-9]$/, "p1", $2); print $2 }'
+            $FINDMNT_CMD -n / |
+                $AWK_CMD '{ sub(/p[0-9]$/, "p1", $2); print $2 }'
                 )
-        $MOUNT "$boot_device" "$mountdir"
-        $SUDO $INSTALL -m 0644 "${tmpdir}/boot.scr" "$mountdir"
+        $MOUNT_CMD "$boot_device" "$mountdir"
+        $SUDO_CMD $INSTALL_CMD -m 0644 "${tmpdir}/boot.scr" "$mountdir"
     fi
 }
 
@@ -61,17 +53,27 @@ clean-up ()
     local mountdir=$1
     local tmpdir=$2
 
-    if $FINDMNT -n "$mountdir" >/dev/null; then
-       $UMOUNT -f "$mountdir"
+    if $FINDMNT_CMD -n "$mountdir" >/dev/null; then
+       $UMOUNT_CMD -f "$mountdir"
     fi
     if test -d "$tmpdir"; then
-        $RM -rf "$tmpdir"
+        $RM_CMD -rf "$tmpdir"
     fi
 }
 
-declare mountdir=/mnt
-declare tmpdir=$(mktemp -d "/tmp/${script_name}.XXXXX")
+if test ."$0" = ."${BASH_SOURCE[0]}"; then
+    declare script_name=${0##*/}
 
-trap 'clean-up "$mountdir" "$tmpdir"; exit' 0  1 2 15
+    if test -x "$FLOCK_CMD" -a ."$0" != ."$LOCKED_CMD"; then
 
-process-cmdline "$mountdir" "$tmpdir"
+        #  Avoid running multiple instances of this script.
+        exec env LOCKED_CMD=$0 $FLOCK_CMD -en "$0" "$0" "$@" || true
+    fi
+
+    declare mountdir=/mnt
+    declare tmpdir=$(mktemp -d "/tmp/${script_name}.XXXXX")
+
+    trap 'clean-up "$mountdir" "$tmpdir"; exit' 0  1 2 15
+
+    process-cmdline "$mountdir" "$tmpdir"
+fi
