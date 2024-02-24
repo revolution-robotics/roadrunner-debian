@@ -936,6 +936,10 @@ EOF
     ## Remove /etc/init.d/rng-tools (started by rngd.service)
     rm -f "${RECOVERYFS_BASE}/etc/init.d/rng-tools"
 
+    ## Disable ssh.service (ssh.socket listens on port 22 instead).
+    rm -f "${ROOTFS_BASE}/etc/systemd/system/sshd.service" \
+       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/ssh.service"
+
     ## Configure /etc/default/zramswap
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/zramswap" \
             "${RECOVERYFS_BASE}/etc/default"

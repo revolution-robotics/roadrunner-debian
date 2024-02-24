@@ -278,7 +278,7 @@ protected_install ()
         echo "###########################"
         echo ""
 
-        sleep 2
+        sleep 20
         apt -y --fix-broken install && {
                 RET_CODE=0
                 break
@@ -913,6 +913,10 @@ EOF
     ## rootfs startup patches
     pr_info "rootfs: Adjust start-up scripts and configuration"
 
+
+    ## Allow root login via cockpit.
+    sed -i -e '/^root/d' "${ROOTFS_BASE}/etc/cockpit/disallowed-users"
+
     ## Mount systemd journal on tmpfs, /run/log/journal.
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
             "${ROOTFS_BASE}/etc/systemd"
@@ -929,10 +933,14 @@ EOF
     #         "${ROOTFS_BASE}/etc/xdg/autostart/"
 
     ## Redirect all system mail user `revo'.
-    sed -i "\$a root: revo" "${ROOTFS_BASE}/etc/aliases"
+    sed -i -e "\$a root: revo" "${ROOTFS_BASE}/etc/aliases"
 
     ## Remove /etc/init.d/rng-tools (started by rngd.service)
     rm -f "${ROOTFS_BASE}/etc/init.d/rng-tools"
+
+    ## Disable ssh.service (ssh.socket listens on port 22 instead).
+    rm -f "${ROOTFS_BASE}/etc/systemd/system/sshd.service" \
+       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/ssh.service"
 
     ## Configure /etc/default/zramswap
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/zramswap" \
