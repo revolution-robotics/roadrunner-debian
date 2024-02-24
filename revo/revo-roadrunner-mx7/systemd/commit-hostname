@@ -26,7 +26,7 @@
 : ${CUT_CMD:='/usr/bin/cut'}
 : ${GREP_CMD:='/bin/grep'}
 : ${HOSTNAMECTL_CMD:='/usr/bin/hostnamectl'}
-: ${IP_CMD:='/bin/ip'}
+: ${IP_CMD:="$(command -v ip)"}
 : ${OPENSSL_CMD:='/usr/bin/openssl'}
 : ${RM_CMD:='/bin/rm'}
 : ${SED_CMD:='/bin/sed'}
