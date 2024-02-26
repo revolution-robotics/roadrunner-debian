@@ -55,10 +55,10 @@ update-hosts ()
 
     if $GREP_CMD -q '^127.0.1.1' /etc/hosts; then
         $SED_CMD -i -E -e 's;^(127.0.0.1).*;\1\tlocalhost;' \
-             -e "s;^(127.0.1.1).*;\1\t$hn;" /etc/hosts
+             -e "s;^(127.0.1.1).*;\1\t$hn;" /etc/hosts || return $?
     else
         $SED_CMD -i -E -e 's;^(127.0.0.1).*;\1\tlocalhost;' \
-             -e "/^127.0.0.1/a 127.0.1.1\t$hn" /etc/hosts
+             -e "/^127.0.0.1/a 127.0.1.1\t$hn" /etc/hosts || return $?
     fi
 }
 
@@ -66,7 +66,7 @@ update-mailname ()
 {
     local hn=$1
 
-    echo "$hn" >/etc/mailname
+    echo "$hn" >/etc/mailname || return $?
 }
 
 ssh-generate-keys ()
@@ -76,13 +76,21 @@ ssh-generate-keys ()
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
-    declare hn=revoedge-$(get-mac-digest)
+    set -o pipefail
 
-    update-hostnames "$hn"
-    update-hosts "$hn"
-    update-mailname "$hn"
+    if (( UID != 0 )); then
+        echo "${0##*/}: Run as user \`root'." >&2
+        exit 1
+    fi
+
+    declare hn=''
+
+    hn=revoedge-$(get-mac-digest) || exit $?
+    update-hostnames "$hn" || exit $?
+    update-hosts "$hn" || exit $?
+    update-mailname "$hn" || exit $?
 
     # NB: Certificates must be regenerated last!
-    ssh-generate-keys
+    ssh-generate-keys || exit $?
     $TLS_GENERATE_SELF_SIGNED_CMD
 fi
