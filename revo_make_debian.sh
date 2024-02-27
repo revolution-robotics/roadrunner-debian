@@ -72,10 +72,10 @@ declare -r G_CROSS_COMPILER_32BIT_PREFIX=arm-linux-gnueabihf-
 declare G_CROSS_COMPILER_JOPTION="-j $(nproc)"
 
 #### user rootfs packages ####
-declare -r G_USER_PACKAGES="auditd avahi-daemon bash-completion bc binutils cockpit cockpit-networkmanager curl debsecan dnsutils git gpiod inetutils-ping jq libsystemd-dev libzmq3-dev lm-sensors lsb-release network-manager-openvpn  nlohmann-json3-dev openvpn podman pciutils pkgconf python3-asteval python3-cryptography python3-dateutil python3-libgpiod python3-lxml python3-pip python3-psutil python3-serial python3-websocket python3-websockets python3-zmq screen sqlite3 sudo sysstat systemtap-sdt-dev time tmux traceroute u-boot-tools vim wget wireguard-tools zram-tools zstd"
+declare -r G_USER_PACKAGES="auditd avahi-daemon bash-completion bc binutils cockpit cockpit-networkmanager curl debsecan dnsutils git gpiod inetutils-ping jq libsystemd-dev libzmq3-dev lm-sensors lsb-release network-manager-openvpn  nlohmann-json3-dev openvpn podman pciutils pkgconf python3-asteval python3-cryptography python3-dateutil python3-libgpiod python3-lxml python3-pip python3-psutil python3-serial python3-websocket python3-websockets python3-zmq screen sqlite3 sudo sysstat systemtap-sdt-dev time tmux traceroute u-boot-tools uuid-runtime vim wget wireguard-tools zram-tools zstd"
 
 #### user recoveryfs packages ####
-declare -r G_USER_MINIMAL_PACKAGES="avahi-daemon bash-completion bc binutils  curl debsecan dnsutils git gpiod inetutils-ping jq libsystemd-dev libzmq3-dev lsb-release nlohmann-json3-dev openvpn podman pciutils pkgconf python3-asteval python3-cryptography python3-dateutil python3-libgpiod python3-lxml python3-pip python3-psutil python3-serial python3-websocket python3-websockets python3-zmq sudo time u-boot-tools wget wireguard-tools zram-tools zstd"
+declare -r G_USER_MINIMAL_PACKAGES="avahi-daemon bash-completion bc binutils  curl debsecan dnsutils git gpiod inetutils-ping jq libsystemd-dev libzmq3-dev lsb-release nlohmann-json3-dev openvpn podman pciutils pkgconf python3-asteval python3-cryptography python3-dateutil python3-libgpiod python3-lxml python3-pip python3-psutil python3-serial python3-websocket python3-websockets python3-zmq sudo time u-boot-tools uuid-runtime wget wireguard-tools zram-tools zstd"
 
 # Space-separated list of locales, with default locale first.
 declare -r LOCALES='en_US.UTF-8 UTF-8'
