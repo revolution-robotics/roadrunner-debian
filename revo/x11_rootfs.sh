@@ -873,7 +873,7 @@ EOF
     install -m 0644 ~/".step/certs/root_ca.crt" \
             "${ROOTFS_BASE}/usr/local/share/ca-certificates/${ca_root_cert}"
 
-    ## Add missing root and class3 certificates.
+    ## Add missing CAcert root and class3 certificates.
     curl -sSLo  "${ROOTFS_BASE}/usr/local/share/ca-certificates/root.crt" \
          http://www.cacert.org/certs/root.crt
     curl -sSLo  "${ROOTFS_BASE}/usr/local/share/ca-certificates/class3.crt" \
@@ -1035,12 +1035,8 @@ EOF
     #         "${ROOTFS_BASE}/usr/bin/curl"
 
     ## Install nodejs/reverse-tunnel-server installation script.
-    sed -e "s;@NODE_BASE@;${NODE_BASE};" \
-        -e "s;@NODE_GROUP@;${NODE_GROUP};" \
-        -e "s;@NODE_USER@;${NODE_USER};" \
-        "${G_VENDOR_PATH}/resources/reverse-tunnel-server/install-reverse-tunnel-server" \
-        >"${ROOTFS_BASE}/usr/bin/install-reverse-tunnel-server"
-    chmod 0755 "${ROOTFS_BASE}/usr/bin/install-reverse-tunnel-server"
+    install -m 0755 "${G_VENDOR_PATH}/resources/reverse-tunnel-server/install-reverse-tunnel-server" \
+            "${ROOTFS_BASE}/usr/bin/install-reverse-tunnel-server"
 
     ## Install cppzmq headers
     curl -L -o "${ROOTFS_BASE}/usr/include/zmq.hpp" \
@@ -1053,7 +1049,7 @@ EOF
 #!/bin/bash
 
 ## Install reverse-tunnel-server
-install-reverse-tunnel-server "$CA_URL" "$CA_FINGERPRINT"
+install-reverse-tunnel-server "$NODE_USER" "$NODE_BASE"
 
 ## Remove non-default locales.
 DEBIAN_FRONTEND=noninteractive apt -y install localepurge
