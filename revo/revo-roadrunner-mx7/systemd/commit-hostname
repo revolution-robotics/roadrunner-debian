@@ -17,10 +17,11 @@
 # See also `update-hostname' for updating a live system.
 #
 # NB: A hostname is generated from the MAC of the first enumerated
-#     physical interface, which is identified by its queuing
-#     disciple (mq). But queueing disciples must be loaded, so upon
-#     systemd reaching network.target, a brief delay must be added
-#     before running this script.
+#     physical interface, which is identified by its interface name.
+#     Typically, this begins with the letter `e', for an ethernet
+#     interface, but an interface beginning with the letter `w', for a
+#     wireless interface, is also accepted in the absense of physical
+#     ethernet interfaces.
 #
 : ${AWK_CMD:='/usr/bin/awk'}
 : ${CUT_CMD:='/usr/bin/cut'}
@@ -31,6 +32,7 @@
 : ${RM_CMD:='/bin/rm'}
 : ${SED_CMD:='/bin/sed'}
 : ${SSH_KEYGEN_CMD:='/usr/bin/ssh-keygen'}
+: ${SYSTEMCTL_CMD:='/bin/systemctl'}
 : ${TLS_GENERATE_SELF_SIGNED_CMD:='/usr/sbin/tls-generate-self-signed'}
 
 get-mac-digest ()
@@ -75,6 +77,27 @@ ssh-generate-keys ()
     $SSH_KEYGEN_CMD -A
 }
 
+restart-zeroconf ()
+{
+    if $SYSTEMCTL_CMD is-active avahi-daemon >/dev/null; then
+        $SYSTEMCTL_CMD disable --now avahi-daemon || return $?
+        $SYSTEMCTL_CMD enable --now avahi-daemon || return $?
+    fi
+}
+
+restart-web-services ()
+{
+    if $SYSTEMCTL_CMD is-active cockpit >/dev/null; then
+        $SYSTEMCTL_CMD disable --now cockpit || return $?
+        $SYSTEMCTL_CMD enable --now cockpit || return $?
+    fi
+
+    if $SYSTEMCTL_CMD is-active revo-web-dispatch >/dev/null; then
+        $SYSTEMCTL_CMD disable --now revo-web-dispatch || return $?
+        $SYSTEMCTL_CMD enable --now revo-web-dispatch || return $?
+    fi
+}
+
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
     set -o pipefail
 
@@ -92,5 +115,8 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
 
     # NB: Certificates must be regenerated last!
     ssh-generate-keys || exit $?
-    $TLS_GENERATE_SELF_SIGNED_CMD
+    $TLS_GENERATE_SELF_SIGNED_CMD || exit $?
+
+    restart-zeroconf || exit $?
+    restart-web-services || exit $?
 fi

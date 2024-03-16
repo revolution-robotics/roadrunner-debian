@@ -10,8 +10,7 @@ ConditionPathExists=!/etc/hostname
 Type=oneshot
 
 # Give network queuing disciplines time to be loaded.
-ExecStartPre=/bin/sleep 4
-ExecStart=/bin/bash -c '/usr/sbin/commit-hostname'
+ExecStart=/usr/sbin/commit-hostname
 
 [Install]
 WantedBy=network.target

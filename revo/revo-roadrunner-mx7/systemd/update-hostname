@@ -32,7 +32,7 @@ confirm-update ()
     local msg=$1
 
     echo "$msg"
-    read -n 1 -p "Continue? [y/N]? "
+    read -n 1 -p "Continue? [y/N]? " || return $?
     echo
     if [[ ."$REPLY" = .'' || ."$REPLY" == .[nN] ]]; then
         return 1
@@ -72,7 +72,7 @@ update-mailname ()
 
 update-ssh-certificates ()
 {
-    $RM_CMD -f /etc/ssh/ssh_host_*_key*
+    $RM_CMD -f /etc/ssh/ssh_host_*_key* || return $?
     $SSH_KEYGEN_CMD -A
 }
 
@@ -84,18 +84,21 @@ update-tls-certificates ()
 restart-zeroconf ()
 {
     if $SYSTEMCTL_CMD is-active avahi-daemon >/dev/null; then
-        $SYSTEMCTL_CMD restart avahi-daemon
+        $SYSTEMCTL_CMD disable --now avahi-daemon || return $?
+        $SYSTEMCTL_CMD enable --now avahi-daemon || return $?
     fi
 }
 
 restart-web-services ()
 {
     if $SYSTEMCTL_CMD is-active cockpit >/dev/null; then
-        $SYSTEMCTL_CMD restart cockpit
+        $SYSTEMCTL_CMD disable --now cockpit || return $?
+        $SYSTEMCTL_CMD enable --now cockpit || return $?
     fi
 
     if $SYSTEMCTL_CMD is-active revo-web-dispatch >/dev/null; then
-        $SYSTEMCTL_CMD restart revo-web-dispatch
+        $SYSTEMCTL_CMD disable --now revo-web-dispatch || return $?
+        $SYSTEMCTL_CMD enable --now revo-web-dispatch || return $?
     fi
 }
 
