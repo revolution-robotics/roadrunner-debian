@@ -18,24 +18,25 @@
 : ${CHMOD_CMD:='/bin/chmod'}
 : ${CHOWN_CMD:='/bin/chown'}
 : ${CURL_CMD:='/usr/bin/curl'}
-: ${DNF_CMD:='/usr/bin/dnf5'}
+: ${DNF_CMD:='/usr/bin/dnf'}
 : ${FILE_CMD:='/usr/bin/file'}
 : ${FIND_CMD:='/usr/bin/find'}
 : ${GETENT_CMD:='/usr/bin/getent'}
 : ${GIT_CMD:='/usr/bin/git'}
 : ${GREP_CMD:='/bin/grep'}
 : ${GROUPADD_CMD:='/usr/sbin/groupadd'}
-: ${HEAD_CMD:='/usr/bin/head'}
 : ${INSTALL_CMD:='/usr/bin/install'}
 : ${LS_CMD:='/bin/ls'}
 : ${MAKE_CMD:='/usr/bin/gmake'}
 : ${MKTEMP_CMD:='/bin/mktemp'}
 : ${READLINK_CMD:='/bin/readlink'}
+: ${REALPATH_CMD:='/bin/realpath'}
 : ${RM_CMD:='/bin/rm'}
 : ${SED_CMD:='/bin/sed'}
 : ${SORT_CMD:='/usr/bin/sort'}
 : ${SYSTEMCTL_CMD:='/bin/systemctl'}
 : ${SUDO_CMD:='/usr/bin/sudo'}
+: ${TAIL_CMD:='/usr/bin/tail'}
 : ${TAR_CMD:='/bin/tar'}
 : ${TEE_CMD:='/usr/bin/tee'}
 : ${UNAME_CMD:='/bin/uname'}
@@ -44,24 +45,26 @@
 # OS-agnstoic readlink for existent files/directories.
 resolve-existing ()
 {
-    if $READLINK_CMD --version 2>&1 |
-            $GREP_CMD -q 'coreutils'; then
-        $READLINK_CMD -e -- "$@"
-    else
-        $READLINK_CMD -f N "$@"
-    fi
+    case $($REALPATH_CMD --version 2>&1) in
+        *coreutils*)
+            $REALPATH_CMD -e "$@" || return $?
+            ;;
+        *)
+            $READLINK_CMD -f N "$@" || return $?
+            ;;
+    esac
 }
 
 install-smallstep-infrastructure ()
 {
     if ! $GETENT_CMD passwd step >/dev/null; then
-        $SUDO_CMD $GROUPADD_CMD -r step
-        $SUDO_CMD $USERADD_CMD -rm -s "$BASH_CMD" -c 'Smallstep PKI' step
+        $SUDO_CMD $GROUPADD_CMD -r step || true
+        $SUDO_CMD $USERADD_CMD -rm -g step -s "$BASH_CMD" -c 'Smallstep PKI' step || return $?
     fi
 
-    if test -d /usr/lib/tmpfiles.d \
-            -a ! -f /usr/lib/tmpfiles.d/step-ca.conf; then
-        $SUDO_CMD $TEE_CMD /usr/lib/tmpfiles.d/step-ca.conf >/dev/null <<EOF
+    if test -d /lib/tmpfiles.d \
+            -a ! -f /lib/tmpfiles.d/step-ca.conf; then
+        $SUDO_CMD $TEE_CMD /lib/tmpfiles.d/step-ca.conf >/dev/null <<EOF
 d /var/log/step 770 step step
 EOF
     fi
@@ -105,15 +108,15 @@ get-current-tag ()
 
     if test ."$allow_rc" != .'false'; then
         $GIT_CMD ls-remote --tags "$uri" |
-            $SED_CMD 's;.*refs/tags/;;' |
-            $SORT_CMD -rV -k1.2 |
-            $HEAD_CMD -1
+            $SED_CMD -e 's;.*refs/tags/;;' |
+            $SORT_CMD -V -k1.2 |
+            $TAIL_CMD -1 || return $?
     else
         $GIT_CMD ls-remote --tags "$uri" |
             $GREP_CMD -Ev -- '-(rc|beta)' |
-            $SED_CMD 's;.*refs/tags/;;' |
-            $SORT_CMD -rV -k1.2 |
-            $HEAD_CMD -1
+            $SED_CMD -e 's;.*refs/tags/;;' |
+            $SORT_CMD -V -k1.2 |
+            $TAIL_CMD -1 || return $?
     fi
 }
 
@@ -175,7 +178,7 @@ fetch-smallstep-pkg ()
     fi
 
     case "$ID" in
-        fedora)
+        almalinux|centos|fedora*|rhel|rocky)
             if test ."$extension" = .'certificates'; then
                 pkg=step-ca_linux_${tag#v}_${machine}.tar.gz
             else
@@ -238,6 +241,7 @@ install-build-prerequisites ()
             ;;
     esac
 }
+
 build-and-install-smallstep ()
 {
     local -n binary=$1
@@ -274,7 +278,7 @@ deploy-smallstep ()
 
     case "$pkg" in
         *.tar.gz)
-            $TAR_CMD -C "$pkg_dir" --strip-components=1 -zxf "${pkg_dir}/${pkg}" || return $?
+            $TAR_CMD -C "$pkg_dir" -zxf "${pkg_dir}/${pkg}" || return $?
 
             if test -d "${pkg_dir}/bin"; then
                 pushd "${pkg_dir}/bin" >/dev/null
@@ -380,6 +384,15 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
             && $SYSTEMCTL_CMD is-enabled step-ca &>/dev/null; then
         $SUDO_CMD $SYSTEMCTL_CMD stop step-ca
     fi
+
+    source /etc/os-release
+    case "$ID" in
+        fedora*)
+            if test -x /usr/bin/dnf5; then
+                DNF_CMD=/usr/bin/dnf5
+            fi
+            ;;
+    esac
 
     case $(uname -m) in
         aarch64|armv7l)
