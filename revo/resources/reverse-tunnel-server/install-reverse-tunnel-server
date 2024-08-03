@@ -141,6 +141,7 @@ install-server-infrastructure ()
     fi
 
     # $LOGINCTL_CMD enable-linger "$server_owner"
+    $INSTALL_CMD -d -m 0755  /var/lib/systemd/linger/
     $TOUCH_CMD "/var/lib/systemd/linger/${server_owner}"
     $RM_CMD -rf "$package_dir" || return $?
 
