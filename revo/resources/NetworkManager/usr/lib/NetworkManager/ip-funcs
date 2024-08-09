@@ -6,12 +6,6 @@
 #
 shopt -s extglob
 
-# Constants and masks for network ops
-declare -i ONE_BYTE_MASK=$(( ( 1 << 8 ) - 1 ))
-declare -i TWO_BYTE_MASK=$(( ( 1 << 16 ) - 1 ))
-declare -i THREE_BYTE_MASK=$(( ( 1 << 24 ) - 1 ))
-declare -i FOUR_BYTE_MASK=$(( ( 1 << 32 ) - 1 ))
-
 # is-ipv4-addr: Sanity check IPv4 address. Expected format:
 #     dotted-quad/netmask, e.g., 192.168.0.1/24
 is-ipv4-addr ()
@@ -32,10 +26,7 @@ is-dotted-quad ()
     local quad=$1
     local num
 
-    OIFS=$IFS
-    IFS='.'
-    set -- $quad
-    IFS=$OIFS
+    set -- $(IFS=.; echo $quad)
 
     [ $# -eq 4 ] || return 1
     for num; do
@@ -49,14 +40,19 @@ inet-aton ()
 {
     local quad=$1
 
-    local -i ip_no=0
-    local -i class_no
+    if ! is-dotted-quad "$quad"; then
+        return 127
+    fi
 
-    while test ."$quad" != .''; do
-        class_no=${quad%%.*}
+    set -- $(IFS=.; echo $quad)
+
+    local -i class_no=0
+    local -i ip_no=0
+
+    for class_no; do
         ip_no=$(( ip_no << 8 | class_no ))
-        quad=${quad/$class_no?(.)}
     done
+
     echo "$ip_no"
 }
 
@@ -66,12 +62,14 @@ inet-mask-ntoa ()
 {
     local -i mask=$1
 
-    local mask_complement=$(( ( 1 << ( 32 - mask ) ) - 1 ))
-    local b4=$(( ( FOUR_BYTE_MASK & ~ mask_complement ) >> 24 ))
-    local b3=$(( ( THREE_BYTE_MASK & ~ mask_complement ) >> 16 ))
-    local b2=$(( ( TWO_BYTE_MASK & ~ mask_complement ) >> 8 ))
-    local b1=$(( ( ONE_BYTE_MASK & ~ mask_complement ) >> 0 ))
-    echo "$b4.$b3.$b2.$b1"
+    if (( mask < 0 || mask > 32 )); then
+        return 127
+    elif (( mask == 0 )); then
+        echo '0.0.0.0'
+        return
+    fi
+
+    inet-ntoa $(( 0xffffffff & (0xffffffff << (32 - mask)) ))
 }
 
 # inet-ntoa: Convert 32-bit number to dotted-quad,
@@ -80,44 +78,63 @@ inet-ntoa ()
 {
     local -i ip_no=$1
 
-    local -a quad
+    if (( ip_no < 0 || ip_no > 0xffffffff )); then
+        return 1
+    elif (( ip_no == 0 )); then
+        echo '0.0.0.0'
+        return
+    fi
 
-    while (( ip_no > 0 )); do
-        quad+=( $(( ip_no & ONE_BYTE_MASK )) )
-        ip_no=$(( ip_no >> 8 ))
+    local quad=$(( ip_no & 0xff ))
+
+    while (( ip_no >>= 8 )); do
+        quad=$(( ip_no & 0xff )).$quad
     done
-    echo "${quad[3]:=0}.${quad[2]:=0}.${quad[1]:=0}.${quad[0]:=0}"
+
+    echo "$quad"
 }
 
-# network-exclusive: Given two IPv4 addresses, check if either is in the
-#     other's network. Expected format: dotted-quad/netmask,
+# network-exclusive: Given two IPv4 addresses, return 0 if neither is
+#     in the other's network. Expected IPv4 format: dotted-quad/netmask,
 #     e.g., 10.0.0.1/24
 network-exclusive ()
 {
     local ipv4_addr1=$1
     local ipv4_addr2=$2
 
-    quad1=${ipv4_addr1%/*}
-    mask1=${ipv4_addr1##*/}
-    quad2=${ipv4_addr2%/*}
-    mask2=${ipv4_addr2##*/}
+    if ! is-ipv4-addr "$ipv4_addr1" || ! is-ipv4-addr "$ipv4_addr2"; then
+        return 127
+    fi
 
-    nq1=$(inet-aton "$quad1")
-    qm1=$(inet-mask-ntoa "$mask1")
-    nm1=$(inet-aton "$qm1")
+    local quad1=${ipv4_addr1%/*}
+    local mask1=${ipv4_addr1##*/}
+    local quad2=${ipv4_addr2%/*}
+    local mask2=${ipv4_addr2##*/}
 
-    nq2=$(inet-aton "$quad2")
-    qm2=$(inet-mask-ntoa "$mask2")
-    nm2=$(inet-aton "$qm2")
+    local -i nq1=0
+    local qm1=''
+    local -i nm1=0
+
+    local -i nq2=0
+    local qm2=''
+    local -i nm2=0
+
+    nq1=$(inet-aton "$quad1") || return $?
+    qm1=$(inet-mask-ntoa "$mask1") || return $?
+    nm1=$(inet-aton "$qm1") || return $?
+
+    nq2=$(inet-aton "$quad2") || return $?
+    qm2=$(inet-mask-ntoa "$mask2") || return $?
+    nm2=$(inet-aton "$qm2") || return $?
 
     # addr2 in network1 and addr1 in network2
     if (( (nq1 & nm1) == (nq2 & nm1) )) && (( (nq1 & nm2) == (nq2 & nm2) )); then
-        return 1
+        return 3
     # addr2 in network1
     elif (( (nq1 & nm1) == (nq2 & nm1) )); then
         return 2
     # addr1 in network2
     elif (( (nq1 & nm2) == (nq2 & nm2) )); then
-        return 3
+        return 1
     fi
 }
