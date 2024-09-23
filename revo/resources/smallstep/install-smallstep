@@ -182,7 +182,7 @@ fetch-smallstep-pkg ()
             if test ."$extension" = .'certificates'; then
                 pkg=step-ca_linux_${tag#v}_${machine}.tar.gz
             else
-                pkg=step-cli_${tag#v}_${machine}.rpm
+                pkg=step-cli-${tag#v}-1.${umachine}.rpm
             fi
             ;;
         ubuntu|debian)
