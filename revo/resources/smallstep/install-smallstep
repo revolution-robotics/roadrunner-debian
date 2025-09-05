@@ -310,30 +310,6 @@ deploy-smallstep ()
     esac
 }
 
-install-completion ()
-{
-    local dest_dir=$1
-
-    local step_completion_path=''
-
-    case "$(command -v bash)" in
-        /bin/bash)
-            step_completion_path=/usr/share/bash-completion/completions/step
-            ;;
-        *)
-            step_completion_path=$(
-                resolve-existing $(command -v bash) |
-                    $SED_CMD -e 's;/bin.*;/share/bash-completion/completions/step;'
-                                ) || return $?
-            ;;
-    esac
-
-    if test -d "${step_completion_path%/*}" -a ! -f "$step_completion_path"; then
-        "${dest_dir}/step" completion bash |
-            $SUDO_CMD $TEE_CMD "$step_completion_path" >/dev/null || return $?
-    fi
-}
-
 maybe-reshim-golang ()
 {
     local go_dir=$1
@@ -419,8 +395,6 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
                 pkg=$(fetch-smallstep-pkg "$uri" "$dl_uri" "$tmpdir" "$allow_rc") || exit $?
                 deploy-smallstep "$pkg" "$dest_dir" "$tmpdir" || exit $?
             done
-
-            install-completion "$dest_dir"
 
             $RM_CMD -rf "$tmpdir" || exit $?
 

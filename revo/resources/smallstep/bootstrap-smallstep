@@ -6,11 +6,9 @@
 #     bootstrap-smallstep [user]
 #
 # DESCRIPTION
-#     This script installs in the home directory of a given user:
-#        1) asdf-managed version of golang
-#        2) the latest version of golang,
-#        3) SmallStep CLI and Certificates (via script `install-smallstep').
-#     The Smallstep images are deployed to /usr/bin.
+#     This script builds Smallstep from source and installs it in
+#     /usr/bin. Golang is temporarily installed via the asdf version
+#     manager as needed.
 #
 : ${CHMOD_CMD:='/bin/chmod'}
 : ${CAT_CMD:='/bin/cat'}
@@ -22,43 +20,35 @@
 
  : ${LOCK:=''}
 
-fetch-asdf ()
+initialize-asdf-env ()
 {
-    if test ."$ASDF_DIR" = .'' -o ! -f "${ASDF_DIR}/asdf.sh"; then
-        if command -v asdf >/dev/null; then
-            eval $(asdf info | grep ASDF_DIR)
-        else
-            ASDF_DIR=~/.asdf
-        fi
+    unset -f asdf
+
+    if test -f "${HOME}/.tool-versions"; then
+        $MV_CMD "${HOME}/.tool-versions" "${HOME}/.tool-versions.old" || return $?
     fi
 
-    export ASDF_DIR
-
-    if test -d "$ASDF_DIR"; then
-        $GIT_CMD -C "$ASDF_DIR" pull || return $?
-    else
-        $GIT_CMD clone https://github.com/asdf-vm/asdf.git "$ASDF_DIR" || return $?
-    fi
-}
-
-initialize-asdf ()
-{
-    source "${ASDF_DIR}/asdf.sh" || return $?
-
-    if test ! -f ~/.bashrc || ! $GREP_CMD -q ASDF_DIR ~/.bashrc; then
+    if test ! -f ~/.bashrc || ! $GREP_CMD -q ASDF_DATA_DIR ~/.bashrc; then
         echo "Appending to bashrc..." >&2
 
-        $CAT_CMD >>~/.bashrc <<EOF
-# Initialize asdf version manager.
-export ASDF_DIR=$ASDF_DIR
-EOF
         $CAT_CMD >>~/.bashrc <<'EOF'
-if test -f "${ASDF_DIR}/asdf.sh"; then
-    source "${ASDF_DIR}/asdf.sh"
-    source "${ASDF_DIR}/completions/asdf.bash"
+# Initialize asdf version manager.
+: ${ASDF_DATA_DIR:="${HOME}/.asdf"}
+
+unset -f asdf
+
+if test -d "${ASDF_DATA_DIR}/shims"; then
+    export PATH=${ASDF_DATA_DIR}/shims:$PATH
+fi
+
+if command -v asdf >/dev/null; then
+    source <(asdf completion bash)
 fi
 EOF
     fi
+
+    export ASDF_DATA_DIR=${HOME}/.asdf
+    export PATH=${ASDF_DATA_DIR}/shims:$PATH
 }
 
 golang-locally-installed ()
@@ -84,7 +74,7 @@ install-golang ()
 
     latest=$(asdf latest golang) || return $?
     asdf install golang "$latest" || return $?
-    asdf global  golang "$latest" || return $?
+    (cd ~ && asdf set golang "$latest") || return $?
     asdf reshim golang || return $?
 
     GOPATH=$(go env GOPATH) || return $?
@@ -100,7 +90,11 @@ remove-golang ()
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
-    declare script=$($READLINK_CMD -e $0)
+    declare script=''
+    declare script_dir=''
+
+    script=$($READLINK_CMD -e $0) || exit $?
+    script_dir=${script%/*}
 
     declare user=${1:-$USER}
 
@@ -110,8 +104,8 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
              --preserve-env=LOCKED "$script" "$@"
     fi
 
-    fetch-asdf || exit $?
-    initialize-asdf || exit $?
+    ${script_dir}/install-asdf || exit $?
+    initialize-asdf-env || exit $?
 
     declare have_golang=''
 
@@ -121,7 +115,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
         install-golang || exit $?
     fi
 
-    install-smallstep || exit $?
+    ${script_dir}/install-smallstep || exit $?
 
     if ! $have_golang; then
         remove-golang || exit $?
