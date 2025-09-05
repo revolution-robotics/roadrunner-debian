@@ -2,9 +2,8 @@
 #
 # @(#) ip-funcs
 #
-# Copyright © 2020, Revolution Robotics, Inc.
+# Copyright © 2024, Revolution Robotics, Inc.
 #
-shopt -s extglob
 
 # is-ipv4-addr: Sanity check IPv4 address. Expected format:
 #     dotted-quad/netmask, e.g., 192.168.0.1/24
