@@ -726,8 +726,8 @@ EOF
     install -d -m 0755 "${RECOVERYFS_BASE}/var/www/html"
 
     # Add golang to PATH.
-    if test -f /root/.asdf/asdf.sh; then
-        source /root/.asdf/asdf.sh
+    if test -f ${HOME}/.asdf; then
+        export PATH=${HOME}/.asdf/shims:${PATH}:${HOME}/bin
     fi
 
     ## Build and install REVO web dispatch.
@@ -748,6 +748,14 @@ EOF
     ## Install redirect-web-ports.
     install -m 0755 "${G_VENDOR_PATH}/resources/redirect-web-ports" \
             "${RECOVERYFS_BASE}/usr/sbin"
+
+    ## Build and install asdf with asdf-vm golang.
+    pr_info "recoveryfs: Install asdf"
+
+    GOOS=linux GOARCH=$ARCH_ARGS GOARM=$ARCH_VERSION go \
+               -C "${G_ASDF_VM_SRC_DIR}/cmd/asdf" build -ldflags='-s -w'
+    install -m 0755 "${G_ASDF_VM_SRC_DIR}/cmd/asdf/asdf" \
+            "${RECOVERYFS_BASE}/usr/bin"
 
     ## Build and install Smallstep CLI with asdf-vm golang.
     pr_info "recoveryfs: Install Smallstep"
@@ -1033,6 +1041,8 @@ EOF
     #         "${RECOVERYFS_BASE}/usr/bin/curl"
 
     ## Install nodejs/reverse-tunnel-server installation script.
+    install -m 0755 "${G_VENDOR_PATH}/resources/reverse-tunnel-server/bootstrap-reverse-tunnel-server" \
+            "${RECOVERYFS_BASE}/usr/bin/bootstrap-reverse-tunnel-server"
     install -m 0755 "${G_VENDOR_PATH}/resources/reverse-tunnel-server/install-reverse-tunnel-server" \
             "${RECOVERYFS_BASE}/usr/bin/install-reverse-tunnel-server"
 
@@ -1041,7 +1051,7 @@ EOF
 #!/bin/bash
 
 ## Install reverse-tunnel-server
-install-reverse-tunnel-server "$NODE_USER" "$NODE_BASE"
+bootstrap-reverse-tunnel-server "$NODE_USER" "$NODE_BASE"
 
 ## Remove non-default locales.
 DEBIAN_FRONTEND=noninteractive apt -y install localepurge

@@ -66,6 +66,12 @@ declare -r G_REVO_WEB_DISPATCH_BRANCH=golang
 declare -r G_REVO_WEB_DISPATCH_REV=6aa8f314b80f515309a18840dc2f8c5591c8e9c8
 declare -r G_REVO_WEB_DISPATCH_SRC_DIR=${DEF_SRC_DIR}/web_dispatch
 
+# asdf version manager
+declare -r G_ASDF_VM_GIT=https://github.com/asdf-vm/asdf.git
+declare -r G_ASDF_VM_BRANCH=master
+declare -r G_ASDF_VM_REV=HEAD
+declare -r G_ASDF_VM_SRC_DIR=${DEF_SRC_DIR}/smallstep-cli
+
 # Smallstep CLI
 declare -r G_SMALLSTEP_CLI_GIT=https://github.com/smallstep/cli.git
 declare -r G_SMALLSTEP_CLI_BRANCH=master
@@ -81,7 +87,7 @@ declare -r G_SMALLSTEP_CERTIFICATES_REV=HEAD
 declare -r G_SMALLSTEP_CERTIFICATES_SRC_DIR=${DEF_SRC_DIR}/smallstep-certificates
 
 # Node version and user
-declare -r NODE_BASE=20.
+declare -r NODE_BASE=22.
 declare -r NODE_USER=revo
 declare -r NODE_GROUP=revo
 

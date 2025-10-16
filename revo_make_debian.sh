@@ -791,7 +791,7 @@ cmd_make_deploy ()
         fi
     fi
 
-    # get REVO web dispatch
+    # clone REVO web dispatch repo
     if test -d "${G_REVO_WEB_DISPATCH_SRC_DIR}/.git"; then
         git -C "$G_REVO_WEB_DISPATCH_SRC_DIR" pull
     else
@@ -800,7 +800,16 @@ cmd_make_deploy ()
                     "$G_REVO_WEB_DISPATCH_SRC_DIR" "$G_REVO_WEB_DISPATCH_REV"
     fi
 
-    # get Smallstep CLI
+    # clone asdf version manager repo
+    if test -d "${G_ASDF_VM_SRC_DIR}/.git"; then
+        git -C "$G_ASDF_VM_SRC_DIR" pull
+    else
+        pr_info "Get SmallStep CLI"
+        get_git_src "$G_ASDF_VM_GIT" "$G_ASDF_VM_BRANCH" \
+                    "$G_ASDF_VM_SRC_DIR" "$G_ASDF_VM_REV"
+    fi
+
+    # clone Smallstep CLI repo
     if test -d "${G_SMALLSTEP_CLI_SRC_DIR}/.git"; then
         git -C "$G_SMALLSTEP_CLI_SRC_DIR" pull
     else
@@ -809,7 +818,7 @@ cmd_make_deploy ()
                     "$G_SMALLSTEP_CLI_SRC_DIR" "$G_SMALLSTEP_CLI_REV"
     fi
 
-    # get Smallstep Certificates
+    # clone Smallstep Certificates repo
     if test -d "${G_SMALLSTEP_CERTIFICATES_SRC_DIR}/.git"; then
         git -C "$G_SMALLSTEP_CERTIFICATES_SRC_DIR" pull
     else

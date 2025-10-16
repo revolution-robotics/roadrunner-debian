@@ -15,17 +15,17 @@
 # Here's a sample script for installing the prerequisites via asdf:
 
 #     #!/usr/bin/env bash
-#     git clone https://github.com/asdf-vm/asdf.git ~/.asdf
-#     source ~/.asdf/asdf.sh
+#     ./srcipts/install-asdf
+#     export PATH=${HOME}/.asdf/shims:${PATH}:${HOME}/bin
 #     for plugin in golang python ruby; do
-#         asdf plugin add $plugin
-#         latest=$(asdf latest $plugin)
-#         asdf install $plugin $latest
-#         asdf global $plugin $latest
+#         asdf plugin add "$plugin"
+#         latest=$(asdf latest "$plugin")
+#         asdf install "$plugin" "$latest"
+#         (cd $HOME; asdf set "$plugin" "$latest")
 #         asdf reshim $plugin
 #     done
 #     go install github.com/posener/complete/gocomplete@latest \
-#         go.mozilla.org/sops/v3/cmd/sops@latest \
+#         github.com/getsops/sops/v3/cmd/sops@latest \
 #         filippo.io/age/cmd/age@latest \
 #         filippo.io/age/cmd/age-keygen@latest
 #     asdf reshim golang
@@ -39,11 +39,10 @@
 # If using the above script, you'll want to add to ~/.bashrc
 # something like:
 
-#     export ASDF_DIR=${HOME}/.asdf \
+#     export ASDF_DATA_DIR=${HOME}/.asdf \
 #            SOPS_AGE_KEY_FILE="${HOME}/.config/sops/keys.txt"
-#     if test -f "${ASDF_DIR}/asdf.sh"; then
-#         source "${ASDF_DIR}/asdf.sh"
-#         source "${ASDF_DIR}/completions/asdf.bash"
+#     if test -d "${ASDF_DATA_DIR}/shims"; then
+#         export PATH=${ASDF_DATA_DIR}/shims:${PATH}
 #     fi
 #     if test -f "$SOPS_AGE_KEY_FILE"; then
 #         export SOPS_AGE_RECIPIENTS=$(
