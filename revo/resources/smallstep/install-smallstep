@@ -7,12 +7,8 @@
 # NB: On systems that must build SmallStep from source (e.g., armv7l),
 #     see script bootstrap-smallstep.
 #
-# Supported platforms:
-#     Centos/Fedora  (aarch64/x86_64)
-#     Debian/Ubuntu  (armv7l/x86_64)
-#     Darwin         (arm64/x86_64)
-#
 : ${APT_CMD:='/usr/bin/apt'}
+: ${ASDF_CMD:="${HOME}/bin/asdf"}
 : ${BASH_CMD:='/bin/bash'}
 : ${CAT_CMD:='/bin/cat'}
 : ${CHMOD_CMD:='/bin/chmod'}
@@ -23,6 +19,7 @@
 : ${FIND_CMD:='/usr/bin/find'}
 : ${GETENT_CMD:='/usr/bin/getent'}
 : ${GIT_CMD:='/usr/bin/git'}
+: ${GO_CMD:="${HOME}/.asdf/shims/go"}
 : ${GREP_CMD:='/bin/grep'}
 : ${GROUPADD_CMD:='/usr/sbin/groupadd'}
 : ${INSTALL_CMD:='/usr/bin/install'}
@@ -30,6 +27,7 @@
 : ${MAKE_CMD:='/usr/bin/gmake'}
 : ${MKTEMP_CMD:='/bin/mktemp'}
 : ${READLINK_CMD:='/bin/readlink'}
+: ${REALPATH_CMD:='/bin/realpath'}
 : ${REALPATH_CMD:='/bin/realpath'}
 : ${RM_CMD:='/bin/rm'}
 : ${SED_CMD:='/bin/sed'}
@@ -45,12 +43,12 @@
 # OS-agnstoic readlink for existent files/directories.
 resolve-existing ()
 {
-    case $($REALPATH_CMD --version 2>&1) in
+    case $($READLINK_CMD --version 2>&1) in
         *coreutils*)
-            $REALPATH_CMD -e "$@" || return $?
+            $REALPATH_CMD -e "$@"
             ;;
         *)
-            $READLINK_CMD -f N "$@" || return $?
+            $READLINK_CMD -f "$@"
             ;;
     esac
 }
@@ -90,130 +88,8 @@ EOF
     fi
 }
 
-# Return latest GIT repository tag of the form vX.Y.Z.
-get-current-tag ()
-{
-    local uri=$1
-    local allow_rc=$2
 
-    # GIT output format:
-    #     f8bc862f1f40000864555374c08f59670f2cf6b9	refs/tags/v0.14.2
-    #     3137b01136102d36f7631c0ecbd344bfe60090b3	refs/tags/v0.14.2-rc.1
-    #     1b757d26aa177e1ad816b51f74cbfbdd5d69d73a	refs/tags/v0.14.3
-    #     ea17bc44bce8630e93a997fd5de41d22a0fa061e	refs/tags/v0.14.4-rc.1
-    #
-    # After filtering and sorting:
-    #     v0.14.2
-    #     v0.14.3
-
-    if test ."$allow_rc" != .'false'; then
-        $GIT_CMD ls-remote --tags "$uri" |
-            $SED_CMD -e 's;.*refs/tags/;;' |
-            $SORT_CMD -V -k1.2 |
-            $TAIL_CMD -1 || return $?
-    else
-        $GIT_CMD ls-remote --tags "$uri" |
-            $GREP_CMD -Ev -- '-(rc|beta)' |
-            $SED_CMD -e 's;.*refs/tags/;;' |
-            $SORT_CMD -V -k1.2 |
-            $TAIL_CMD -1 || return $?
-    fi
-}
-
-fetch-smallstep-pkg ()
-{
-    local uri=$1
-    local dl_uri=$2
-    local pkg_dir=$3
-    local allow_rc=$4
-
-    local ID=''
-    local extension=${uri##*/}
-    extension=${extension%.git}
-    local host=''
-    local machine=''
-    local pkg=''
-    local tag=''
-
-    echo "*** Fetching step-${extension} ***" >&2
-
-    tag=$(get-current-tag "$uri" "$allow_rc") || return $?
-    case "$OSTYPE" in
-        freebsd*)
-            host=freebsd
-            ;;
-        linux-gnu)
-            host=linux
-            ;;
-        darwin*)
-            host=darwin
-            ;;
-        *)
-            host=windows
-            ;;
-    esac
-
-    local umachine=''
-
-    umachine=$($UNAME_CMD -m) || return $?
-    case "$umachine" in
-        aarch64|arm64)
-            machine=arm64
-            ;;
-        x86_64)
-            machine=amd64
-            ;;
-        arm7l)
-            # armv7l binaries no longer distributed.
-            return 0
-            ;;
-    esac
-
-    if test -f /etc/os-release; then
-        source /etc/os-release
-    elif test -f /etc/asl.conf; then
-        ID=darwin
-    else
-        ID=windows
-    fi
-
-    case "$ID" in
-        almalinux|centos|fedora*|rhel|rocky)
-            if test ."$extension" = .'certificates'; then
-                pkg=step-ca_linux_${tag#v}_${machine}.tar.gz
-            else
-                pkg=step-cli-${tag#v}-1.${umachine}.rpm
-            fi
-            ;;
-        ubuntu|debian)
-            if test ."$extension" = .'certificates'; then
-                pkg=step-ca_${tag#v}_${machine}.deb
-            else
-                pkg=step-cli_${tag#v}_${machine}.deb
-            fi
-            ;;
-        darwin)
-            if test ."$extension" = .'certificates'; then
-                pkg=step-ca_${host}_${tag#v}_${machine}.tar.gz
-            else
-                pkg=step_${host}_${tag#v}_${machine}.tar.gz
-            fi
-            ;;
-        windows)
-            if test ."$extension" = .'certificates'; then
-                pkg=step-ca_${host}_${tag#v}_${machine}.zip
-            else
-                pkg=step_${host}_${tag#v}_${machine}.zip
-            fi
-            ;;
-    esac
-
-    $CURL_CMD -o "${pkg_dir}/${pkg}" -sSL "${dl_uri}/${tag}/${pkg}" || return $?
-
-    echo "$pkg"
-}
-
-install-build-prerequisites ()
+install-prerequisites ()
 {
     if test -f /etc/os-release; then
         source /etc/os-release
@@ -231,24 +107,22 @@ install-build-prerequisites ()
             ;;
         darwin|windows)
             if ! pcscd --version &> /dev/null; then
-                echo "${script_name}: Don't know how to install libpcsclite library." >&2
-                return $?
+                echo "${script_name}: Don't know how to install PC/SC Lite library." >&2
+                return 1
             fi
             ;;
-        *)
+        fedora*|rhel*|rocky*|almalinux*)
             $SUDO_CMD $DNF_CMD install -y pkgconf libusb1{,-devel} pcsc-lite-{devel,libs} \
                       --refresh || retun $?
             ;;
     esac
 }
 
-build-and-install-smallstep ()
+build-smallstep ()
 {
-    local -n binary=$1
+    local -n params=$1
     local repo=$2
-    local go_cmd=$3
-
-    local srcdir=${GOMODCACHE}/github.com/smallstep/${repo}
+    local srcdir=$3
 
     echo "Building and installing SmallStep ${repo^^}..." >&2
 
@@ -260,99 +134,53 @@ build-and-install-smallstep ()
                  "https://github.com/smallstep/${repo}" "$srcdir" || return $?
     fi
 
-    $go_cmd -C "${srcdir}/cmd/${binary[$repo]}" build -ldflags='-s -w' || return $?
-    $SUDO_CMD $INSTALL_CMD -m 0755 "${srcdir}/cmd/${binary[$repo]}/${binary[$repo]}" \
-              /usr/bin/ || return $?
+    $GO_CMD -C "${srcdir}/cmd/${params[$repo]}" build -ldflags='-s -w' || return $?
 }
 
-deploy-smallstep ()
+install-smallstep ()
 {
-    local pkg=$1
-    local dest_dir=$2
-    local pkg_dir=$3
+    local -n params=$1
+    local repo=$2
+    local srcdir=$3
 
-    if test ! -f "${pkg_dir}/${pkg}"; then
-        echo "${script_name}: $pkg: No such file or directory" >&2
-        return
-    fi
-
-    case "$pkg" in
-        *.tar.gz)
-            $TAR_CMD -C "$pkg_dir" -zxf "${pkg_dir}/${pkg}" || return $?
-
-            if test -d "${pkg_dir}/bin"; then
-                pushd "${pkg_dir}/bin" >/dev/null
-            else
-                pushd "$pkg_dir" >/dev/null
-            fi
-
-            $FIND_CMD . -type f |
-                while read candidate; do
-                    case $($FILE_CMD "$candidate") in
-                        *executable*)
-                            $SUDO_CMD $INSTALL_CMD -m 0755 -o root -g root "$candidate" \
-                                      "$dest_dir" || return $?
-                            ;;
-                    esac
-                done || { local status=$?; popd >/dev/null; return $status; }
-            ;;
-        *.deb)
-            $SUDO_CMD $CHOWN_CMD -R _apt "${pkg_dir}" || return $?
-            $SUDO_CMD $APT_CMD install -y "${pkg_dir}/${pkg}" || return $?
-            ;;
-        *.rpm)
-            $SUDO_CMD $DNF_CMD install -y "${pkg_dir}/${pkg}" || return $?
-            ;;
-        *.zip)
-            # TODO: Define $dest_dir.
-            $UNZIP_CMD -d "$dest_dir" "${pkg_dir}/${pkg}" || return $?
-            ;;
-    esac
+    $SUDO_CMD $INSTALL_CMD -m 0755 "${srcdir}/cmd/${params[$repo]}/${params[$repo]}" \
+              "${params[destdir]}" || return $?
 }
 
 maybe-reshim-golang ()
 {
-    local go_dir=$1
-
-    local asdf_cmd=''
-
-    if asdf_cmd=$(command -v asdf); then
-        eval $($asdf_cmd info | $GREP_CMD ASDF_DIR)
-
-        if test ."$go_dir" = ."${ASDF_DIR}/shims"; then
-            asdf reshim golang
-        fi
+    if ! command -v asdf >/dev/null; then
+        return 0
     fi
+
+    asdf reshim golang
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
     set -e -o pipefail
     shopt -s lastpipe
 
-    declare dest_dir=${1:-'/usr/bin'}
+    declare destdir=${1:-'/usr/bin'}
 
     declare script=''
 
     script=$(resolve-existing "$0") || exit $?
 
     declare script_name=${script##*/}
-    declare go_cmd=''
 
-    if go_cmd=$(command -v go); then
-        export GOMODCACHE=$($go_cmd env GOMODCACHE)
+    if ! command -v $GO_CMD >/dev/null; then
+        echo "$script_name: $GO_CMD: No such file or directory" >&2
+        exit 1
     fi
 
-    declare -A repo_binary=(
+    export GOMODCACHE=$($GO_CMD env GOMODCACHE) \
+           GOPATH=$($GO_CMD env GOPATH)
+
+    declare -A parameters=(
         [cli]=step
         [certificates]=step-ca
+        [destdir]=$destdir
     )
-    declare allow_rc=${1:-'false'}
-    declare cli_uri=https://github.com/smallstep/cli.git
-    declare cli_dl_uri=https://dl.smallstep.com/gh-release/cli/gh-release-header
-    declare certificates_uri=https://github.com/smallstep/certificates.git
-    declare certificates_dl_uri=https://dl.smallstep.com/gh-release/certificates/gh-release-header
-    declare tmpdir=''
-    declare extension=''
 
     install-smallstep-infrastructure || exit $?
 
@@ -361,47 +189,30 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
         $SUDO_CMD $SYSTEMCTL_CMD stop step-ca
     fi
 
-    source /etc/os-release
-    case "$ID" in
-        fedora*)
-            if test -x /usr/bin/dnf5; then
-                DNF_CMD=/usr/bin/dnf5
-            fi
-            ;;
-    esac
+    if test -f /etc/os-release; then
+        source /etc/os-release
 
-    case $(uname -m) in
-        aarch64|armv7l)
-            if test ! -x "$go_cmd"; then
-                echo "${script_name}: go: No such file or directory" >&2
-                exit 1
-            fi
+        case "$ID" in
+            fedora*)
+                if ! command -v dnf5 >/dev/null; then
+                    $DNF_CMD install -y dnf5{,-plugins}
+                fi
+                export DNF_CMD=/usr/bin/dnf5
+                ;;
+        esac
+    fi
 
-            install-build-prerequisites || exit $?
+    install-prerequisites || exit $?
 
-            for repo in cli certificates; do
-                build-and-install-smallstep repo_binary "$repo" "$go_cmd" || exit $?
-            done
-            maybe-reshim-golang "${go_cmd%/*}"
-            ;;
-        amd64|x86_64)
-            tmpdir=$($MKTEMP_CMD -d "/tmp/${script_name}.XXXXX") || exit $?
+    declare srcdir=''
+    declare repo=''
 
-            trap '$RM_CMD -rf "$tmpdir"; exit 1' 0 1 2 15
-
-            for repo in cli certificates; do
-                eval uri=\$${repo}_uri
-                eval dl_uri=\$${repo}_dl_uri
-                pkg=$(fetch-smallstep-pkg "$uri" "$dl_uri" "$tmpdir" "$allow_rc") || exit $?
-                deploy-smallstep "$pkg" "$dest_dir" "$tmpdir" || exit $?
-            done
-
-            $RM_CMD -rf "$tmpdir" || exit $?
-
-            trap - 0 1 2 15
-            ;;
-    esac
-
+    for repo in cli certificates; do
+        srcdir=${GOMODCACHE}/github.com/smallstep/${repo}
+        build-smallstep parameters "$repo" "$srcdir" || exit $?
+        install-smallstep parameters "$repo" "$srcdir" || exit $?
+    done
+    maybe-reshim-golang "${GO_CMD%/*}" || exit $?
 
     if command -v "$SYSTEMCTL_CMD" >/dev/null \
                && $SYSTEMCTL_CMD is-enabled step-ca >/dev/null; then

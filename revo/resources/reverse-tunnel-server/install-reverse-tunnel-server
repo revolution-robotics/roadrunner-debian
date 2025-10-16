@@ -148,83 +148,6 @@ install-server-infrastructure ()
     trap - 0 1 2 15 RETURN
 }
 
-maybe-install-asdf ()
-{
-    if test ."$ASDF_DIR" = .'' -a -d ~/.asdf; then
-        export ASDF_DIR=~/.asdf
-    fi
-
-    if test -d "$ASDF_DIR"; then
-        $GIT_CMD -C "$ASDF_DIR" pull
-    else
-        export ASDF_DIR=~/.asdf
-        $GIT_CMD clone https://github.com/asdf-vm/asdf.git "$ASDF_DIR" || return $?
-    fi
-}
-
-source-asdf ()
-{
-    if ! $GREP_CMD -q ASDF_DIR ~/.bashrc 2>/dev/null; then
-        echo "Initializing asdf in bashrc..." >&2
-        $CAT_CMD >>~/.bashrc <<'EOF'
-
-# Initialize asdf version manager.
-export ASDF_DIR=~/.asdf
-if test -f "${ASDF_DIR}/asdf.sh"; then
-    source "${ASDF_DIR}/asdf.sh"
-    source "${ASDF_DIR}/completions/asdf.bash"
-fi
-EOF
-    fi
-
-    source "${ASDF_DIR}/asdf.sh"
-}
-
-install-asdf-nodejs ()
-{
-    local version=$1
-
-    asdf install nodejs "$version" || return $?
-    asdf global nodejs "$version" || return $?
-    npm i -g npm || return $?
-    asdf reshim nodejs || return $?
-}
-
-maybe-install-nodejs ()
-{
-    local node_base=$1
-
-    local latest=''
-
-    if ! asdf which node 2>/dev/null; then
-        echo "Installing nodejs plugin" >&2
-        asdf plugin add nodejs || return $?
-        latest=$(asdf latest nodejs "$node_base") || return $?
-        install-asdf-nodejs "$latest" || return $?
-    else
-        latest=$(asdf latest nodejs "$node_base") || return $?
-
-        if test ."$(node --version)" != ."v${latest}"; then
-            local existing_modules_string=''
-            local -a existing_modules=()
-
-            existing_modules_string=$(
-                npm -g list |
-                    $SED_CMD -En -e '/^├── ([^@]+)@.*/s//\1/p'
-                                   ) || return $?
-            mapfile -t existing_modules <<<"$existing_modules_string" || return $?
-
-            echo "Installing node v${latest}.." >&2
-            install-asdf-nodejs "$latest" || return $?
-
-            if (( ${#existing_modules[*]} > 0 )); then
-                npm i -g "${existing_modules[@]}" || return $?
-                asdf reshim nodejs || return $?
-            fi
-        fi
-    fi
-}
-
 install-reverse-tunnel-server ()
 {
     local version=''
@@ -253,7 +176,6 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     toplevel_dir=${script_dir%/*}
 
     declare server_owner=${1:-'revo'}
-    declare node_base=${2:-'20'}
 
     declare server_group=''
 
@@ -288,8 +210,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
         exit 4
     fi
 
-    maybe-install-asdf || exit $?
-    source-asdf || exit $?
-    maybe-install-nodejs "$node_base" || exit $?
+    export PATH=${HOME}/.asdf/shims:${PATH}
+
     install-reverse-tunnel-server || exit $?
 fi

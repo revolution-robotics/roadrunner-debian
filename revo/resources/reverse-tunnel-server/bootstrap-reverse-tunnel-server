@@ -1,19 +1,18 @@
 #!/usr/bin/env bash
 #
-# @(#) bootstrap-smallstep
+# @(#) bootstrap-reverse-tunnel-server
 #
 # SYNOPSIS
-#     bootstrap-smallstep [user]
+#     bootstrap-reverse-tunnel-server [user]
 #
 # DESCRIPTION
-#     This script builds Smallstep from source and installs it in
-#     /usr/bin. Golang is temporarily installed via the asdf version
-#     manager as needed.
+#     This script installs reverse-tunnel-server. Nodejs is installed
+#     via the asdf version manager as needed.
 #
-: ${CHMOD_CMD:='/bin/chmod'}
 : ${CAT_CMD:='/bin/cat'}
 : ${GIT_CMD:='/usr/bin/git'}
 : ${GREP_CMD:='/bin/grep'}
+: ${MV_CMD:='/bin/mv'}
 : ${READLINK_CMD:='/bin/readlink'}
 : ${RM_CMD:='/bin/rm'}
 : ${SUDO_CMD:='/usr/bin/sudo'}
@@ -46,7 +45,7 @@ initialize-asdf-env ()
 : ${ASDF_DATA_DIR:="${HOME}/.asdf"}
 
 unset -f asdf
-
+hash -r
 if test -d "${ASDF_DATA_DIR}/shims"; then
     export PATH=${ASDF_DATA_DIR}/shims:$PATH
 fi
@@ -58,45 +57,36 @@ EOF
     fi
 
     export ASDF_DATA_DIR=${HOME}/.asdf
-    export PATH=${ASDF_DATA_DIR}/shims:${PATH}:${HOME}/bin
+    export PATH=${ASDF_DATA_DIR}/shims:$PATH
 }
 
-golang-locally-installed ()
+nodejs-locally-installed ()
 {
-    if asdf plugin list | $GREP_CMD -q golang; then
-        asdf plugin update golang &>/dev/null || return $?
+    if asdf plugin list | $GREP_CMD -q nodejs; then
+        asdf plugin update nodejs &>/dev/null || return $?
         if asdf which go &>/dev/null; then
-            echo true
+            return 0
         else
-            echo false
+            return 1
         fi
     else
-        asdf plugin add golang &>/dev/null || return $?
-        echo false
+        asdf plugin add nodejs &>/dev/null || return $?
+        return 1
     fi
 }
 
-install-golang ()
+install-nodejs ()
 {
-    echo "Installing golang..."
+    local node_base=$1
+
+    echo "Installing nodejs..."
 
     local latest=''
 
-    latest=$(asdf latest golang) || return $?
-    asdf install golang "$latest" || return $?
-    (cd ~ && asdf set golang "$latest") || return $?
-    asdf reshim golang || return $?
-
-    GOPATH=$(go env GOPATH) || return $?
-    export GOPATH
-}
-
-remove-golang ()
-{
-    echo "Removing golang..."
-    $CHMOD_CMD -R +w "${GOPATH}/../../"
-    asdf plugin remove golang
-    $RM_CMD -rf "${GOPATH}/../../" ~/.cache/go-build
+    latest=$(asdf latest nodejs "$node_base") || return $?
+    asdf install nodejs "$latest" || return $?
+    (cd ~ && asdf set nodejs "$latest") || return $?
+    asdf reshim nodejs || return $?
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
@@ -107,6 +97,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     script_dir=${script%/*}
 
     declare user=${1:-$USER}
+    declare node_base=${2:-'22'}
 
     # Run script as given user.
     if test ."$LOCKED" != ."$script"; then
@@ -116,24 +107,9 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
 
     initialize-asdf-env || exit $?
 
-    if ! command -v asdf >/dev/null; then
-        declare os=$($UNAME_CMD | $TR_CMD A-Z a-z)
-        declare arch=$(get-arch)
-
-        install-asdf "$os" "$arch" /usr/bin || exit $?
+    if ! nodejs-locally-installed; then
+        install-nodejs "$node_base" || exit $?
     fi
 
-    declare have_golang=''
-
-    have_golang=$(golang-locally-installed) || exit $?
-
-    if ! $have_golang; then
-        install-golang || exit $?
-    fi
-
-    ${script_dir}/install-smallstep || exit $?
-
-    if ! $have_golang; then
-        remove-golang || exit $?
-    fi
+    $SUDO_CMD ${script_dir}/install-reverse-tunnel-server || exit $?
 fi
