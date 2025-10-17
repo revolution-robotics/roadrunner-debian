@@ -188,6 +188,9 @@ deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 # deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
+    # Bullseye no longer provides backports - 2025-10-17
+    sed -i.old -e '/bullseye-backports/d' "${ROOTFS_BASE}/etc/apt/sources.list"
+
     ## raise backports priority
 #     cat >"${ROOTFS_BASE}/etc/apt/preferences.d/backports" <<EOF
 # Package: *

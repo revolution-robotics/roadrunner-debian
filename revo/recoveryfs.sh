@@ -1103,6 +1103,9 @@ deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 # deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
 
+    # Bullseye no longer provides backports - 2025-10-17
+    sed -i.old -e '/bullseye-backports/d' "${RECOVERYFS_BASE}/etc/apt/sources.list"
+
     pr_info "rootfs: Allow Debian to run systemctl"
 
     rm -f "${RECOVERYFS_BASE}/usr/sbin/policy-rc.d"
