@@ -70,7 +70,7 @@ declare -r G_REVO_WEB_DISPATCH_SRC_DIR=${DEF_SRC_DIR}/web_dispatch
 declare -r G_ASDF_VM_GIT=https://github.com/asdf-vm/asdf.git
 declare -r G_ASDF_VM_BRANCH=master
 declare -r G_ASDF_VM_REV=HEAD
-declare -r G_ASDF_VM_SRC_DIR=${DEF_SRC_DIR}/smallstep-cli
+declare -r G_ASDF_VM_SRC_DIR=${DEF_SRC_DIR}/asdf
 
 # Smallstep CLI
 declare -r G_SMALLSTEP_CLI_GIT=https://github.com/smallstep/cli.git
