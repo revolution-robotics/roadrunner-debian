@@ -7,6 +7,9 @@ make_debian_recoveryfs ()
 {
     local RECOVERYFS_BASE=$1
 
+    export ASDF_DATA_DIR=${HOME}/.asdf
+    export PATH=${ASDF_DATA_DIR}/shims:${PATH}
+
     remove-charmaps ()
     {
         # Remove non-essential charmaps from /usr/share/i18n/charmaps
@@ -137,10 +140,12 @@ make_debian_recoveryfs ()
     ## Delete unused folder.
     $CHROOTFS "$RECOVERYFS_BASE" rm -rf  "${RECOVERYFS_BASE}/debootstrap"
 
-    # pr_info "recoveryfs: Generate default configs"
-    # install -d -m 0750 ${RECOVERYFS_BASE}/etc/sudoers.d/
+    pr_info "recoveryfs: Generate default configs"
+
     # echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > ${RECOVERYFS_BASE}/etc/sudoers.d/user
     # chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/user
+    echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > "${RECOVERYFS_BASE}/etc/sudoers.d/revo"
+    chmod 0640 "${RECOVERYFS_BASE}/etc/sudoers.d/revo"
 
     ## install local Debian packages
     install -d -m 0755 "${RECOVERYFS_BASE}/srv/local-apt-repository"
@@ -183,6 +188,9 @@ deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 # deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
 # deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
+
+    ## Bullseye no longer provides backports - 2025-10-17
+    sed -i.old -e '/bullseye-backports/d' "${RECOVERYFS_BASE}/etc/apt/sources.list"
 
     ## raise backports priority
 #     cat >"${RECOVERYFS_BASE}/etc/apt/preferences.d/backports" <<EOF
@@ -260,7 +268,7 @@ protected_install ()
     local repeated_cnt=5
     local RET_CODE=1
 
-    for (( c=0; c < \${repeated_cnt}; c++ )); do
+    for (( c=0; c < repeated_cnt; c++ )); do
         DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \\
                        apt -y install \${_name} && {
             RET_CODE=0
@@ -274,10 +282,7 @@ protected_install ()
         echo ""
 
         sleep 2
-        apt -y --fix-broken install && {
-                RET_CODE=0
-                break
-        }
+        apt -y --fix-broken install || true
     done
 
     return \${RET_CODE}
@@ -871,8 +876,8 @@ EOF
 
     # Derive CA root certificate name from CA URL, e.g.,
     #     https://ca.revo.io:14727 -> RevoIO_Root_CA
-    declare -a tld=( $(sed -E -e 's/^.*\.([^.]+)\.([^.]+):.*/\1 \2/' <<<"$CA_URL") )
-    declare ca_root_cert=${tld[0]^}${tld[1]^^}_Root_CA.crt
+    local -a tld=( $(sed -E -e 's/^.*\.([^.]+)\.([^.]+):.*/\1 \2/' <<<"$CA_URL") )
+    local ca_root_cert=${tld[0]^}${tld[1]^^}_Root_CA.crt
 
     ## Bootstrap local certificate authority and install root certificate.
     # step ca bootstrap --ca-url "$CA_URL" --fingerprint "$CA_FINGERPRINT"
@@ -881,9 +886,9 @@ EOF
             "${RECOVERYFS_BASE}/usr/local/share/ca-certificates/${ca_root_cert}"
 
     ## Add missing CAcert root and class3 certificates.
-    curl -sSLo  "${ROOTFS_BASE}/usr/local/share/ca-certificates/root.crt" \
+    curl -sSLo  "${RECOVERYFS_BASE}/usr/local/share/ca-certificates/root.crt" \
          http://www.cacert.org/certs/root.crt
-    curl -sSLo  "${ROOTFS_BASE}/usr/local/share/ca-certificates/class3.crt" \
+    curl -sSLo  "${RECOVERYFS_BASE}/usr/local/share/ca-certificates/class3.crt" \
          http://www.cacert.org/certs/class3.crt
 
     ## End packages stage ##
@@ -894,11 +899,45 @@ EOF
 
         cat >"${RECOVERYFS_BASE}/user-stage" <<EOF
 #!/bin/bash
-# update packages
+protected_install ()
+{
+    local packages=\$1
+
+    local repeated_cnt=5
+    local RET_CODE=1
+
+    for (( c=0; c < repeated_cnt; c++ )); do
+        eval DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \\
+                       apt -y install \$packages && {
+            RET_CODE=0
+            break
+        }
+
+        echo ""
+        echo "###########################"
+        echo "## Fix missing packeges ###"
+        echo "###########################"
+        echo ""
+
+        sleep 30
+        apt -y --fix-broken install || true
+    done
+
+    return \$RET_CODE
+}
+
 apt update
 
-# install all user packages from backports
-DEBIAN_FRONTEND=noninteractive apt -yq -t ${DEB_RELEASE}-backports install ${G_USER_MINIMAL_PACKAGES}
+mapfile -t g_minimal_packages < <(tr ' ' '\\n' <<<"$G_MINIMAL_PACKAGES")
+
+declare -i total_packages=\${#g_minimal_packages[*]}
+declare -i offset=0
+declare -i increment=10
+
+for (( offset = 0; offset < total_packages; offset += increment )); do
+    protected_install "\${g_minimal_packages[*]:offset:increment}"
+done
+
 
 pip3 install https://github.com/zeromq/pyre/archive/master.zip
 pip3 install minimalmodbus
@@ -945,8 +984,8 @@ EOF
     rm -f "${RECOVERYFS_BASE}/etc/init.d/rng-tools"
 
     ## Disable ssh.service (ssh.socket listens on port 22 instead).
-    rm -f "${ROOTFS_BASE}/etc/systemd/system/sshd.service" \
-       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/ssh.service"
+    rm -f "${RECOVERYFS_BASE}/etc/systemd/system/sshd.service" \
+       "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/ssh.service"
 
     ## Configure /etc/default/zramswap
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/zramswap" \
@@ -991,6 +1030,20 @@ EOF
         -e '/alias l=/a alias h="history 50"' \
         "${RECOVERYFS_BASE}/root/.bashrc"
 
+    cat >>"${RECOVERYFS_BASE}/root/.bashrc" <<'EOF'
+export ASDF_DATA_DIR=${HOME}/.asdf
+export PATH=${ASDF_DATA_DIR}/shims:${PATH}
+EOF
+    sed -i -e '/export LS/s/^#* *//' \
+        -e '/eval.*dircolors/s/^#* *//' \
+        -e '/alias ls/s/^#* *//' \
+        -e '/alias l=/a alias h="history 50"' \
+        "${RECOVERYFS_BASE}/home/revo/.bashrc"
+
+    cat >>"${RECOVERYFS_BASE}/home/revo/.bashrc" <<'EOF'
+export ASDF_DATA_DIR=${HOME}/.asdf
+export PATH=${ASDF_DATA_DIR}/shims:${PATH}
+EOF
     ## Installing kernel modules to recoveryfs is redundant. This is
     ## already done by cmd_make_kmodules.
 
