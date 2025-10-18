@@ -146,6 +146,7 @@ make_debian_x11_rootfs ()
 
     pr_info "rootfs: Generate default configs"
 
+    install -d -m 0750 "${ROOTFS_BASE}/etc/sudoers.d"
     # echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > "${ROOTFS_BASE}/etc/sudoers.d/user"
     # chmod 0440 "${ROOTFS_BASE}/etc/sudoers.d/user"
     echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > "${ROOTFS_BASE}/etc/sudoers.d/revo"
