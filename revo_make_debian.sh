@@ -741,7 +741,7 @@ cmd_make_deploy ()
 {
     # get U-Boot repository
     if test -d "${G_UBOOT_SRC_DIR}/.git"; then
-        git -C "$G_UBOOT_SRC_DIR" pull
+        git -C "$G_UBOOT_SRC_DIR" pull --rebase
     else
         pr_info "Get U-Boot repository"
         get_git_src "$G_UBOOT_GIT" "$G_UBOOT_BRANCH" \
@@ -750,7 +750,7 @@ cmd_make_deploy ()
 
     # get kernel repository
     if test -d "${G_LINUX_KERNEL_SRC_DIR}/.git"; then
-        git -C "$G_LINUX_KERNEL_SRC_DIR" pull
+        git -C "$G_LINUX_KERNEL_SRC_DIR" pull --rebase
     else
         pr_info "Get kernel repository"
         get_git_src "$G_LINUX_KERNEL_GIT" "$G_LINUX_KERNEL_BRANCH" \
@@ -772,7 +772,7 @@ cmd_make_deploy ()
     if test ."$G_BCM_FW_GIT" != .''; then
         # get bcm firmware repository
         if test -d "${G_BCM_FW_SRC_DIR}/.git"; then
-            git -C "$G_BCM_FW_SRC_DIR" pull
+            git -C "$G_BCM_FW_SRC_DIR" pull --rebase
         else
             pr_info "Get bcmhd firmware repository"
             get_git_src "$G_BCM_FW_GIT" "$G_BCM_FW_GIT_BRANCH" \
@@ -783,7 +783,7 @@ cmd_make_deploy ()
     if test ."$G_IMXBOOT_GIT" != .''; then
         # get IMXBoot Source repository
         if test -d "${G_IMXBOOT_SRC_DIR}/.git"; then
-            git -C "$G_IMXBOOT_SRC_DIR" pull
+            git -C "$G_IMXBOOT_SRC_DIR" pull --rebase
         else
             pr_info "Get imx-boot"
             get_git_src "$G_IMXBOOT_GIT" \
@@ -793,7 +793,7 @@ cmd_make_deploy ()
 
     # clone REVO web dispatch repo
     if test -d "${G_REVO_WEB_DISPATCH_SRC_DIR}/.git"; then
-        git -C "$G_REVO_WEB_DISPATCH_SRC_DIR" pull
+        git -C "$G_REVO_WEB_DISPATCH_SRC_DIR" pull --rebase
     else
         pr_info "Get REVO web dispatch repository"
         get_git_src "$G_REVO_WEB_DISPATCH_GIT" "$G_REVO_WEB_DISPATCH_BRANCH" \
@@ -802,7 +802,7 @@ cmd_make_deploy ()
 
     # clone asdf version manager repo
     if test -d "${G_ASDF_VM_SRC_DIR}/.git"; then
-        git -C "$G_ASDF_VM_SRC_DIR" pull
+        git -C "$G_ASDF_VM_SRC_DIR" pull --rebase
     else
         pr_info "Get SmallStep CLI"
         get_git_src "$G_ASDF_VM_GIT" "$G_ASDF_VM_BRANCH" \
@@ -811,7 +811,7 @@ cmd_make_deploy ()
 
     # clone Smallstep CLI repo
     if test -d "${G_SMALLSTEP_CLI_SRC_DIR}/.git"; then
-        git -C "$G_SMALLSTEP_CLI_SRC_DIR" pull
+        git -C "$G_SMALLSTEP_CLI_SRC_DIR" pull --rebase
     else
         pr_info "Get SmallStep CLI"
         get_git_src "$G_SMALLSTEP_CLI_GIT" "$G_SMALLSTEP_CLI_BRANCH" \
@@ -820,7 +820,7 @@ cmd_make_deploy ()
 
     # clone Smallstep Certificates repo
     if test -d "${G_SMALLSTEP_CERTIFICATES_SRC_DIR}/.git"; then
-        git -C "$G_SMALLSTEP_CERTIFICATES_SRC_DIR" pull
+        git -C "$G_SMALLSTEP_CERTIFICATES_SRC_DIR" pull --rebase
     else
         pr_info "Get SmallStep Certificates"
         get_git_src "$G_SMALLSTEP_CERTIFICATES_GIT" "$G_SMALLSTEP_CERTIFICATES_BRANCH" \
