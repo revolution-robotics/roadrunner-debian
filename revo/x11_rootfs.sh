@@ -7,6 +7,9 @@ make_debian_x11_rootfs ()
 {
     local ROOTFS_BASE=$1
 
+    export ASDF_DATA_DIR=${HOME}/.asdf
+    export PATH=${ASDF_DATA_DIR}/shims:${PATH}
+
     remove-charmaps ()
     {
         # Remove non-essential charmaps from /usr/share/i18n/charmaps
@@ -143,9 +146,12 @@ make_debian_x11_rootfs ()
 
     pr_info "rootfs: Generate default configs"
 
-    install -d -m 0750 "${ROOTFS_BASE}/etc/sudoers.d/"
-    echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-geroadrunner-5.4.142_20240116T071414Zt, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > "${ROOTFS_BASE}/etc/sudoers.d/user"
-    chmod 0440 "${ROOTFS_BASE}/etc/sudoers.d/user"
+    # echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > "${ROOTFS_BASE}/etc/sudoers.d/user"
+    # chmod 0440 "${ROOTFS_BASE}/etc/sudoers.d/user"
+    echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > "${ROOTFS_BASE}/etc/sudoers.d/revo"
+    chmod 0640 "${ROOTFS_BASE}/etc/sudoers.d/revo"
+
+    ## install local Debian packages
     install -d -m 0755 "${ROOTFS_BASE}/srv/local-apt-repository"
 
     ## udisk2
@@ -268,7 +274,7 @@ protected_install ()
     local repeated_cnt=5
     local RET_CODE=1
 
-    for (( c=0; c < \${repeated_cnt}; c++ )); do
+    for (( c=0; c < repeated_cnt; c++ )); do
         DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \\
                        apt -y install \${_name} && {
             RET_CODE=0
@@ -281,11 +287,8 @@ protected_install ()
         echo "###########################"
         echo ""
 
-        sleep 20
-        apt -y --fix-broken install && {
-                RET_CODE=0
-                break
-        }
+        sleep 30
+        apt -y --fix-broken install || true
     done
 
     return \${RET_CODE}
@@ -308,7 +311,6 @@ protected_install local-apt-repository
 # protected_install reprepro
 # reprepro rereference
 
-## Update packages and install base.
 apt update
 apt -y full-upgrade
 
@@ -530,9 +532,6 @@ EOF
     chmod +x "${ROOTFS_BASE}/third-stage"
     $CHROOTFS "$ROOTFS_BASE" /third-stage
 
-    echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > "${ROOTFS_BASE}/etc/sudoers.d/revo"
-    chmod 0640 "${ROOTFS_BASE}/etc/sudoers.d/revo"
-
     ## Begin packages stage ##
     pr_info "rootfs: Install updates and local packages"
 
@@ -730,11 +729,6 @@ EOF
     ## Create /var/www/html. TODO: Add index.html.
     install -d -m 0755 "${ROOTFS_BASE}/var/www/html"
 
-    # Add golang to PATH.
-    if test -f ${HOME}/.asdf; then
-        export PATH=${HOME}/.asdf/shims:${PATH}:${HOME}/bin
-    fi
-
     ## Build and install REVO web dispatch.
     make -C "${G_REVO_WEB_DISPATCH_SRC_DIR}" clean all
     install -m 0755 "${G_REVO_WEB_DISPATCH_SRC_DIR}/revo-web-dispatch" \
@@ -873,8 +867,8 @@ EOF
 
     # Derive CA root certificate name from CA URL, e.g.,
     #     https://ca.revo.io:14727 -> RevoIO_Root_CA
-    declare -a tld=( $(sed -E -e 's/^.*\.([^.]+)\.([^.]+):.*/\1 \2/' <<<"$CA_URL") )
-    declare ca_root_cert=${tld[0]^}${tld[1]^^}_Root_CA.crt
+    local -a tld=( $(sed -E -e 's/^.*\.([^.]+)\.([^.]+):.*/\1 \2/' <<<"$CA_URL") )
+    local ca_root_cert=${tld[0]^}${tld[1]^^}_Root_CA.crt
 
     ## Bootstrap local certificate authority and install root certificate.
     step ca bootstrap --ca-url "$CA_URL" --fingerprint "$CA_FINGERPRINT"
@@ -896,11 +890,45 @@ EOF
 
         cat >"${ROOTFS_BASE}/user-stage" <<EOF
 #!/bin/bash
-## update packages
+
+protected_install ()
+{
+    local packages=\$1
+
+    local repeated_cnt=5
+    local RET_CODE=1
+
+    for (( c=0; c < repeated_cnt; c++ )); do
+        eval DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \\
+                       apt -y install \$packages && {
+            RET_CODE=0
+            break
+        }
+
+        echo ""
+        echo "###########################"
+        echo "## Fix missing packeges ###"
+        echo "###########################"
+        echo ""
+
+        sleep 30
+        apt -y --fix-broken install || true
+    done
+
+    return \$RET_CODE
+}
+
 apt update
 
-## install all user packages from backports
-DEBIAN_FRONTEND=noninteractive apt -yq -t ${DEB_RELEASE}-backports install ${G_USER_PACKAGES}
+mapfile -t g_user_packages < <(tr ' ' '\\n' <<<"$G_USER_PACKAGES")
+
+declare -i total_packages=\${#g_user_packages[*]}
+declare -i offset=0
+declare -i increment=10
+
+for (( offset = 0; offset < total_packages; offset += increment )); do
+    protected_install "\${g_user_packages[*]:offset:increment}"
+done
 
 pip3 install https://github.com/zeromq/pyre/archive/master.zip
 pip3 install minimalmodbus
@@ -987,13 +1015,27 @@ EOF
     ## Allow non-root users to run ping.
     echo 'net.ipv4.ping_group_range = 0 2147483647' >"${ROOTFS_BASE}/etc/sysctl.d/99-ping.conf"
 
-    ## Enable colorized `ls' and alias h='history 50' for `root'
+    ## Enable colorized `ls' and alias h='history 50'.
     sed -i -e '/export LS/s/^#* *//' \
         -e '/eval.*dircolors/s/^#* *//' \
         -e '/alias ls/s/^#* *//' \
         -e '/alias l=/a alias h="history 50"' \
         "${ROOTFS_BASE}/root/.bashrc"
 
+    cat >>"${ROOTFS_BASE}/root/.bashrc" <<'EOF'
+export ASDF_DATA_DIR=${HOME}/.asdf
+export PATH=${ASDF_DATA_DIR}/shims:${PATH}
+EOF
+    sed -i -e '/export LS/s/^#* *//' \
+        -e '/eval.*dircolors/s/^#* *//' \
+        -e '/alias ls/s/^#* *//' \
+        -e '/alias l=/a alias h="history 50"' \
+        "${ROOTFS_BASE}/home/revo/.bashrc"
+
+    cat >>"${ROOTFS_BASE}/home/revo/.bashrc" <<'EOF'
+export ASDF_DATA_DIR=${HOME}/.asdf
+export PATH=${ASDF_DATA_DIR}/shims:${PATH}
+EOF
     ## Installing kernel modules to rootfs is redundant. This is
     ## already done by cmd_make_kmodules.
 
@@ -1123,6 +1165,9 @@ deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 # deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
 # deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
 EOF
+
+    # Bullseye no longer provides backports - 2025-10-17
+    sed -i.old -e '/bullseye-backports/d' "${ROOTFS_BASE}/etc/apt/sources.list"
 
     pr_info "rootfs: Allow Debian to run systemctl"
 
