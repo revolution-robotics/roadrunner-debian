@@ -17,6 +17,8 @@
 : ${READLINK_CMD:='/bin/readlink'}
 : ${RM_CMD:='/bin/rm'}
 : ${SUDO_CMD:='/usr/bin/sudo'}
+: ${TR_CMD:='/usr/bin/tr'}
+: ${UNAME_CMD:='/bin/uname'}
 
  : ${LOCK:=''}
 
@@ -59,6 +61,22 @@ EOF
 
     export ASDF_DATA_DIR=${HOME}/.asdf
     export PATH=${ASDF_DATA_DIR}/shims:${PATH}:${HOME}/bin
+}
+
+get-arch ()
+{
+    local machine=''
+
+    machine=$($UNAME_CMD -m) || return $?
+
+    case "$machine" in
+    x86_64)
+        echo amd64
+        ;;
+    *)
+        echo "$machine"
+        ;;
+    esac
 }
 
 golang-locally-installed ()
@@ -120,7 +138,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
         declare os=$($UNAME_CMD | $TR_CMD A-Z a-z)
         declare arch=$(get-arch)
 
-        install-asdf "$os" "$arch" /usr/bin || exit $?
+        ${script_dir}/install-asdf "$os" "$arch" /usr/bin || exit $?
     fi
 
     declare have_golang=''
