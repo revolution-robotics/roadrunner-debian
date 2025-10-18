@@ -27,8 +27,6 @@
 : ${MAKE_CMD:='/usr/bin/gmake'}
 : ${MKTEMP_CMD:='/bin/mktemp'}
 : ${READLINK_CMD:='/bin/readlink'}
-: ${REALPATH_CMD:='/bin/realpath'}
-: ${REALPATH_CMD:='/bin/realpath'}
 : ${RM_CMD:='/bin/rm'}
 : ${SED_CMD:='/bin/sed'}
 : ${SORT_CMD:='/usr/bin/sort'}
@@ -45,7 +43,7 @@ resolve-existing ()
 {
     case $($READLINK_CMD --version 2>&1) in
         *coreutils*)
-            $REALPATH_CMD -e "$@"
+            $READLINK_CMD -e "$@"
             ;;
         *)
             $READLINK_CMD -f "$@"
