@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 #
-: ${CURL_CMD:=/usr/bin/curl}
-: ${GIT_CMD:=/usr/bin/git}
-: ${HEAD_CMD:=/usr/bin/head}
-: ${MKDIR_CMD:=/bin/mkdir}
-: ${SED_CMD:=/bin/sed}
-: ${TAR_CMD:=/usr/bin/tar}
-: ${TR_CMD:=/usr/bin/tr}
-: ${UNAME_CMD:=/bin/uname}
+: ${CURL_CMD:='/usr/bin/curl'}
+: ${GIT_CMD:='/usr/bin/git'}
+: ${HEAD_CMD:='/usr/bin/head'}
+: ${MKDIR_CMD:='/bin/mkdir'}
+: ${SED_CMD:='/bin/sed'}
+: ${SUDO_CMD:='/usr/bin/sudo'}
+: ${TAR_CMD:='/bin/tar'}
+: ${TR_CMD:='/usr/bin/tr'}
+: ${UNAME_CMD:='/bin/uname'}
 
 get-latest-tag ()
 {
@@ -53,6 +54,13 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
 
     declare release_url=${asdf_url}/releases/download/${latest_version}/asdf-${latest_version}-${os}-${arch}.tar.gz
 
-    $MKDIR_CMD -p ~/bin || exit $?
-    $CURL_CMD -sSL "$release_url" | $TAR_CMD -C "$destdir" -zxf - || exit $?
+    if test ! -d "$destdir"; then
+        if test -w "${destdir%/*}"; then
+            $MKDIR_CMD -p "$destdir" || exit $?
+        else
+            $SUDO $MKDIR_CMD -p "$destdir" || exit $?
+        fi
+    fi
+
+    $CURL_CMD -sSL "$release_url" | $SUDO_CMD $TAR_CMD -C "$destdir" -zxf - || exit $?
 fi
