@@ -142,6 +142,7 @@ make_debian_recoveryfs ()
 
     pr_info "recoveryfs: Generate default configs"
 
+    install -d -m 0750 "${RECOVERYFS_BASE}/etc/sudoers.d"
     # echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > ${RECOVERYFS_BASE}/etc/sudoers.d/user
     # chmod 0440 ${RECOVERYFS_BASE}/etc/sudoers.d/user
     echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > "${RECOVERYFS_BASE}/etc/sudoers.d/revo"
