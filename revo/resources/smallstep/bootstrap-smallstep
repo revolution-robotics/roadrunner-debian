@@ -151,7 +151,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
 
     ${script_dir}/install-smallstep || exit $?
 
-    if ! $have_golang; then
-        remove-golang || exit $?
-    fi
+    # if ! $have_golang; then
+    #     remove-golang || exit $?
+    # fi
 fi
