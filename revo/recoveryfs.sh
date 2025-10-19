@@ -1106,6 +1106,7 @@ EOF
 
 ## Install reverse-tunnel-server
 bootstrap-reverse-tunnel-server "$NODE_USER" "$NODE_BASE"
+install-reverse-tunnel-server "$NODE_USER"
 
 ## Remove non-default locales.
 DEBIAN_FRONTEND=noninteractive apt -y install localepurge
