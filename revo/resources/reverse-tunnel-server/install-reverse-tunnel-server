@@ -148,7 +148,7 @@ install-server-infrastructure ()
     trap - 0 1 2 15 RETURN
 }
 
-install-reverse-tunnel-server ()
+deploy-reverse-tunnel-server ()
 {
     local version=''
     local latest=''
@@ -212,5 +212,5 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
 
     export PATH=${HOME}/.asdf/shims:${PATH}
 
-    install-reverse-tunnel-server || exit $?
+    deploy-reverse-tunnel-server
 fi

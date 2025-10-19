@@ -108,8 +108,6 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     initialize-asdf-env || exit $?
 
     if ! nodejs-locally-installed; then
-        install-nodejs "$node_base" || exit $?
+        install-nodejs "$node_base"
     fi
-
-    $SUDO_CMD ${script_dir}/install-reverse-tunnel-server || exit $?
 fi
