@@ -2,7 +2,7 @@
 #
 # @(#) dpkg-security-updates
 #
-# Copyright © 2021, Revolution Robotics, Inc.
+# Copyright © 2025, Revolution Robotics, Inc.
 #
 # This script is a front end for the Debian security utility `debsecan'.
 #
@@ -44,6 +44,10 @@ get-version-codename ()
             9*) echo 'stretch' ;;
             10*) echo 'buster' ;;
             11*) echo 'bullseye' ;;
+            12*) echo 'bookworm' ;;
+            13*) echo 'trixie' ;;
+            14*) echo 'forky' ;;
+            15*) echo 'duke' ;;
             *)
                 echo "${script_name}: $debian_version: Unknown version" >&2
                 return 1
