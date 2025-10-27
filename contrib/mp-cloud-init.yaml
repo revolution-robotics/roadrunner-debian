@@ -23,9 +23,9 @@ runcmd:
   - apt install -y cpp-arm-linux-gnueabihf
   - apt install -y gcc-arm-linux-gnueabihf
   - apt install -y g++-arm-linux-gnueabihf
-  - curl -L https://ftp-master.debian.org/keys/release-10.asc | gpg --import --no-default-keyring --keyring /usr/share/keyrings/debian-buster-release.gpg
+  - curl -L https://ftp-master.debian.org/keys/release-10.asc | gpg --import --no-default-keyring --keyring /usr/share/keyrings/debian-trixie-release.gpg
   - cd /home/ubuntu
-  - sudo -u ubuntu git clone https://github.com/revolution-robotics/roadrunner-debian.git -b debian_buster_rr01 roadrunner_debian
+  - sudo -u ubuntu git clone https://github.com/revolution-robotics/roadrunner-debian.git -b debian_trixie_rr01 roadrunner_debian
   - cd ./roadrunner_debian
   - sudo -u ubuntu MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -c deploy >deploy.log 2>&1
   - MACHINE=revo-roadrunner-mx7 ./revo_make_debian.sh -j 2 -c all >all.log 2>&1

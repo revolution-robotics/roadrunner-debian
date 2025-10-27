@@ -24,7 +24,7 @@ So to build and package the Smallstep PKI for Roadrunner, an Arm VM
 comes in handy.
 
 The script
-[chrootfs.sh](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_buster_rr01/contrib/chrootfs.sh)
+[chrootfs.sh](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_trixie_rr01/contrib/chrootfs.sh)
 is intended from the run the top-level *roadrunner_debian* build
 directory
 (see
@@ -44,7 +44,7 @@ run while chroot'ed to a REVO Roadrunner _rootfs_.
 
 ## flash-diskimage.sh
 The script
-[flash-diskimage.sh](https://github.com/revolution-robotics/roadrunner-debian/tree/debian_buster_rr01/contrib#flash-diskimagesh)
+[flash-diskimage.sh](https://github.com/revolution-robotics/roadrunner-debian/tree/debian_trixie_rr01/contrib#flash-diskimagesh)
 writes disk images to removable media and verifies the media against
 the original image. It does essentially the same job
 as [balenaEtcher](https://www.balena.io/etcher/), just faster, more
@@ -84,11 +84,11 @@ manager, [multipass](https://multipass.run/), as necessary. The build
 is done inside a Ubuntu virtual machine and the build products appear
 by default in the host machine directory _${HOME}/output_. This
 and other defaults can be updated by editing the top-level variables
-of the build script [mp-build-diskimage.sh](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_buster_rr01/contrib/mp-build-diskimage.sh). To
+of the build script [mp-build-diskimage.sh](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_trixie_rr01/contrib/mp-build-diskimage.sh). To
 initiate a build on either Linux or MacOS, open the Terminal and run:
 
 ```
-export TTY=$(tty); curl -L https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_buster_rr01/contrib/mp-build-diskimage.sh | bash -s
+export TTY=$(tty); curl -L https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_trixie_rr01/contrib/mp-build-diskimage.sh | bash -s
 ```
 
 To uninstall `multipass`:
@@ -108,7 +108,7 @@ sudo pkgutil --forget com.canonical.multipass.multipassd
 ## mp-cloud-init.yaml
 The [multipass](https://multipass.run/) command
 accepts [cloud-init](https://cloud-init.io/) configuration files, and
-[mp-cloud-init.yaml](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_buster_rr01/contrib/mp-cloud-inityaml),
+[mp-cloud-init.yaml](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_trixie_rr01/contrib/mp-cloud-inityaml),
 like [mp-build-diskimage.sh](#mp-build-diskimagesh),
 builds the Roadrunner disk images. If `multipass` is already
 installed, it can be invoked with _mp-cloud-init.yaml_ in the Terminal, e.g., as:

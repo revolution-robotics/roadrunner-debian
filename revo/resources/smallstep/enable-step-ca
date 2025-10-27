@@ -19,7 +19,7 @@ declare ipfuncs=/usr/lib/NetworkManager/ip-funcs
 
 if test ! -f "$ipfuncs"; then
     sudo curl -Lo "$ipfuncs" \
-         "https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_buster_rr01/revo/resources/NetworkManager/${ipfuncs}"
+         "https://raw.githubusercontent.com/revolution-robotics/roadrunner-debian/debian_trixie_rr01/revo/resources/NetworkManager/${ipfuncs}"
 fi
 
 source "$ipfuncs"

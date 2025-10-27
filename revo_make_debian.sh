@@ -32,8 +32,8 @@ declare -r ZIP_SUFFIX=zst
 
 # default mirror
 declare -r DEF_DEBIAN_MIRROR=http://deb.debian.org/debian/
-# declare -r DEB_RELEASE=buster
-declare -r DEB_RELEASE=bullseye
+# declare -r DEB_RELEASE=trixie
+declare -r DEB_RELEASE=trixie
 declare -r DEF_ROOTFS_TARBALL_NAME=rootfs.tar.${ZIP_SUFFIX}
 declare -r DEF_RECOVERYFS_TARBALL_NAME=recoveryfs.tar.${ZIP_SUFFIX}
 declare -r DEF_USBFS_TARBALL_NAME=usbfs.tar.zst

@@ -12,7 +12,7 @@ equivalent to the original *recoveryfs*.
 
 For an example of a script derived from these steps,
 see
-[alt-recoveryfs.sh](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_buster_rr01/revo/alt-recoveryfs.sh).
+[alt-recoveryfs.sh](https://github.com/revolution-robotics/roadrunner-debian/blob/debian_trixie_rr01/revo/alt-recoveryfs.sh).
 Provided the lists of packages are up to date, this script may be used
 to expedite building *recoveryfs*. To enable this, in top-level build script,
 *revo_make_debian.sh*, set varialble USE_ALT_RECOVERYFS to `true`.

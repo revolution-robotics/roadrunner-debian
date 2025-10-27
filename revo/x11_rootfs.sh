@@ -112,7 +112,7 @@ make_debian_x11_rootfs ()
 
     trap 'umount-fs "$ROOTFS_BASE"; exit 1' 0 1 2 15
 
-    debootstrap --verbose  --foreign --arch armhf \
+    debootstrap --verbose  --foreign --arch=armhf \
                 --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
                 "${DEB_RELEASE}" "${ROOTFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
 
@@ -183,20 +183,31 @@ make_debian_x11_rootfs ()
     # done
     ## END -- REVO i.MX7D security
 
-    ## add mirror to source list
-    cat >"${ROOTFS_BASE}/etc/apt/sources.list" <<EOF
-deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
-deb ${PARAM_DEB_LOCAL_MIRROR%/}-security/ ${DEB_RELEASE}-security main contrib non-free
-deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
-deb ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
-# deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE} main contrib non-free
-# deb-src ${PARAM_DEB_LOCAL_MIRROR%/}-security/ ${DEB_RELEASE}-security main contrib non-free
-# deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
-# deb-src ${PARAM_DEB_LOCAL_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
-EOF
+    ## Add APT deb822 debian.sources to default Debian mirror.
+    cat >"${ROOTFS_BASE}/etc/apt/sources.list.d/debian.sources" <<EOF
+# Remove deb-src if source packages aren't needed
+Types: deb
+URIs: http://deb.debian.org/debian
+# Remove unnecessary suites if appropriate:
+# - trixie and trixie-updates must always be included, they ship the Debian 13 packages and updates
+# - trixie-proposed-updates gives early access to packages intended for the next point-release (other than security fixes)
+# - trixie-backports provides backported packages from the next Debian release
+Suites: trixie trixie-updates trixie-backports
+# Components:
+# - main must always be included, it provides the DFSG-free distribution
+# - contrib provides DFSG-free packages requiring content outside of Debian main
+# - non-free-firmware provides non-DFSG-free firmware required for some hardware
+# - non-free provides non-DFSG-free software (redistributable, but with licensing constraints)
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 
-    # Bullseye no longer provides backports - 2025-10-17
-    sed -i.old -e '/bullseye-backports/d' "${ROOTFS_BASE}/etc/apt/sources.list"
+# Security updates
+Types: deb
+URIs: http://security.debian.org/debian-security
+Suites: trixie-security
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+EOF
 
     ## raise backports priority
 #     cat >"${ROOTFS_BASE}/etc/apt/preferences.d/backports" <<EOF
@@ -392,7 +403,7 @@ fi
 # install -d -m 0755 /var/lib/lightdm/data
 
 ## Add ALSA & ALSA utilites.
-protected_install alsa-utils
+# protected_install alsa-utils
 protected_install gstreamer1.0-alsa
 
 protected_install gstreamer1.0-plugins-bad
@@ -478,11 +489,11 @@ rm -f /etc/network/interfaces
 
 apt -y autoremove
 
-apt -y install --reinstall libgdk-pixbuf2.0-0
+# apt -y install --reinstall libgdk-pixbuf2.0-0
 
 ## Register GdkPixbuf loaders
-/usr/lib/arm-linux-gnueabihf/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders \\
-    --update-cache
+# /usr/lib/arm-linux-gnueabihf/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders \\
+#     --update-cache
 
 ## Create users and set password...
 echo "root:root" | chpasswd
@@ -1156,20 +1167,34 @@ EOF
     rm -rf "${ROOTFS_BASE}/usr/share/doc/"*
     rm -rf "${ROOTFS_BASE}/var/lib/apt/lists/"*
 
-    ## Restore APT source list to default Debian mirror.
-    cat >"${ROOTFS_BASE}/etc/apt/sources.list" <<EOF
-deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
-deb ${DEF_DEBIAN_MIRROR%/}-security/ ${DEB_RELEASE}-security main contrib non-free
-deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
-deb ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
-# deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE} main contrib non-free
-# deb-src ${DEF_DEBIAN_MIRROR%/}-security/ ${DEB_RELEASE}-security main contrib non-free
-# deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-updates main contrib non-free
-# deb-src ${DEF_DEBIAN_MIRROR} ${DEB_RELEASE}-backports main contrib non-free
+    ## Restore APT deb822 debian.sources to default Debian mirror.
+    cat >"${ROOTFS_BASE}/etc/apt/sources.list.d/debian.sources" <<EOF
+# Remove deb-src if source packages aren't needed
+Types: deb
+URIs: http://deb.debian.org/debian
+# Remove unnecessary suites if appropriate:
+# - trixie and trixie-updates must always be included, they ship the Debian 13 packages and updates
+# - trixie-proposed-updates gives early access to packages intended for the next point-release (other than security fixes)
+# - trixie-backports provides backported packages from the next Debian release
+Suites: trixie trixie-updates trixie-backports
+# Components:
+# - main must always be included, it provides the DFSG-free distribution
+# - contrib provides DFSG-free packages requiring content outside of Debian main
+# - non-free-firmware provides non-DFSG-free firmware required for some hardware
+# - non-free provides non-DFSG-free software (redistributable, but with licensing constraints)
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+# Security updates
+Types: deb
+URIs: http://security.debian.org/debian-security
+Suites: trixie-security
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 EOF
 
-    # Bullseye no longer provides backports - 2025-10-17
-    sed -i.old -e '/bullseye-backports/d' "${ROOTFS_BASE}/etc/apt/sources.list"
+    # Remove any sources.list.
+    rm -rf "${ROOTFS_BASE}/etc/apt/sources.list"
 
     pr_info "rootfs: Allow Debian to run systemctl"
 
