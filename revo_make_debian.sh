@@ -460,14 +460,14 @@ make_uboot ()
          $G_CROSS_COMPILER_JOPTION "$G_UBOOT_DEF_CONFIG_MMC"
 
     # make U-Boot
-    make -C "$1" \
+    make ARCH="$ARCH_ARGS" -C "$1" \
          CROSS_COMPILE="${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
          $G_CROSS_COMPILER_JOPTION
 
     # make fw_printenv
-    make envtools -C "$1" \
+    make ARCH="$ARCH_ARGS" -C "$1" \
          CROSS_COMPILE="${G_CROSS_COMPILER_PATH}/${G_CROSS_COMPILER_PREFIX}" \
-         $G_CROSS_COMPILER_JOPTION
+         $G_CROSS_COMPILER_JOPTION envtools
 
     cp "${1}/tools/env/fw_printenv" "$2"
 
