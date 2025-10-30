@@ -363,7 +363,7 @@ make_tarball ()
 # $2 -- Linux defconfig file
 # $3 -- Linux dtb files
 # $4 -- Linux dirname
-# $5 -- out path
+# $5 -- output dir
 make_kernel ()
 {
     pr_info "make kernel .config"
@@ -373,11 +373,11 @@ make_kernel ()
     if test ."$UIMAGE_LOADADDR" != .''; then
         IMAGE_EXTRA_ARGS=LOADADDR=$UIMAGE_LOADADDR
     fi
-    make CROSS_COMPILE="$1" ARCH="$ARCH_ARGS" $G_CROSS_COMPILER_JOPTION \
+    make ARCH="$ARCH_ARGS" CROSS_COMPILE="$1" $G_CROSS_COMPILER_JOPTION \
          $IMAGE_EXTRA_ARGS -C "$4" "$BUILD_IMAGE_TYPE"
 
     pr_info "make $3"
-    make CROSS_COMPILE="$1" ARCH="$ARCH_ARGS" $G_CROSS_COMPILER_JOPTION -C "$4" $3
+    make ARCH="$ARCH_ARGS" CROSS_COMPILE="$1" $G_CROSS_COMPILER_JOPTION -C "$4" $3
 
     pr_info "Copy kernel and dtb files to output dir: $5"
     cp "${4}/${KERNEL_BOOT_IMAGE_SRC}/${BUILD_IMAGE_TYPE}" "$5"
@@ -396,7 +396,7 @@ make_devicetree ()
     pr_info "make kernel .config"
     make ARCH="$ARCH_ARGS" CROSS_COMPILE="$1" $G_CROSS_COMPILER_JOPTION -C "$4" "$2"
     pr_info "make $3"
-    make CROSS_COMPILE="$1" ARCH="$ARCH_ARGS" $G_CROSS_COMPILER_JOPTION -C "$4" $3
+    make ARCH="$ARCH_ARGS" CROSS_COMPILE="$1" $G_CROSS_COMPILER_JOPTION -C "$4" $3
     cp "${4}/${KERNEL_DTB_IMAGE_PATH}"*.dtb "$5"
 }
 
