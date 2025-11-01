@@ -72,8 +72,11 @@ make_debian_recoveryfs ()
     {
         local fs_base=$1
 
-        umount -f "${fs_base}"/{sys,proc,dev/pts} 2>/dev/null || true
-        umount -f "${fs_base}/dev" 2>/dev/null || true
+        for fs in /proc /sys /dev/pts /dev; do
+            if findmnt "${fs_base}${fs}" >/dev/null; then
+                umount -f "${fs_base}${fs}" 2>/dev/null
+            fi
+        done
     }
 
     mount-fs ()
@@ -84,12 +87,12 @@ make_debian_recoveryfs ()
         install -d -m 0555 -o root -g root "${fs_base}"/{dev,proc,sys}
         install -d -m 0755 -o root -g root "${fs_base}/dev/pts"
 
-        if ! findmnt ${fs_base}/proc >/dev/null; then
-            mount -t proc /proc ${fs_base}/proc
+        if ! findmnt "${fs_base}/proc" >/dev/null; then
+            mount -t proc /proc "${fs_base}/proc"
         fi
 
         for fs in /sys /dev /dev/pts; do
-            if ! findmnt "${fs_base}/${fs}" >/dev/null; then
+            if ! findmnt "${fs_base}${fs}" >/dev/null; then
                 mount -o bind "$fs" "${fs_base}${fs}"
             fi
         done
@@ -107,15 +110,16 @@ make_debian_recoveryfs ()
 
     mount-fs "$RECOVERYFS_BASE"
 
-    trap 'umount-fs "$RECOVERYFS_BASE"; exit 1' 0 1 2 15
+    trap 'umount-fs "$RECOVERYFS_BASE"; exit 1' 0 1 2 15 RETURN
 
     debootstrap --variant=minbase --verbose  --foreign --arch=armhf \
                 --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
-                "${DEB_RELEASE}" "${RECOVERYFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
+                "${DEB_RELEASE}" "${RECOVERYFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}" \
+        || return $?
 
     umount-fs "$RECOVERYFS_BASE"
 
-    trap - 0 1 2 15
+    trap - 0 1 2 15 RETURN
 
     ## Install /etc/passwd, et al.
     install -m 0644 "${G_VENDOR_PATH}/resources/etc"/{passwd,group} \
@@ -127,15 +131,14 @@ make_debian_recoveryfs ()
     install -m 0755 "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" \
             "${RECOVERYFS_BASE}/usr/bin"
 
-    trap 'umount-fs "$RECOVERYFS_BASE"; exit' 0 1 2 15
-
     if test ! -f "${RECOVERYFS_BASE}/debootstrap/mirror"; then
         echo "${PARAM_DEB_LOCAL_MIRROR}" > "${RECOVERYFS_BASE}/debootstrap/mirror"
     fi
 
     pr_info "recoveryfs: Second stage debootstrap"
+
     $CHROOTFS "$RECOVERYFS_BASE" /debootstrap/debootstrap --verbose \
-              --second-stage
+              --second-stage || return $?
 
     ## Delete unused folder.
     $CHROOTFS "$RECOVERYFS_BASE" rm -rf  "${RECOVERYFS_BASE}/debootstrap"
@@ -170,6 +173,7 @@ make_debian_recoveryfs ()
     install -d -m 0755 "${RECOVERYFS_BASE}/var/lib/usbmux"
 
     ## BEGIN -- REVO i.MX7D security
+
     # pr_info "recoveryfs: Install security infrastructure"
 
     # for pkg in firewalld iptables libcurl libedit libnftnl nftables; do
@@ -180,28 +184,29 @@ make_debian_recoveryfs ()
 
     ## Add APT deb822 debian.sources with default Debian mirror.
     cat >"${RECOVERYFS_BASE}/etc/apt/sources.list.d/debian.sources" <<EOF
-# Remove deb-src if source packages aren't needed
+# Add `deb-src' after `deb' to make available package sources.
 Types: deb
-URIs: http://deb.debian.org/debian
-# Remove unnecessary suites if appropriate:
-# - trixie and trixie-updates must always be included, they ship the Debian 13 packages and updates
-# - trixie-proposed-updates gives early access to packages intended for the next point-release (other than security fixes)
-# - trixie-backports provides backported packages from the next Debian release
+URIs: http://ftp.debian.org/debian
+# Suites
+# - `trixie' should always be included for Debian 13 packages.
+# - `trixie-updates' should always be included for Debian 13 package updates.
+# - `trixie-proposed-updates' provides packages intended for the next point release (other than security fixes).
+# - `trixie-backports' provides packages backported from the next Debian release.
 Suites: trixie trixie-updates trixie-backports
-# Components:
-# - main must always be included, it provides the DFSG-free distribution
-# - contrib provides DFSG-free packages requiring content outside of Debian main
-# - non-free-firmware provides non-DFSG-free firmware required for some hardware
-# - non-free provides non-DFSG-free software (redistributable, but with licensing constraints)
+# Components
+# - `main' should always be included for the "Debian Free Software Guidelines" (DFSG) distribution.
+# - `contrib' provides additional DFSG packages.
+# - `non-free' provides non-DFSG packages, i.e., with licensing constraints.
+# - `non-free-firmware' provides non-DFSG firmware (e.g., for Wifi/Bluetooth chips).
 Components: main contrib non-free non-free-firmware
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+Signed-By: /usr/share/keyrings/debian-archive-trixie-automatic.gpg
 
 # Security updates
 Types: deb
 URIs: http://security.debian.org/debian-security
 Suites: trixie-security
-Components: main contrib non-free non-free-firmware
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+Components: main contrib non-free-firmware non-free
+Signed-By: /usr/share/keyrings/debian-archive-trixie-security-automatic.gpg
 EOF
 
     ## raise backports priority
@@ -245,9 +250,10 @@ EOF
 # " > etc/network/interfaces
 
     cat >"${RECOVERYFS_BASE}/debconf.set" <<EOF
+dash dash/sh boolean true
+keyboard-configuration keyboard-configuration/variant select 'English (US)'
 locales locales/locales_to_be_generated multiselect $LOCALES
 locales locales/default_environment_locale select ${LOCALES%% *}
-keyboard-configuration keyboard-configuration/variant select 'English (US)'
 openssh-server openssh-server/permit-root-login select true
 tzdata tzdata/Areas select Etc
 tzdata tzdata/Zones/Etc select UTC
@@ -257,18 +263,18 @@ EOF
 
     ## Run apt install without invoking daemons.
     cat >"${RECOVERYFS_BASE}/usr/sbin/policy-rc.d" <<EOF
-#!/bin/bash
+#!/bin/sh
 exit 101
 EOF
 
-    trap 'rm -f "${RECOVERYFS_BASE}/usr/sbin/policy-rc.d"; exit 1' 0 1 2 15
+    trap 'rm -f "${RECOVERYFS_BASE}/usr/sbin/policy-rc.d"; exit 1' 0 1 2 15 RETURN
 
     chmod +x "${RECOVERYFS_BASE}/usr/sbin/policy-rc.d"
 
     ## third packages stage
     cat >"${RECOVERYFS_BASE}/third-stage" <<EOF
 #!/bin/bash
-# apply debconfig options
+## apply debconfig options
 echo 'LANG=${LOCALES%% *}' >/etc/default/locale
 dpkg-reconfigure --frontend=noninteractive locales
 debconf-set-selections /debconf.set
@@ -293,7 +299,7 @@ protected_install ()
         echo "###########################"
         echo ""
 
-        sleep 2
+        sleep 30
         apt -y --fix-broken install || true
     done
 
@@ -301,7 +307,7 @@ protected_install ()
 }
 
 # BEGIN -- REVO i.MX7D: additions
-# silence some apt warnings
+## silence some apt warnings
 protected_install dialog
 
 ## Replace mawk with gawk.
@@ -321,13 +327,9 @@ protected_install local-apt-repository
 apt update
 apt -y full-upgrade
 
-## Downgrade libcurl3-gnutls from 7.74.0-1.2~bpo10+1 to 7.64.0-4+deb10u2.
-# apt install libcurl3-gnutls=7.64.0-4+deb10u2 <<<'y'
+protected_install fdisk
 
-## Freeze libcurl3-gnutls version.
-# dpkg --set-selections <<<'libcurl3-gnutls hold'
-
-protected_install libcurl4
+protected_install libcurl4t64
 
 protected_install locales
 
@@ -394,7 +396,7 @@ fi
 # install -d -m 0755 /usr/lib/at-spi2-core/
 # ln -sf /usr/libexec/at-spi-bus-launcher /usr/lib/at-spi2-core/
 
-# Create missing data directory.
+## Create missing data directory.
 # install -d -m 0755 /var/lib/lightdm/data
 
 ## Add ALSA & ALSA utilites.
@@ -427,14 +429,19 @@ protected_install usbutils
 
 ## Add bluetooth support.
 protected_install bluetooth
+protected_install bluez
 # protected_install bluez-obexd
 # protected_install bluez-tools
 
-# sed -i -e '/^ExecStart/s/\$/ --noplugin=sap/' \\
-#      /lib/systemd/system/bluetooth.service
-
-# protected_install blueman
-# protected_install gconf2
+install -d -m 0755 /etc/systemd/system/bluetooth.service.d/
+ed -s /etc/systemd/system/bluetooth.service.d/override.conf <<'EOT'
+a
+[Service]
+ExecStart=
+ExecStart=/usr/libexec/bluetooth/bluetoothd --nodetach --configfile=/etc/bluetooth/main.conf --noplugin=sap
+.
+wq
+EOT
 
 ## shared-mime-info
 # protected_install shared-mime-info
@@ -461,7 +468,7 @@ echo '#!/usr/sbin/nft -f' >/etc/nftables.conf
 
 protected_install firewalld
 
-# Switch firewalld backend to nftables.
+## Switch firewalld backend to nftables - the default in Debian trixie.
 sed -i -e '/^\(FirewallBackend=\).*\$/s//\1nftables/' \\
     /etc/firewalld/firewalld.conf
 
@@ -495,7 +502,8 @@ apt -y autoremove
 # /usr/lib/arm-linux-gnueabihf/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders \\
 #     --update-cache
 
-## Create users and set password
+## FIXME: Don't use hard-coded passwords!
+## Create users and set password...
 echo "root:root" | chpasswd
 
 # useradd -m -G audio,video -s /bin/bash user
@@ -503,48 +511,20 @@ echo "root:root" | chpasswd
 # echo "user:user" | chpasswd
 # passwd -d x_user
 
-EOF
+## BEGIN -- REVO i.MX7D users
 
-    if getent passwd revo >/dev/null; then
-        cat >>"${RECOVERYFS_BASE}/third-stage" <<EOF
-# BEGIN -- REVO i.MX7D users
-
-groupadd -g $(id -g revo) revo
-useradd -m -u $(id -u revo) -g $(id -g revo) -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
-EOF
-    else
-        cat >>"${RECOVERYFS_BASE}/third-stage" <<EOF
-# BEGIN -- REVO i.MX7D users
-
-useradd -m -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
-EOF
-    fi
-
-    if getent passwd step >/dev/null; then
-        cat >>"${RECOVERYFS_BASE}/third-stage" <<EOF
-groupadd -g $(id -g step) step
-useradd -rm -u $(id -u step) -g $(id -g step) -s /bin/bash -c "Smallstep PKI" step
+useradd -mU -G audio,bluetooth,lp,video -s /bin/bash -c "REVO Roadrunner" revo
+useradd -rmU  -s /bin/bash -c "Smallstep PKI" step
 
 # END -- REVO i.MX7D users
 
 rm -f /third-stage
 EOF
-    else
-        cat >>"${RECOVERYFS_BASE}/third-stage" <<EOF
-useradd -rm  -s /bin/bash -c "Smallstep PKI" step
-
-# END -- REVO i.MX7D users
-
-rm -f /third-stage
-EOF
-    fi
 
     pr_info "recoveryfs: Begin post-bootstrap package installation"
-    chmod +x ${RECOVERYFS_BASE}/third-stage
-    $CHROOTFS ${RECOVERYFS_BASE} /third-stage
 
-    echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > ${RECOVERYFS_BASE}/etc/sudoers.d/revo
-    chmod 0440 "${RECOVERYFS_BASE}/etc/sudoers.d/revo"
+    chmod +x "${RECOVERYFS_BASE}/third-stage"
+    LANG=C $CHROOTFS "${RECOVERYFS_BASE}" /third-stage || return $?
 
     ## Begin packages stage ##
     pr_info "recoveryfs: Install updates and local packages"
@@ -588,8 +568,8 @@ EOF
 
     ## Support resizing a serial console - taken from Debian xterm package.
     if test ! -f "${RECOVERYFS_BASE}/usr/bin/resize"; then
-        install -m 0755 ${G_VENDOR_PATH}/${MACHINE}/resize \
-                ${RECOVERYFS_BASE}/usr/bin
+        install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/resize" \
+                "${RECOVERYFS_BASE}/usr/bin"
     fi
 
     ## Set PATH and resize serial console window.
@@ -636,8 +616,6 @@ EOF
             "${RECOVERYFS_BASE}/usr/bin"
 
     ## Mount /tmp, /var/tmp and /var/log on tmpfs.
-    install -m 0644 "${RECOVERYFS_BASE}/usr/share/systemd/tmp.mount" \
-            "${RECOVERYFS_BASE}/lib/systemd/system"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/var-"{log,tmp}.mount \
             "${RECOVERYFS_BASE}/lib/systemd/system"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/var-log.conf" \
@@ -645,7 +623,7 @@ EOF
 
     ## Install REVO U-Boot boot script.
     install -d -m 0755 "${RECOVERYFS_BASE}/usr/share/boot"
-    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/u-boot/boot.sh" \
+    install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/u-boot/"{Makefile,boot.sh} \
                 "${RECOVERYFS_BASE}/usr/share/boot"
 
     ## Install support for /boot/cmdline.txt
@@ -718,15 +696,11 @@ EOF
     ln -sf '/lib/systemd/system/rngd.service' \
        "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
-    ## Add Exim4 service
+    ## Add masked Exim4 service
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/exim4.service" \
             "${RECOVERYFS_BASE}/lib/systemd/system"
-
-    # ln -sf '/lib/systemd/system/exim4.service' \
-    #    "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
-
-    ## Disable Exim4 service
-    rm -f "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/exim4.service"
+    ln -sf /dev/null \
+       "${RECOVERYFS_BASE}/etc/systemd/system/exim4.service"
 
     ## Update systemd dbus socket
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/dbus.socket" \
@@ -743,7 +717,7 @@ EOF
     install -d -m 0755 "${RECOVERYFS_BASE}/var/www/html"
 
     # Add golang to PATH.
-    if test -f ${HOME}/.asdf; then
+    if [[ ! ."$PATH" =~ ^\..*\.asdf/shims ]]; then
         export PATH=${HOME}/.asdf/shims:${PATH}:${HOME}/bin
     fi
 
@@ -817,20 +791,17 @@ EOF
             "${RECOVERYFS_BASE}/etc/bluetooth/"
 
     ## Install obexd configuration
-    install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obexd.conf" \
-            "${RECOVERYFS_BASE}/etc/dbus-1/system.d"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obexd.conf" \
+    #         "${RECOVERYFS_BASE}/etc/dbus-1/system.d"
 
-    install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obex.service" \
-            "${RECOVERYFS_BASE}/lib/systemd/system"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obex.service" \
+    #         "${RECOVERYFS_BASE}/lib/systemd/system"
     # ln -sf /lib/systemd/system/obex.service \
     #    "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service"
 
-    ## Disable obex service
-    rm -f "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/obex.service"
-
     ## Install pulse audio configuration
-    install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service" \
-            "${RECOVERYFS_BASE}/lib/systemd/system"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service" \
+    #         "${RECOVERYFS_BASE}/lib/systemd/system"
 
     # Mask pulseaudio and rtkit-daemon services - per
     # https://www.kernel.org/doc/Documentation/cgroup-v2.txt:
@@ -844,16 +815,16 @@ EOF
 
     # ln -sf "/lib/systemd/system/pulseaudio.service" \
     #    "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants"
-    rm -f "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service"
-    rm -f "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/rtkit-daemon.service"
-    rm -f "${RECOVERYFS_BASE}/lib/systemd/system/sound.target.wants"/*
-    ln -s /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/rtkit-daemon.service"
-    ln -s /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/pulseaudio.service"
+    # rm -f "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service"
+    # rm -f "${RECOVERYFS_BASE}/etc/systemd/system/multi-user.target.wants/rtkit-daemon.service"
+    # rm -f "${RECOVERYFS_BASE}/lib/systemd/system/sound.target.wants"/*
+    # ln -s /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/rtkit-daemon.service"
+    # ln -s /dev/null "${RECOVERYFS_BASE}/etc/systemd/system/pulseaudio.service"
 
-    install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf" \
-            "${RECOVERYFS_BASE}/etc/dbus-1/system.d"
-    install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/system.pa" \
-            "${RECOVERYFS_BASE}/etc/pulse/"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf" \
+    #         "${RECOVERYFS_BASE}/etc/dbus-1/system.d"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/system.pa" \
+    #         "${RECOVERYFS_BASE}/etc/pulse/"
 
     ## Add alsa default configs
     # install -m 0644 "${G_VENDOR_PATH}/resources/asound.state" \
@@ -911,6 +882,7 @@ EOF
 
         cat >"${RECOVERYFS_BASE}/user-stage" <<EOF
 #!/bin/bash
+
 protected_install ()
 {
     local packages=\$1
@@ -950,7 +922,6 @@ for (( offset = 0; offset < total_packages; offset += increment )); do
     protected_install "\${g_minimal_packages[*]:offset:increment}"
 done
 
-
 pip3 install https://github.com/zeromq/pyre/archive/master.zip
 pip3 install minimalmodbus
 pip3 install pystemd
@@ -965,11 +936,14 @@ rm -f /user-stage
 EOF
 
         chmod +x "${RECOVERYFS_BASE}/user-stage"
-        LANG=C $CHROOTFS "$RECOVERYFS_BASE" /user-stage
+        LANG=C $CHROOTFS "$RECOVERYFS_BASE" /user-stage || return $?
     fi
 
     ## recoveryfs startup patches
     pr_info "recoveryfs: Adjust start-up scripts and configuration"
+
+    ## Allow root login via cockpit.
+    # sed -i -e '/^root/d' "${ROOTFS_BASE}/etc/cockpit/disallowed-users"
 
     ## Mount systemd journal on tmpfs, /run/log/journal.
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
@@ -1130,13 +1104,15 @@ apt -y purge 'linux-image*' initramfs-tools{,-core} \\
     dmeventd dmraid dracut dracut-core lvm2 mdadm \\
     thin-provisioning-tools
 
-apt -y purge build-essential g++-10 gcc-10 libx11-6 manpages{,-dev}
+apt -y autoremove --purge
+
+apt -y purge build-essential gcc g++ libx11-6 manpages{,-dev}
 apt -y autoremove --purge
 
 # apt -y install apparmor-profiles-extra
 apt -y install apparmor{,-utils,-profiles}
 
-# Set apparamor profiles to complain mode by default.
+## Set apparamor profiles to complain mode by default.
 find /etc/apparmor.d -maxdepth 1 -type f -exec aa-complain {} \\; 2>/dev/null
 
 apt clean
@@ -1146,7 +1122,7 @@ EOF
     pr_info "recoveryfs: Install reverse-tunnel server"
 
     chmod +x "${RECOVERYFS_BASE}/post-packages"
-    $CHROOTFS "$RECOVERYFS_BASE" /post-packages
+    LANG=C $CHROOTFS "$RECOVERYFS_BASE" /post-packages
     ## END -- REVO i.MX7D post-packages stage
 
     ## BEGIN -- REVO i.MX7D cleanup
@@ -1159,28 +1135,29 @@ EOF
 
     ## Restore APT deb822 debian.sources to default Debian mirror.
     cat >"${RECOVERYFS_BASE}/etc/apt/sources.list.d/debian.sources" <<EOF
-# Remove deb-src if source packages aren't needed
+# Add `deb-src' after `deb' to make available package sources.
 Types: deb
-URIs: http://deb.debian.org/debian
-# Remove unnecessary suites if appropriate:
-# - trixie and trixie-updates must always be included, they ship the Debian 13 packages and updates
-# - trixie-proposed-updates gives early access to packages intended for the next point-release (other than security fixes)
-# - trixie-backports provides backported packages from the next Debian release
+URIs: http://ftp.debian.org/debian
+# Suites
+# - `trixie' should always be included for Debian 13 packages.
+# - `trixie-updates' should always be included for Debian 13 package updates.
+# - `trixie-proposed-updates' provides packages intended for the next point release (other than security fixes).
+# - `trixie-backports' provides packages backported from the next Debian release.
 Suites: trixie trixie-updates trixie-backports
-# Components:
-# - main must always be included, it provides the DFSG-free distribution
-# - contrib provides DFSG-free packages requiring content outside of Debian main
-# - non-free-firmware provides non-DFSG-free firmware required for some hardware
-# - non-free provides non-DFSG-free software (redistributable, but with licensing constraints)
+# Components
+# - `main' should always be included for the "Debian Free Software Guidelines" (DFSG) distribution.
+# - `contrib' provides additional DFSG packages.
+# - `non-free' provides non-DFSG packages, i.e., with licensing constraints.
+# - `non-free-firmware' provides non-DFSG firmware (e.g., for Wifi/Bluetooth chips).
 Components: main contrib non-free non-free-firmware
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+Signed-By: /usr/share/keyrings/debian-archive-trixie-automatic.gpg
 
 # Security updates
 Types: deb
 URIs: http://security.debian.org/debian-security
 Suites: trixie-security
-Components: main contrib non-free non-free-firmware
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+Components: main contrib non-free-firmware non-free
+Signed-By: /usr/share/keyrings/debian-archive-trixie-security-automatic.gpg
 EOF
 
     # Remove any sources.list.
@@ -1190,7 +1167,7 @@ EOF
 
     rm -f "${RECOVERYFS_BASE}/usr/sbin/policy-rc.d"
 
-    trap - 0 1 2 15
+    trap - 0 1 2 15 RETURN
 
     ## Limit kernel messages to the console.
     sed -i -e '/^#* *kernel.printk/s/^#* *//' "${RECOVERYFS_BASE}/etc/sysctl.conf"
@@ -1407,7 +1384,7 @@ make_recovery_image ()
     # Get total card size in blocks
     local total_size=$(blockdev --getsz "$LPARAM_BLOCK_DEVICE")
     local total_size_bytes=$(( total_size * 512 ))
-    local total_size_gib=$(perl -e "printf '%.1f', $total_size_bytes / 1024 ** 3")
+    local total_size_gib=$(perl -e "printf '%.1f', $total_size_bytes / 1024 ** 3" 2>/dev/null)
 
     # Convert to MB
     total_size=$(( total_size / 2048 ))
@@ -1460,8 +1437,8 @@ EOF
     sync
 
     # Mount the partitions
-    mkdir -p "$P1_MOUNT_DIR"
-    mkdir -p "$P2_MOUNT_DIR"
+    install -d -m 0755 "$P1_MOUNT_DIR"
+    install -d -m 0755 "$P2_MOUNT_DIR"
     sync
 
     mount -t vfat "${LPARAM_BLOCK_DEVICE}${part}1"  "$P1_MOUNT_DIR" >/dev/null 2>&1 || return 1

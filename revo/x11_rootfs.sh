@@ -110,16 +110,16 @@ make_debian_x11_rootfs ()
 
     mount-fs "$ROOTFS_BASE"
 
-    trap 'umount-fs "$ROOTFS_BASE"; exit 1' 0 1 2 15
+    trap 'umount-fs "$ROOTFS_BASE"; exit 1' 0 1 2 15 RETURN
 
     debootstrap --verbose  --foreign --arch=armhf \
                 --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
-                "${DEB_RELEASE}" "${ROOTFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"
-
+                "${DEB_RELEASE}" "${ROOTFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}" \
+        || return $?
 
     umount-fs "$ROOTFS_BASE"
 
-    trap - 0 1 2 15
+    trap - 0 1 2 15 RETURN
 
     ## Install /etc/passwd, et al.
     install -m 0644 "${G_VENDOR_PATH}/resources/etc"/{passwd,group} \
@@ -129,8 +129,7 @@ make_debian_x11_rootfs ()
 
     ## Prepare qemu.
     install -m 0755 "${G_VENDOR_PATH}/qemu_32bit/qemu-arm-static" \
-            "${ROOTFS_BASE}/usr/bin/qemu-arm-static"
-
+            "${ROOTFS_BASE}/usr/bin"
 
     if test ! -f "${ROOTFS_BASE}/debootstrap/mirror"; then
         echo "${PARAM_DEB_LOCAL_MIRROR}" > "${ROOTFS_BASE}/debootstrap/mirror"
@@ -139,7 +138,7 @@ make_debian_x11_rootfs ()
     pr_info "rootfs: Second stage debootstrap"
 
     $CHROOTFS "$ROOTFS_BASE" /debootstrap/debootstrap --verbose \
-              --second-stage
+              --second-stage || return $?
 
     ## Delete unused folder.
     $CHROOTFS "$ROOTFS_BASE" rm -rf  "${ROOTFS_BASE}/debootstrap"
@@ -184,29 +183,30 @@ make_debian_x11_rootfs ()
     ## END -- REVO i.MX7D security
 
     ## Add APT deb822 debian.sources to default Debian mirror.
-    cat >"${ROOTFS_BASE}/etc/apt/sources.list.d/debian.sources" <<EOF
-# Remove deb-src if source packages aren't needed
+    cat >"${ROOTFS_BASE}/etc/apt/sources.list.d/debian.sources" <<'EOF'
+# Add `deb-src' after `deb' to make available package sources.
 Types: deb
-URIs: http://deb.debian.org/debian
-# Remove unnecessary suites if appropriate:
-# - trixie and trixie-updates must always be included, they ship the Debian 13 packages and updates
-# - trixie-proposed-updates gives early access to packages intended for the next point-release (other than security fixes)
-# - trixie-backports provides backported packages from the next Debian release
+URIs: http://ftp.debian.org/debian
+# Suites
+# - `trixie' should always be included for Debian 13 packages.
+# - `trixie-updates' should always be included for Debian 13 package updates.
+# - `trixie-proposed-updates' provides packages intended for the next point release (other than security fixes).
+# - `trixie-backports' provides packages backported from the next Debian release.
 Suites: trixie trixie-updates trixie-backports
-# Components:
-# - main must always be included, it provides the DFSG-free distribution
-# - contrib provides DFSG-free packages requiring content outside of Debian main
-# - non-free-firmware provides non-DFSG-free firmware required for some hardware
-# - non-free provides non-DFSG-free software (redistributable, but with licensing constraints)
+# Components
+# - `main' should always be included for the "Debian Free Software Guidelines" (DFSG) distribution.
+# - `contrib' provides additional DFSG packages.
+# - `non-free' provides non-DFSG packages, i.e., with licensing constraints.
+# - `non-free-firmware' provides non-DFSG firmware (e.g., for Wifi/Bluetooth chips).
 Components: main contrib non-free non-free-firmware
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+Signed-By: /usr/share/keyrings/debian-archive-trixie-automatic.gpg
 
 # Security updates
 Types: deb
 URIs: http://security.debian.org/debian-security
 Suites: trixie-security
-Components: main contrib non-free non-free-firmware
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+Components: main contrib non-free-firmware non-free
+Signed-By: /usr/share/keyrings/debian-archive-trixie-security-automatic.gpg
 EOF
 
     ## raise backports priority
@@ -232,7 +232,7 @@ EOF
     ## hostname needs to be resolvable, e.g., for `sudo'.
     hostname >"${ROOTFS_BASE}/etc/hostname"
 
-
+    ## "127.0.1.1 $hostname"  added when hostname generated on boot
     cat >"${ROOTFS_BASE}/etc/hosts" <<EOF
 127.0.0.1	localhost
 127.0.1.1       $(hostname)
@@ -255,8 +255,8 @@ keyboard-configuration keyboard-configuration/variant select 'English (US)'
 locales locales/locales_to_be_generated multiselect $LOCALES
 locales locales/default_environment_locale select ${LOCALES%% *}
 openssh-server openssh-server/permit-root-login select true
-tzdata tzdata/Zones/Etc select UTC
 tzdata tzdata/Areas select Etc
+tzdata tzdata/Zones/Etc select UTC
 EOF
 
     pr_info "rootfs: Prevent Debian from running systemctl"
@@ -267,7 +267,7 @@ EOF
 exit 101
 EOF
 
-    trap 'rm -f "${ROOTFS_BASE}/usr/sbin/policy-rc.d"; exit 1' 0 1 2 15
+    trap 'rm -f "${ROOTFS_BASE}/usr/sbin/policy-rc.d"; exit 1' 0 1 2 15 RETURN
 
     chmod +x "${ROOTFS_BASE}/usr/sbin/policy-rc.d"
 
@@ -323,16 +323,13 @@ protected_install local-apt-repository
 # protected_install reprepro
 # reprepro rereference
 
+## Update packages and install base.
 apt update
 apt -y full-upgrade
 
-## Downgrade libcurl3-gnutls from 7.74.0-1.2~bpo10+1 to 7.64.0-4+deb10u2.
-# apt install libcurl3-gnutls=7.64.0-4+deb10u2 <<<'y'
+protected_install fdisk
 
-## Freeze libcurl3-gnutls version.
-# dpkg --set-selections <<<'libcurl3-gnutls hold'
-
-protected_install libcurl4
+protected_install libcurl4t64
 
 protected_install locales
 
@@ -415,6 +412,9 @@ protected_install gstreamer1.0-tools
 ## Add gstreamer-imx.
 # protected_install gstreamer-imx
 
+## Add libatomic1, pulled in gstreamer, but needed by Node.js.
+# protected_install libatomic1
+
 ## Add i2c tools.
 protected_install i2c-tools
 
@@ -429,14 +429,20 @@ protected_install mtd-utils
 
 ## Add bluetooth support.
 protected_install bluetooth
+protected_install bluez
 protected_install bluez-tools
 protected_install bluez-obexd
+protected_install rfkill
 
-sed -i -e '/^ExecStart/s/\$/ --noplugin=sap/' \\
-    /lib/systemd/system/bluetooth.service
-
-protected_install blueman
-protected_install gconf2
+install -d -m 0755 /etc/systemd/system/bluetooth.service.d/
+ed -s /etc/systemd/system/bluetooth.service.d/override.conf <<'EOT'
+a
+[Service]
+ExecStart=
+ExecStart=/usr/libexec/bluetooth/bluetoothd --nodetach --configfile=/etc/bluetooth/main.conf --noplugin=sap
+.
+wq
+EOT
 
 ## shared-mime-info
 # protected_install shared-mime-info
@@ -463,13 +469,15 @@ echo '#!/usr/sbin/nft -f' >/etc/nftables.conf
 
 protected_install firewalld
 
-## Switch firewalld backend to nftables.
+## Switch firewalld backend to nftables - the default in Debian trixie.
 sed -i -e '/^\(FirewallBackend=\).*\$/s//\1nftables/' \\
     /etc/firewalld/firewalld.conf
 
-## ifupdown is superceded by Network Manager...
+## ifupdown is superceded by NetworkManager...
 apt -y purge ifupdown
 rm -f /etc/network/interfaces
+
+# printf "\n\n" | DEBIAN_FRONTEND=noninteractive apt -y install network-manager
 
 ## iptables is superceded by nftables, but NetworkManager still depends
 ## on compatibility interface, iptables-nft, provided by iptables.
@@ -495,6 +503,7 @@ apt -y autoremove
 # /usr/lib/arm-linux-gnueabihf/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders \\
 #     --update-cache
 
+## FIXME: Don't use hard-coded passwords!
 ## Create users and set password...
 echo "root:root" | chpasswd
 
@@ -503,46 +512,20 @@ echo "root:root" | chpasswd
 # echo "user:user" | chpasswd
 # passwd -d x_user
 
-EOF
+## BEGIN -- REVO i.MX7D users
 
-    if getent passwd revo >/dev/null; then
-        cat >>"${ROOTFS_BASE}/third-stage" <<EOF
-# BEGIN -- REVO i.MX7D users
-
-groupadd -g $(id -g revo) revo
-useradd -m -u $(id -u revo) -g $(id -g revo) -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
-EOF
-    else
-        cat >>"${ROOTFS_BASE}/third-stage" <<EOF
-# BEGIN -- REVO i.MX7D users
-
-useradd -m -G audio,bluetooth,lp,pulse,pulse-access,video -s /bin/bash -c "REVO Roadrunner" revo
-EOF
-    fi
-
-    if getent passwd step >/dev/null; then
-        cat >>"${ROOTFS_BASE}/third-stage" <<EOF
-groupadd -g $(id -g step) step
-useradd -rm -u $(id -u step) -g $(id -g step) -s /bin/bash -c "Smallstep PKI" step
+useradd -mU -G audio,bluetooth,lp,video -s /bin/bash -c "REVO Roadrunner" revo
+useradd -rmU  -s /bin/bash -c "Smallstep PKI" step
 
 # END -- REVO i.MX7D users
 
 rm -f /third-stage
 EOF
-    else
-        cat >>"${ROOTFS_BASE}/third-stage" <<EOF
-useradd -rm  -s /bin/bash -c "Smallstep PKI" step
-
-# END -- REVO i.MX7D users
-
-rm -f /third-stage
-EOF
-    fi
-
 
     pr_info "rootfs: Begin post-bootstrap package installation"
+
     chmod +x "${ROOTFS_BASE}/third-stage"
-    $CHROOTFS "$ROOTFS_BASE" /third-stage
+    LANG=C $CHROOTFS "$ROOTFS_BASE" /third-stage || return $?
 
     ## Begin packages stage ##
     pr_info "rootfs: Install updates and local packages"
@@ -634,8 +617,6 @@ EOF
             "${ROOTFS_BASE}/usr/bin"
 
     ## Mount /tmp, /var/tmp and /var/log on tmpfs.
-    install -m 0644 "${ROOTFS_BASE}/usr/share/systemd/tmp.mount" \
-            "${ROOTFS_BASE}/lib/systemd/system"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/var-"{log,tmp}.mount \
             "${ROOTFS_BASE}/lib/systemd/system"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/var-log.conf" \
@@ -676,6 +657,7 @@ EOF
     install -d -m 0755 "${ROOTFS_BASE}/lib/systemd/system/system-update.target.wants"
     ln -sf '../flash-emmc.service' \
        "${ROOTFS_BASE}/lib/systemd/system/system-update.target.wants"
+
 
     ## Install REVO eMMC-recovery monitor service
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/recover-emmc-monitor" \
@@ -741,6 +723,11 @@ EOF
     ## Create /var/www/html. TODO: Add index.html.
     install -d -m 0755 "${ROOTFS_BASE}/var/www/html"
 
+    # Add golang to PATH.
+    if [[ ! ."$PATH" =~ ^\..*\.asdf/shims ]]; then
+        export PATH=${HOME}/.asdf/shims:${PATH}:${HOME}/bin
+    fi
+
     ## Build and install REVO web dispatch.
     make -C "${G_REVO_WEB_DISPATCH_SRC_DIR}" clean all
     install -m 0755 "${G_REVO_WEB_DISPATCH_SRC_DIR}/revo-web-dispatch" \
@@ -801,7 +788,7 @@ EOF
             "${ROOTFS_BASE}/etc/bluetooth"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/revo-bluetooth.service" \
             "${ROOTFS_BASE}/lib/systemd/system"
-    ln -sf '/lib/systemd/system/revo-bluetooth.service' \
+    ln -sf /lib/systemd/system/revo-bluetooth.service \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     ## Install BT audio and main config
@@ -811,17 +798,17 @@ EOF
             "${ROOTFS_BASE}/etc/bluetooth/"
 
     ## Install obexd configuration
-    install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obexd.conf" \
-            "${ROOTFS_BASE}/etc/dbus-1/system.d"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obexd.conf" \
+    #         "${ROOTFS_BASE}/etc/dbus-1/system.d"
 
-    install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obex.service" \
-            "${ROOTFS_BASE}/lib/systemd/system"
-    ln -sf '/lib/systemd/system/obex.service' \
-       "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obex.service" \
+    #         "${ROOTFS_BASE}/lib/systemd/system"
+    # ln -sf '/lib/systemd/system/obex.service' \
+    #    "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     ## Install pulse audio configuration
-    install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service" \
-            "${ROOTFS_BASE}/lib/systemd/system"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio.service" \
+    #         "${ROOTFS_BASE}/lib/systemd/system"
 
     # Mask pulseaudio and rtkit-daemon services - per
     # https://www.kernel.org/doc/Documentation/cgroup-v2.txt:
@@ -835,22 +822,22 @@ EOF
 
     # ln -sf "/lib/systemd/system/pulseaudio.service" \
     #    "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
-    rm -f "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service"
-    rm -f "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/rtkit-daemon.service"
-    rm -f "${ROOTFS_BASE}/lib/systemd/system/sound.target.wants"/*
-    ln -s /dev/null "${ROOTFS_BASE}/etc/systemd/system/rtkit-daemon.service"
-    ln -s /dev/null "${ROOTFS_BASE}/etc/systemd/system/pulseaudio.service"
+    # rm -f "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/pulseaudio.service"
+    # rm -f "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants/rtkit-daemon.service"
+    # rm -f "${ROOTFS_BASE}/lib/systemd/system/sound.target.wants"/*
+    # ln -s /dev/null "${ROOTFS_BASE}/etc/systemd/system/rtkit-daemon.service"
+    # ln -s /dev/null "${ROOTFS_BASE}/etc/systemd/system/pulseaudio.service"
 
-    install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf" \
-            "${ROOTFS_BASE}/etc/dbus-1/system.d"
-    install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/system.pa" \
-            "${ROOTFS_BASE}/etc/pulse/"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/pulseaudio-bluetooth.conf" \
+    #         "${ROOTFS_BASE}/etc/dbus-1/system.d"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/pulseaudio/system.pa" \
+    #         "${ROOTFS_BASE}/etc/pulse/"
 
     ## Add alsa default configs
-    install -m 0644 "${G_VENDOR_PATH}/resources/asound.state" \
-            "${ROOTFS_BASE}/var/lib/alsa/"
-    install -m 0644 "${G_VENDOR_PATH}/resources/asound.conf" \
-            "${ROOTFS_BASE}/etc/"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/asound.state" \
+    #         "${ROOTFS_BASE}/var/lib/alsa/"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/asound.conf" \
+    #         "${ROOTFS_BASE}/etc/"
 
     ## Install WiFi service
     install -d "${ROOTFS_BASE}/etc/wifi"
@@ -956,22 +943,22 @@ rm -f /user-stage
 EOF
 
         chmod +x "${ROOTFS_BASE}/user-stage"
-        $CHROOTFS "$ROOTFS_BASE" /user-stage
+        LANG=C $CHROOTFS "$ROOTFS_BASE" /user-stage || return $?
     fi
 
     ## rootfs startup patches
     pr_info "rootfs: Adjust start-up scripts and configuration"
 
-
     ## Allow root login via cockpit.
-    sed -i -e '/^root/d' "${ROOTFS_BASE}/etc/cockpit/disallowed-users"
+    # sed -i -e '/^root/d' "${ROOTFS_BASE}/etc/cockpit/disallowed-users"
 
     ## Mount systemd journal on tmpfs, /run/log/journal.
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
             "${ROOTFS_BASE}/etc/systemd"
 
-    install -d "${ROOTFS_BASE}/boot/"
+    install -d -m 0755 "${ROOTFS_BASE}/boot/"
     install -m 0644 "${G_VENDOR_PATH}/splash.bmp" "${ROOTFS_BASE}/boot/"
+    install -d -m 0755 "${RECOVERYFS_BASE}/usr/share/images/desktop-base"
     install -m 0644 "${G_VENDOR_PATH}/wallpaper.png" \
             "${ROOTFS_BASE}/usr/share/images/desktop-base/default"
 
@@ -982,7 +969,9 @@ EOF
     #         "${ROOTFS_BASE}/etc/xdg/autostart/"
 
     ## Redirect all system mail user `revo'.
-    sed -i -e "\$a root: revo" "${ROOTFS_BASE}/etc/aliases"
+    if test -f "${ROOTFS_BASE}/etc/aliases"; then
+        sed -i "\$a root: revo" "${ROOTFS_BASE}/etc/aliases"
+    fi
 
     ## Remove /etc/init.d/rng-tools (started by rngd.service)
     rm -f "${ROOTFS_BASE}/etc/init.d/rng-tools"
@@ -1002,14 +991,14 @@ EOF
     ## Enable sysstat data collection
     sed -i -e 's;^\(ENABLED=\).*;\1"true";' "${ROOTFS_BASE}/etc/default/sysstat"
 
-    if test -d "${ROOTFS_BASE}/usr/lib/pcp/bin"; then
+    # if test -d "${ROOTFS_BASE}/usr/lib/pcp/bin"; then
 
-        ## Keep 12 hours of pmlogger logs.
-        install -m 0755 "${G_VENDOR_PATH}/resources/pmlogger_rotate" \
-                "${ROOTFS_BASE}/usr/lib/pcp/bin"
-        printf "30 */6\t* * *\troot\t/usr/lib/pcp/bin/pmlogger_rotate\n" \
-               >>"${ROOTFS_BASE}/etc/crontab"
-    fi
+    #     ## Keep 12 hours of pmlogger logs.
+    #     install -m 0755 "${G_VENDOR_PATH}/resources/pmlogger_rotate" \
+    #             "${ROOTFS_BASE}/usr/lib/pcp/bin"
+    #     printf "30 */6\t* * *\troot\t/usr/lib/pcp/bin/pmlogger_rotate\n" \
+    #            >>"${ROOTFS_BASE}/etc/crontab"
+    # fi
 
     ## Mask e2scrub_{all,reap} services.
     ln -sf /dev/null "${ROOTFS_BASE}/etc/systemd/system/e2scrub_all.timer"
@@ -1082,12 +1071,12 @@ EOF
     #         "${ROOTFS_BASE}/usr/bin"
     # ln -sf 'fw_printenv' "${ROOTFS_BASE}/usr/bin/fw_printenv-nand"
 
-    if test -f "${ROOTFS_BASE}/etc/pcp/pmlogger/control.d/local"; then
+    # if test -f "${ROOTFS_BASE}/etc/pcp/pmlogger/control.d/local"; then
 
-        ## Restrict pmlogger volume size
-        sed -i -e 's/[0-9]\{1,\}Mb/20Mb/' \
-            "${ROOTFS_BASE}/etc/pcp/pmlogger/control.d/local"
-    fi
+    #     ## Restrict pmlogger volume size
+    #     sed -i -e 's/[0-9]\{1,\}Mb/20Mb/' \
+    #         "${ROOTFS_BASE}/etc/pcp/pmlogger/control.d/local"
+    # fi
 
     ## BEGIN -- REVO i.MX7D post-packages stage
     pr_info "rootfs: Begin late package installation"
@@ -1104,10 +1093,10 @@ EOF
             "${ROOTFS_BASE}/usr/bin/install-reverse-tunnel-server"
 
     ## Install cppzmq headers
-    curl -L -o "${ROOTFS_BASE}/usr/include/zmq.hpp" \
-         https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp
-    curl -L -o "${ROOTFS_BASE}/usr/include/zmq_addon.hpp" \
-         https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq_addon.hpp
+    # curl -L -o "${ROOTFS_BASE}/usr/include/zmq.hpp" \
+    #      https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp
+    # curl -L -o "${ROOTFS_BASE}/usr/include/zmq_addon.hpp" \
+    #      https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq_addon.hpp
 
     ## post-packages command
     cat >"${ROOTFS_BASE}/post-packages" <<EOF
@@ -1130,24 +1119,25 @@ apt -y purge 'linux-image*' initramfs-tools{,-core} \\
 
 apt -y autoremove --purge
 
+
+
+
 # apt -y install apparmor-profiles-extra
 apt -y install apparmor{,-utils,-profiles}
 
 ## Set apparamor profiles to complain mode by default.
 find /etc/apparmor.d -maxdepth 1 -type f -exec aa-complain {} \\; 2>/dev/null
 
-# Fix library symlinks to facilitate cross compilation.
-# XXX: Expression used below is for Debian. Not sure what (ARM) path,
-#      e.g., Fedora would use - /usr/lib32 and /usr/lib64?
-multiarch_libdir=\$(
-    gcc --print-search-dirs |
-        sed -nE -e '/^libraries/s;.*(/usr/lib/[^/]+/):.*;\1;p'
-)
-eval \$(
-    ls -l "\$multiarch_libdir" |
-        sed -nE -e "/-> \/lib/s^.* ([^ ]{1,}) -> .*/(.*)^ln -sf \2 \${multiarch_libdir}\1;^p" \\
-                -e "/-> \/usr\/lib/s^.* ([^ ]{1,}) -> .*/(.*)^ln -sf \2 \${multiarch_libdir}\1;^p"
-)
+## Fix library symlinks to facilitate cross compilation.
+# multiarch_libdir=\$(
+#     gcc --print-search-dirs |
+#         sed -nE -e '/^libraries/s;.*(/usr/lib/[^/]+/):.*;\1;p'
+# )
+# eval \$(
+#     ls -l "\$multiarch_libdir" |
+#         sed -nE -e "/-> \/lib/s^.* ([^ ]{1,}) -> .*/(.*)^ln -sf \2 \${multiarch_libdir}\1;^p" \\
+#                 -e "/-> \/usr\/lib/s^.* ([^ ]{1,}) -> .*/(.*)^ln -sf \2 \${multiarch_libdir}\1;^p"
+# )
 
 apt clean
 
@@ -1156,7 +1146,7 @@ EOF
     pr_info "rootfs: Install reverse-tunnel server"
 
     chmod +x ${ROOTFS_BASE}/post-packages
-    $CHROOTFS "${ROOTFS_BASE}" /post-packages
+    LANG=C $CHROOTFS "${ROOTFS_BASE}" /post-packages || return $?
     ## END -- REVO i.MX7D post-packages stage
 
     ## BEGIN -- REVO i.MX7D cleanup
@@ -1169,28 +1159,29 @@ EOF
 
     ## Restore APT deb822 debian.sources to default Debian mirror.
     cat >"${ROOTFS_BASE}/etc/apt/sources.list.d/debian.sources" <<EOF
-# Remove deb-src if source packages aren't needed
+# Add `deb-src' after `deb' to make available package sources.
 Types: deb
-URIs: http://deb.debian.org/debian
-# Remove unnecessary suites if appropriate:
-# - trixie and trixie-updates must always be included, they ship the Debian 13 packages and updates
-# - trixie-proposed-updates gives early access to packages intended for the next point-release (other than security fixes)
-# - trixie-backports provides backported packages from the next Debian release
+URIs: http://ftp.debian.org/debian
+# Suites
+# - `trixie' should always be included for Debian 13 packages.
+# - `trixie-updates' should always be included for Debian 13 package updates.
+# - `trixie-proposed-updates' provides packages intended for the next point release (other than security fixes).
+# - `trixie-backports' provides packages backported from the next Debian release.
 Suites: trixie trixie-updates trixie-backports
-# Components:
-# - main must always be included, it provides the DFSG-free distribution
-# - contrib provides DFSG-free packages requiring content outside of Debian main
-# - non-free-firmware provides non-DFSG-free firmware required for some hardware
-# - non-free provides non-DFSG-free software (redistributable, but with licensing constraints)
+# Components
+# - `main' should always be included for the "Debian Free Software Guidelines" (DFSG) distribution.
+# - `contrib' provides additional DFSG packages.
+# - `non-free' provides non-DFSG packages, i.e., with licensing constraints.
+# - `non-free-firmware' provides non-DFSG firmware (e.g., for Wifi/Bluetooth chips).
 Components: main contrib non-free non-free-firmware
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+Signed-By: /usr/share/keyrings/debian-archive-trixie-automatic.gpg
 
 # Security updates
 Types: deb
 URIs: http://security.debian.org/debian-security
 Suites: trixie-security
-Components: main contrib non-free non-free-firmware
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+Components: main contrib non-free-firmware non-free
+Signed-By: /usr/share/keyrings/debian-archive-trixie-security-automatic.gpg
 EOF
 
     # Remove any sources.list.
@@ -1200,7 +1191,7 @@ EOF
 
     rm -f "${ROOTFS_BASE}/usr/sbin/policy-rc.d"
 
-    trap - 0 1 2 15
+    trap - 0 1 2 15 RETURN
 
     ## Limit kernel messages to the console.
     sed -i -e '/^#* *kernel.printk/s/^#* *//' "${ROOTFS_BASE}/etc/sysctl.conf"
@@ -1423,7 +1414,7 @@ make_x11_image ()
     # Get total card size in blocks
     local total_size=$(blockdev --getsz "$LPARAM_BLOCK_DEVICE")
     local total_size_bytes=$(( total_size * 512 ))
-    local total_size_gib=$(perl -e "printf '%.1f', $total_size_bytes / 1024 ** 3")
+    local total_size_gib=$(perl -e "printf '%.1f', $total_size_bytes / 1024 ** 3" 2>/dev/null)
 
     # Convert to MB
     total_size=$(( total_size / 2048 ))

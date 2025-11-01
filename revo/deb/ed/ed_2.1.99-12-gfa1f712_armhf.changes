@@ -1,0 +1,52 @@
+Format: 1.8
+Date: Sat, 01 Nov 2025 12:09:46 +0000
+Source: ed
+Binary: ed ed-dbgsym
+Architecture: source armhf
+Version: 1:2.1.99-12-gfa1f712
+Distribution: unstable
+Urgency: medium
+Maintainer: Andrew L. Moore <slewsys@gmail.com>
+Description:
+ ed         - The standard Unix text editor.
+Changes:
+ ed (1:2.1.99-12-gfa1f712) unstable; urgency=medium
+ .
+   * Update ed.spec, debian/changelog and copyright.
+ .
+   * Conditionally adjust dot after filter. Add test.
+ .
+   * Test builds both with and without extensions.
+ .
+   * Declare ed->core->sp unconditionally.
+ .
+   * Update ed.spec and debian/changelog.
+ .
+   * Update Gnulib and lib/patch-Makefile.am.diff.
+ .
+   * Support building outside source directory.
+ .
+   * When building packages, update ed version.
+ .
+   * Update version to 2.1.99.
+Checksums-Sha1:
+ 4fa495d2c7d4a36559917842849087a3b48ac1c7 849 ed_2.1.99-12-gfa1f712.dsc
+ c15a30c332c7ad622a7878a3e3ba4d0db4362d59 889738 ed_2.1.99-12.orig.tar.gz
+ 04c202d3784c3daeb36875cb327e9900a8f157cd 5016 ed_2.1.99-12-gfa1f712.debian.tar.xz
+ bd432d338b6c572f0693cdc80e88c5f1d3de4f62 113160 ed-dbgsym_2.1.99-12-gfa1f712_armhf.deb
+ ec64c121bd1190cbcb1e8f8e002d1b804fc61ee2 4894 ed_2.1.99-12-gfa1f712_armhf.buildinfo
+ 817b2e089aed6ab3518c2b9c09cb4c396e2988d5 193264 ed_2.1.99-12-gfa1f712_armhf.deb
+Checksums-Sha256:
+ 6076fdbb3c3df076a9793133e22c4b680c4b2ba15527a13a5f1c06996ccd6817 849 ed_2.1.99-12-gfa1f712.dsc
+ 4cc0e39ff8cd8ea5307553d8f56db6e70a087f29641c3093dd05ca4b9a0dbede 889738 ed_2.1.99-12.orig.tar.gz
+ c8aca625fe1ec29814dcd0dfc430fe3c1621d25e9479a1f6e5f3895d2872c278 5016 ed_2.1.99-12-gfa1f712.debian.tar.xz
+ 5decc93e75c2f5ac3998a6339887da59600eb87075ee860eda883c7602f93779 113160 ed-dbgsym_2.1.99-12-gfa1f712_armhf.deb
+ 99cf0ce616d0bc8d4657bd20ae7b374af0018f300b763db8fa779a0daa73281b 4894 ed_2.1.99-12-gfa1f712_armhf.buildinfo
+ 67bd78b0f906463f24facad658b43e19f2a917b4abf1f954109f01798cfe4ad0 193264 ed_2.1.99-12-gfa1f712_armhf.deb
+Files:
+ 428c33c259b18b7db814844fa4735461 849 editors standard ed_2.1.99-12-gfa1f712.dsc
+ 54cf9c2707b976a475f89ae33c085f94 889738 editors standard ed_2.1.99-12.orig.tar.gz
+ 1828ae953792522725d1377029350891 5016 editors standard ed_2.1.99-12-gfa1f712.debian.tar.xz
+ 5629001e7fb769379ba6d0c522217f4a 113160 debug optional ed-dbgsym_2.1.99-12-gfa1f712_armhf.deb
+ 1442c2880443e2dfdadabfacdfb7a978 4894 editors standard ed_2.1.99-12-gfa1f712_armhf.buildinfo
+ 5327838945a0a8119805de79b8be4906 193264 editors standard ed_2.1.99-12-gfa1f712_armhf.deb
