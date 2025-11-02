@@ -1158,7 +1158,7 @@ EOF
     rm -rf "${ROOTFS_BASE}/var/lib/apt/lists/"*
 
     ## Restore APT deb822 debian.sources to default Debian mirror.
-    cat >"${ROOTFS_BASE}/etc/apt/sources.list.d/debian.sources" <<EOF
+    cat >"${ROOTFS_BASE}/etc/apt/sources.list.d/debian.sources" <<'EOF'
 # Add `deb-src' after `deb' to make available package sources.
 Types: deb
 URIs: http://ftp.debian.org/debian

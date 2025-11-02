@@ -183,7 +183,7 @@ make_debian_recoveryfs ()
     ## END -- REVO i.MX7D security
 
     ## Add APT deb822 debian.sources with default Debian mirror.
-    cat >"${RECOVERYFS_BASE}/etc/apt/sources.list.d/debian.sources" <<EOF
+    cat >"${RECOVERYFS_BASE}/etc/apt/sources.list.d/debian.sources" <<'EOF'
 # Add `deb-src' after `deb' to make available package sources.
 Types: deb
 URIs: http://ftp.debian.org/debian
@@ -1134,7 +1134,7 @@ EOF
     rm -rf "${RECOVERYFS_BASE}/var/lib/apt/lists/"*
 
     ## Restore APT deb822 debian.sources to default Debian mirror.
-    cat >"${RECOVERYFS_BASE}/etc/apt/sources.list.d/debian.sources" <<EOF
+    cat >"${RECOVERYFS_BASE}/etc/apt/sources.list.d/debian.sources" <<'EOF'
 # Add `deb-src' after `deb' to make available package sources.
 Types: deb
 URIs: http://ftp.debian.org/debian
