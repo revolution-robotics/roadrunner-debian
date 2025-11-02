@@ -792,10 +792,10 @@ EOF
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
 
     ## Install BT audio and main config
-    install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/audio.conf" \
-            "${ROOTFS_BASE}/etc/bluetooth/"
-    install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/main.conf" \
-            "${ROOTFS_BASE}/etc/bluetooth/"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/audio.conf" \
+    #         "${ROOTFS_BASE}/etc/bluetooth/"
+    # install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/main.conf" \
+    #         "${ROOTFS_BASE}/etc/bluetooth/"
 
     ## Install obexd configuration
     # install -m 0644 "${G_VENDOR_PATH}/resources/bluez5/files/obexd.conf" \
