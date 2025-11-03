@@ -172,16 +172,6 @@ make_debian_recoveryfs ()
 
     install -d -m 0755 "${RECOVERYFS_BASE}/var/lib/usbmux"
 
-    ## BEGIN -- REVO i.MX7D security
-
-    # pr_info "recoveryfs: Install security infrastructure"
-
-    # for pkg in firewalld iptables libcurl libedit libnftnl nftables; do
-    #     install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
-    #        "${RECOVERYFS_BASE}/srv/local-apt-repository"
-    # done
-    ## END -- REVO i.MX7D security
-
     ## Add APT deb822 debian.sources with default Debian mirror.
     cat >"${RECOVERYFS_BASE}/etc/apt/sources.list.d/debian.sources" <<'EOF'
 # Add `deb-src' after `deb' to make available package sources.
@@ -585,7 +575,9 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/resources/etc/sysctl.d/99-memory" \
             "${RECOVERYFS_BASE}/etc/sysctl.d"
 
-    install -m 0644 "${G_VENDOR_PATH}/resources/etc/"{motd,rc.local,hostapd.conf} \
+    install -m 0755 "${G_VENDOR_PATH}/resources/etc/rc.local" \
+            "${RECOVERYFS_BASE}/etc/"
+    install -m 0644 "${G_VENDOR_PATH}/resources/etc/"{motd,hostapd.conf} \
             "${RECOVERYFS_BASE}/etc/"
 
     ## Build and install RS-485 mode configuration utility.
@@ -1073,11 +1065,6 @@ EOF
 
     ## BEGIN -- REVO i.MX7D post-packages stage
     pr_info "recoveryfs: Begin late package installation"
-
-    ## Run curl with system root certificates file.
-    # mv "${RECOVERYFS_BASE}/usr/bin/curl"{,.dist}
-    # install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
-    #         "${RECOVERYFS_BASE}/usr/bin/curl"
 
     ## Install nodejs/reverse-tunnel-server installation script.
     install -m 0755 "${G_VENDOR_PATH}/resources/reverse-tunnel-server/bootstrap-reverse-tunnel-server" \

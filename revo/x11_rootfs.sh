@@ -172,16 +172,6 @@ make_debian_x11_rootfs ()
 
     install -d -m 0755 "${ROOTFS_BASE}/var/lib/usbmux"
 
-    ## BEGIN -- REVO i.MX7D security
-
-    # pr_info "rootfs: Install security infrastructure"
-
-    # for pkg in firewalld iptables libcurl libedit libnftnl nftables; do
-    #     install -m 0644 "${G_VENDOR_PATH}/deb/${pkg}"/*.deb \
-    #        "${ROOTFS_BASE}/srv/local-apt-repository"
-    # done
-    ## END -- REVO i.MX7D security
-
     ## Add APT deb822 debian.sources to default Debian mirror.
     cat >"${ROOTFS_BASE}/etc/apt/sources.list.d/debian.sources" <<'EOF'
 # Add `deb-src' after `deb' to make available package sources.
@@ -586,7 +576,9 @@ EOF
     install -m 0644 "${G_VENDOR_PATH}/resources/etc/sysctl.d/99-memory" \
             "${ROOTFS_BASE}/etc/sysctl.d"
 
-    install -m 0644 "${G_VENDOR_PATH}/resources/etc/"{motd,rc.local,hostapd.conf} \
+    install -m 0755 "${G_VENDOR_PATH}/resources/etc/rc.local" \
+            "${ROOTFS_BASE}/etc/"
+    install -m 0644 "${G_VENDOR_PATH}/resources/etc/"{motd,hostapd.conf} \
             "${ROOTFS_BASE}/etc/"
 
     ## Build and install RS-485 mode configuration utility.
@@ -1080,11 +1072,6 @@ EOF
 
     ## BEGIN -- REVO i.MX7D post-packages stage
     pr_info "rootfs: Begin late package installation"
-
-    ## Run curl with system root certificates file.
-    # mv "${ROOTFS_BASE}/usr/bin/curl"{,.dist}
-    # install -m 755 "${G_VENDOR_PATH}/resources/curl/curl" \
-    #         "${ROOTFS_BASE}/usr/bin/curl"
 
     ## Install nodejs/reverse-tunnel-server installation script.
     install -m 0755 "${G_VENDOR_PATH}/resources/reverse-tunnel-server/bootstrap-reverse-tunnel-server" \
