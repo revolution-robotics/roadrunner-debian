@@ -1028,7 +1028,8 @@ cmd_make_diskimage ()
 
     local LOOP_DEVICE
     local IMAGE_FILE
-    local IMAGE_SIZE=$(( 7774208 * 512 )) # 3.7 GiB
+    # local IMAGE_SIZE=$((  7774208 * 512 )) # 3.7 GiB
+    local IMAGE_SIZE=$(( 15309210 * 512 )) # 7.3 GiB
     local ISO8601=$(date -u +'%Y%m%dT%H%M%SZ')
     local COMMIT_DIRTY=$(
         { git -C "$ABSOLUTE_DIRECTORY" diff --no-ext-diff --quiet &&
