@@ -1097,6 +1097,32 @@ EOF
     cat >"${RECOVERYFS_BASE}/post-packages" <<EOF
 #!/bin/bash
 
+protected_install ()
+{
+    local _name=\${1}
+    local repeated_cnt=5
+    local RET_CODE=1
+
+    for (( c=0; c < repeated_cnt; c++ )); do
+        DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \\
+                       apt -y install \${_name} && {
+            RET_CODE=0
+            break
+        }
+
+        echo ""
+        echo "###########################"
+        echo "## Fix missing packeges ###"
+        echo "###########################"
+        echo ""
+
+        sleep 30
+        apt -y --fix-broken install || true
+    done
+
+    return \${RET_CODE}
+}
+
 ## Install reverse-tunnel-server
 bootstrap-reverse-tunnel-server "$NODE_USER" "$NODE_BASE"
 install-reverse-tunnel-server "$NODE_USER"
@@ -1122,6 +1148,8 @@ apt -y install apparmor{,-utils,-profiles}
 
 ## Set apparamor profiles to complain mode by default.
 find /etc/apparmor.d -maxdepth 1 -type f -exec aa-complain {} \\; 2>/dev/null
+
+protected_install kmod
 
 apt clean
 
