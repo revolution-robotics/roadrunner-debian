@@ -417,21 +417,42 @@ protected_install usbutils
 ## Add flash file system utilities.
 # protected_install mtd-utils
 
-## Add bluetooth support.
-protected_install bluetooth
-protected_install bluez
-# protected_install bluez-obexd
+## Add bluetooth and ALSA integration.
+# protected_install alsa-utils
+# protected_install bluetooth
+# protected_install bluez
+# protected_install bluez-alsa-utils
 # protected_install bluez-tools
+# protected_install bluez-obexd
+# protected_install rfkill
 
-install -d -m 0755 /etc/systemd/system/bluetooth.service.d/
-ed -s /etc/systemd/system/bluetooth.service.d/override.conf <<'EOT'
-a
-[Service]
-ExecStart=
-ExecStart=/usr/libexec/bluetooth/bluetoothd --nodetach --configfile=/etc/bluetooth/main.conf --noplugin=sap
-.
-wq
-EOT
+# install -d -m 0755 /etc/systemd/system/bluetooth.service.d/
+# ed -s /etc/systemd/system/bluetooth.service.d/override.conf <<'EOT'
+# a
+# [Service]
+# ExecStart=
+# ExecStart=/usr/libexec/bluetooth/bluetoothd --nodetach --configfile=/etc/bluetooth/main.conf --noplugin=sap
+# .
+# wq
+# EOT
+
+# install -d -m 0755 /etc/systemd/system/bluealsa.service.d/
+# ed -s /etc/systemd/system/bluealsa.service.d/override.conf <<'EOT'
+# a
+# [Service]
+# ExecStart=
+# ExecStart=/usr/bin/bluealsa -S -p a2dp-source -p a2dp-sink -p hfp-ag -p hfp-hf -p hsp-ag -p hsp-hs --io-rt-priority=50
+#
+# AmbientCapabilities=CAP_SYS_NICE
+# CapabilityBoundingSet=CAP_SYS_NICE
+# RestrictRealtime=false
+# SystemCallFilter=@resources
+# .
+# wq
+# EOT
+
+## Disable to allow recording Bluetooth audio streams.
+# rm -f /etc/systemd/system/bluetooth.target.wants/bluealsa-aplay.service
 
 ## shared-mime-info
 # protected_install shared-mime-info
@@ -935,7 +956,7 @@ EOF
     pr_info "recoveryfs: Adjust start-up scripts and configuration"
 
     ## Allow root login via cockpit.
-    # sed -i -e '/^root/d' "${ROOTFS_BASE}/etc/cockpit/disallowed-users"
+    # sed -i -e '/^root/d' "${RECOVERYFS_BASE}/etc/cockpit/disallowed-users"
 
     ## Mount systemd journal on tmpfs, /run/log/journal.
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/journald.conf" \
@@ -1146,6 +1167,9 @@ Suites: trixie-security
 Components: main contrib non-free-firmware non-free
 Signed-By: /usr/share/keyrings/debian-archive-trixie-security-automatic.gpg
 EOF
+
+    # Remove man pages.
+    find "${RECOVERYFS_BASE}/usr/share/man" -type f | xargs -n30 rm -f
 
     # Remove any sources.list.
     rm -rf "${RECOVERYFS_BASE}/etc/apt/sources.list"

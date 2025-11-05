@@ -417,9 +417,11 @@ protected_install iperf
 ## Add flash file system utilities.
 protected_install mtd-utils
 
-## Add bluetooth support.
+## Add bluetooth and ALSA integration.
+protected_install alsa-utils
 protected_install bluetooth
 protected_install bluez
+protected_install bluez-alsa-utils
 protected_install bluez-tools
 protected_install bluez-obexd
 protected_install rfkill
@@ -433,6 +435,24 @@ ExecStart=/usr/libexec/bluetooth/bluetoothd --nodetach --configfile=/etc/bluetoo
 .
 wq
 EOT
+
+install -d -m 0755 /etc/systemd/system/bluealsa.service.d/
+ed -s /etc/systemd/system/bluealsa.service.d/override.conf <<'EOT'
+a
+[Service]
+ExecStart=
+ExecStart=/usr/bin/bluealsa -S -p a2dp-source -p a2dp-sink -p hfp-ag -p hfp-hf -p hsp-ag -p hsp-hs --io-rt-priority=50
+
+AmbientCapabilities=CAP_SYS_NICE
+CapabilityBoundingSet=CAP_SYS_NICE
+RestrictRealtime=false
+SystemCallFilter=@resources
+.
+wq
+EOT
+
+## Disable to allow recording Bluetooth audio streams.
+rm -f /etc/systemd/system/bluetooth.target.wants/bluealsa-aplay.service
 
 ## shared-mime-info
 # protected_install shared-mime-info
@@ -1170,6 +1190,9 @@ Suites: trixie-security
 Components: main contrib non-free-firmware non-free
 Signed-By: /usr/share/keyrings/debian-archive-trixie-security-automatic.gpg
 EOF
+
+    # Remove man pages.
+    find "${ROOTFS_BASE}/usr/share/man" -type f | xargs -n30 rm -f
 
     # Remove any sources.list.
     rm -rf "${ROOTFS_BASE}/etc/apt/sources.list"
