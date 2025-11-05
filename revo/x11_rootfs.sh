@@ -451,8 +451,9 @@ SystemCallFilter=@resources
 wq
 EOT
 
-## Disable to allow recording Bluetooth audio streams.
+## Mask aplay to allow recording Bluetooth audio streams.
 rm -f /etc/systemd/system/bluetooth.target.wants/bluealsa-aplay.service
+ln -s /dev/null /etc/systemd/system/bluealsa-aplay.service
 
 ## shared-mime-info
 # protected_install shared-mime-info
