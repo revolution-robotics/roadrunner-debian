@@ -1204,7 +1204,11 @@ EOF
     trap - 0 1 2 15 RETURN
 
     ## Limit kernel messages to the console.
-    sed -i -e '/^#* *kernel.printk/s/^#* *//' "${ROOTFS_BASE}/etc/sysctl.conf"
+    ## Limit kernel messages to the console.
+    install -d -m 0755 "${RECOVERYFS_BASE}/etc/sysctl.d"
+    cat  >"${RECOVERYFS_BASE}/etc/sysctl.d/99-kernel.printk.conf" <<EOF
+kernel.printk = 2 4 1 7
+EOF
 
     ## Remove misc. artifacts.
     find "${ROOTFS_BASE}/usr/local/include" -name ..install.cmd -delete
