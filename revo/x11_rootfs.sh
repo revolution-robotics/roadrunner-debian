@@ -99,23 +99,31 @@ make_debian_x11_rootfs ()
     }
 
     pr_info "rootfs: Begin Debian(${DEB_RELEASE}) filesystem..."
-
-    ## umount previus mounts (if fail)
-    umount-fs "$ROOTFS_BASE"
-
-    ## clear rootfs dir
-    rm -rf "${ROOTFS_BASE}"
-
     pr_info "rootfs: First stage debootstrap"
 
+    umount-fs "$ROOTFS_BASE"
+    rm -rf "${ROOTFS_BASE}"
     mount-fs "$ROOTFS_BASE"
 
     trap 'umount-fs "$ROOTFS_BASE"; exit 1' 0 1 2 15 RETURN
 
-    debootstrap --verbose  --foreign --arch=armhf \
+    local -i retries=5
+
+    while ! debootstrap --verbose  --foreign --arch=armhf \
                 --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
-                "${DEB_RELEASE}" "${ROOTFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}" \
-        || return $?
+                "${DEB_RELEASE}" "${ROOTFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"; do
+        if (( retries-- <= 0 )); then
+            return 1
+        fi
+
+        sleep 120
+
+        pr_info "rootfs: First state debootstrap failed; retrying ..."
+
+        umount-fs "${ROOTFS_BASE}"
+        rm -rf "${ROOTFS_BASE}"
+        mount-fs "$ROOTFS_BASE"
+    done
 
     umount-fs "$ROOTFS_BASE"
 
@@ -137,8 +145,17 @@ make_debian_x11_rootfs ()
 
     pr_info "rootfs: Second stage debootstrap"
 
-    $CHROOTFS "$ROOTFS_BASE" /debootstrap/debootstrap --verbose \
-              --second-stage || return $?
+    retries=5
+    while ! $CHROOTFS "$ROOTFS_BASE" /debootstrap/debootstrap --verbose \
+            --second-stage; do
+        if (( retries-- <= 0 )); then
+            return 1
+        fi
+
+        sleep 120
+
+        pr_info "rootfs: Second state debootstrap failed; retrying ..."
+    done
 
     ## Delete unused folder.
     $CHROOTFS "$ROOTFS_BASE" rm -rf  "${ROOTFS_BASE}/debootstrap"

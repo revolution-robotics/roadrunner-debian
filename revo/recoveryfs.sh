@@ -99,23 +99,31 @@ make_debian_recoveryfs ()
     }
 
     pr_info "recoveryfs: Begin Debian(${DEB_RELEASE}) filesystem..."
-
-    ## umount previus mounts (if fail)
-    umount-fs "${RECOVERYFS_BASE}"
-
-    ## clear recoveryfs dir
-    rm -rf "${RECOVERYFS_BASE}"
-
     pr_info "recoveryfs: First stage debootstrap"
 
+    umount-fs "${RECOVERYFS_BASE}"
+    rm -rf "${RECOVERYFS_BASE}"
     mount-fs "$RECOVERYFS_BASE"
 
     trap 'umount-fs "$RECOVERYFS_BASE"; exit 1' 0 1 2 15 RETURN
 
-    debootstrap --variant=minbase --verbose  --foreign --arch=armhf \
+    local -i retries=5
+
+    while ! debootstrap --variant=minbase --verbose  --foreign --arch=armhf \
                 --keyring="/usr/share/keyrings/debian-${DEB_RELEASE}-release.gpg" \
-                "${DEB_RELEASE}" "${RECOVERYFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}" \
-        || return $?
+                "${DEB_RELEASE}" "${RECOVERYFS_BASE}/" "${PARAM_DEB_LOCAL_MIRROR}"; do
+        if (( retries-- <= 0 )); then
+            return 1
+        fi
+
+        sleep 120
+
+        pr_info "recoveryfs: First state debootstrap failed; retrying ..."
+
+        umount-fs "${RECOVERYFS_BASE}"
+        rm -rf "${RECOVERYFS_BASE}"
+        mount-fs "$RECOVERYFS_BASE"
+    done
 
     umount-fs "$RECOVERYFS_BASE"
 
@@ -137,8 +145,17 @@ make_debian_recoveryfs ()
 
     pr_info "recoveryfs: Second stage debootstrap"
 
-    $CHROOTFS "$RECOVERYFS_BASE" /debootstrap/debootstrap --verbose \
-              --second-stage || return $?
+    retries=5
+    while ! $CHROOTFS "$RECOVERYFS_BASE" /debootstrap/debootstrap --verbose \
+            --second-stage; do
+        if (( retries-- <= 0 )); then
+            return 1
+        fi
+
+        sleep 120
+
+        pr_info "recoveryfs: Second state debootstrap failed; retrying ..."
+    done
 
     ## Delete unused folder.
     $CHROOTFS "$RECOVERYFS_BASE" rm -rf  "${RECOVERYFS_BASE}/debootstrap"
