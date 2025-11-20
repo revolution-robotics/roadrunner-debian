@@ -711,7 +711,7 @@ make_imx_sdma_fw ()
                 "${targetdir}/lib/firmware/imx/sdma"
     elif  test ."$MACHINE" = .'var-som-mx7' ||
               test ."$MACHINE" = .'revo-roadrunner-mx7'; then
-        install -m 0644 "${sdma_srcdir}/sdma-imx7d.bin" \
+        install -m 0644 "${sdma_srcdir}/sdma-imx"{6q,7d}".bin" \
             "${targetdir}/lib/firmware/imx/sdma"
     fi
     install -m 0644 "${sdma_srcdir}/LICENSE.sdma_firmware" "${targetdir}/lib/firmware"
