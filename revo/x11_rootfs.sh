@@ -443,6 +443,12 @@ protected_install bluez-tools
 protected_install bluez-obexd
 protected_install rfkill
 
+## Enable real-time scheduling.
+protected_install rtkit
+sed -i -e '/^#*\\(DefaultCPUAccounting=\\).*/s;;\\1no;' /etc/systemd/system.conf
+ln -sf /usr/lib/systemd/system/rtkit-daemon.service \
+      /etc/systemd/system/multi-user.target.wants/rtkit-daemon.service
+
 install -d -m 0755 /etc/systemd/system/bluetooth.service.d/
 ed -s /etc/systemd/system/bluetooth.service.d/override.conf <<'EOT'
 a
