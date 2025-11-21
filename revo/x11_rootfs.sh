@@ -1144,8 +1144,7 @@ localepurge
 
 ## XXX: Why is 'linux-image*' installed???
 apt -y purge libklibc cryptsetup cryptsetup-bin cryptsetup-initramfs \\
-    cryptsetup-run dmeventd dmraid dracut dracut-core lvm2 mdadm     \\
-    thin-provisioning-tools
+    dmeventd dmraid dracut dracut-core lvm2 mdadm thin-provisioning-tools
 
 apt -y autoremove --purge
 
