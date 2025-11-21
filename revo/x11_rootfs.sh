@@ -458,7 +458,7 @@ ed -s /etc/systemd/system/bluealsa.service.d/override.conf <<'EOT'
 a
 [Service]
 ExecStart=
-ExecStart=/usr/bin/bluealsa -S -p a2dp-source -p a2dp-sink -p hfp-ag -p hfp-hf -p hsp-ag -p hsp-hs --io-rt-priority=50
+ExecStart=/usr/bin/bluealsa -S --keep-alive=5 -p a2dp-source -p a2dp-sink -p hfp-ag -p hfp-hf -p hsp-ag -p hsp-hs --io-rt-priority=50
 
 AmbientCapabilities=CAP_SYS_NICE
 CapabilityBoundingSet=CAP_SYS_NICE
@@ -1137,9 +1137,8 @@ sed -i -e 's/^USE_DPKG/#USE_DPKG/' /etc/locale.nopurge
 localepurge
 
 ## XXX: Why is 'linux-image*' installed???
-apt -y purge 'linux-image*' initramfs-tools{,-core} \\
-    cryptsetup cryptsetup-bin cryptsetup-initramfs cryptsetup-run \\
-    dmeventd dmraid dracut dracut-core lvm2 mdadm \\
+apt -y purge libklibc cryptsetup cryptsetup-bin cryptsetup-initramfs \\
+    cryptsetup-run dmeventd dmraid dracut dracut-core lvm2 mdadm     \\
     thin-provisioning-tools
 
 apt -y autoremove --purge

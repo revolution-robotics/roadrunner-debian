@@ -1151,9 +1151,8 @@ sed -i -e 's/^USE_DPKG/#USE_DPKG/' /etc/locale.nopurge
 localepurge
 
 ## XXX: Why is 'linux-image*' installed???
-apt -y purge 'linux-image*' initramfs-tools{,-core} \\
-    cryptsetup cryptsetup-bin cryptsetup-initramfs cryptsetup-run \\
-    dmeventd dmraid dracut dracut-core lvm2 mdadm \\
+apt -y purge libklibc cryptsetup cryptsetup-bin cryptsetup-initramfs \\
+    cryptsetup-run dmeventd dmraid dracut dracut-core lvm2 mdadm     \\
     thin-provisioning-tools
 
 apt -y autoremove --purge
