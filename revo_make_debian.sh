@@ -1092,14 +1092,7 @@ cmd_make_diskimage ()
 
     trap - 0 1 2 15 RETURN
 
-    pr_info "Compressing image file \"$(basename $IMAGE_FILE)\"..."
-    $ZIP "$IMAGE_FILE"
-    mv "${IMAGE_FILE}.${ZIP_SUFFIX}" "$PARAM_OUTPUT_DIR"
-    (
-        cd "$PARAM_OUTPUT_DIR" &&
-            openssl dgst -sha512 "${IMAGE_FILE##*/}.${ZIP_SUFFIX}" \
-                    >"${IMAGE_FILE##*/}.${ZIP_SUFFIX}.asc"
-    )
+    mv "$IMAGE_FILE" "$PARAM_OUTPUT_DIR"
 }
 
 cmd_make_bcmfw ()
