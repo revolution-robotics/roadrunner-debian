@@ -187,6 +187,10 @@ make_debian_recoveryfs ()
     cp -r "${G_VENDOR_PATH}/deb/ed"/* \
        "${RECOVERYFS_BASE}/srv/local-apt-repository"
 
+    ## Bluez-alsa with AAC codec enabled.
+    cp -a "${G_VENDOR_PATH}/deb/bluez-alsa-utils"/* \
+       "${RECOVERYFS_BASE}/srv/local-apt-repository"
+
     install -d -m 0755 "${RECOVERYFS_BASE}/var/lib/usbmux"
 
     ## Add APT deb822 debian.sources with default Debian mirror.
@@ -442,6 +446,7 @@ protected_install usbutils
 # protected_install bluez-tools
 # protected_install bluez-obexd
 # protected_install rfkill
+# protected_install libfdk-aac2t64
 
 ## Enable real-time scheduling.
 protected_install rtkit

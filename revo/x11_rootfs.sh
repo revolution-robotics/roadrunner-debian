@@ -184,7 +184,11 @@ make_debian_x11_rootfs ()
     #    "${ROOTFS_BASE}/srv/local-apt-repository"
 
     ## Unix line editor
-    cp -r "${G_VENDOR_PATH}/deb/ed"/* \
+    cp -a "${G_VENDOR_PATH}/deb/ed"/* \
+       "${ROOTFS_BASE}/srv/local-apt-repository"
+
+    ## Bluez-alsa with AAC codec enabled.
+    cp -a "${G_VENDOR_PATH}/deb/bluez-alsa-utils"/* \
        "${ROOTFS_BASE}/srv/local-apt-repository"
 
     install -d -m 0755 "${ROOTFS_BASE}/var/lib/usbmux"
@@ -442,6 +446,7 @@ protected_install bluez-alsa-utils
 protected_install bluez-tools
 protected_install bluez-obexd
 protected_install rfkill
+protected_install libfdk-aac2t64
 
 ## Enable real-time scheduling.
 protected_install rtkit
