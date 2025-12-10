@@ -77,7 +77,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
                        --enable_hci \
                        --bd_addr ${BT_MACADDR} \
                        --no2bytes \
-                       --baudrate 3000000 \
+                       --baudrate 4000000 \
                        --scopcm=1,0,0,0,0,0,0,0,0,0 \
                        --tosleep 1000 ${BT_TTY_DEV} &
     exit 0
