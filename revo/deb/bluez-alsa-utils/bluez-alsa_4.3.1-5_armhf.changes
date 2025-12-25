@@ -1,0 +1,36 @@
+Format: 1.8
+Date: Wed, 23 Dec 2025 22:42:45 +0500
+Source: bluez-alsa
+Binary: bluez-alsa-utils bluez-alsa-utils-dbgsym libasound2-plugin-bluez libasound2-plugin-bluez-dbgsym
+Architecture: armhf
+Version: 4.3.1-5
+Distribution: unstable
+Urgency: medium
+Maintainer: Debian Bluetooth Maintainers <team+pkg-bluetooth@tracker.debian.org>
+Changed-By: Andrew L. Moore <andy@revolution-robotics.com>
+Description:
+ bluez-alsa-utils - Bluetooth Audio ALSA Backend (utils)
+ libasound2-plugin-bluez - Bluetooth Audio ALSA Backend (plugins)
+Changes:
+ bluez-alsa (4.3.1-5) unstable; urgency=medium
+ .
+   * d/rules
+     - Enable libLC3plus (floating-point).
+Checksums-Sha1:
+ be749822c60a3b59e3e26876c5f36d4e97e5e826 467620 bluez-alsa-utils-dbgsym_4.3.1-5_armhf.deb
+ da048cd24a6e8da5ce98eaec761f72f1cb62322e 145932 bluez-alsa-utils_4.3.1-5_armhf.deb
+ 3f92875e8cc0a5f2d8740caf4f5abe4ec49d1282 8870 bluez-alsa_4.3.1-5_armhf.buildinfo
+ e1861841765d5bc220a3b2fc484275c858413432 101232 libasound2-plugin-bluez-dbgsym_4.3.1-5_armhf.deb
+ 3dfe3d6fb20476d36ddb63032ca2362d82de460f 49476 libasound2-plugin-bluez_4.3.1-5_armhf.deb
+Checksums-Sha256:
+ b8dac71bc7b4b5354ccb8d05527ad27eb66acae948940789366e653b512fa6ab 467620 bluez-alsa-utils-dbgsym_4.3.1-5_armhf.deb
+ d7e1bd658c884942f94526d89ffb531213897c3a39b5d1202aa8f0627c29d451 145932 bluez-alsa-utils_4.3.1-5_armhf.deb
+ d143da47a52df06e778358e81b4d7af41e234c58ec9a3f125eccfb1a04dbc80b 8870 bluez-alsa_4.3.1-5_armhf.buildinfo
+ d57f70819a485f03cba3034702a313dee1522239f2ee2c9602f068b5dcc8a87c 101232 libasound2-plugin-bluez-dbgsym_4.3.1-5_armhf.deb
+ 119f06e1d76600d26ec377ba96ecaff307eea5a93222dab8db871b626c220236 49476 libasound2-plugin-bluez_4.3.1-5_armhf.deb
+Files:
+ 3c4c3957fe6ebf51901ba5c1b0007cfd 467620 debug optional bluez-alsa-utils-dbgsym_4.3.1-5_armhf.deb
+ ac81b61fb9ae04767d216f6c8862d601 145932 utils optional bluez-alsa-utils_4.3.1-5_armhf.deb
+ b2e9cacbb3a46c4b9b42f76c470083ed 8870 utils optional bluez-alsa_4.3.1-5_armhf.buildinfo
+ bbfcfa5b40d8e81bf24be0910c5c0fd5 101232 debug optional libasound2-plugin-bluez-dbgsym_4.3.1-5_armhf.deb
+ 811707c35d6bbf7783a68223ed1ec352 49476 libs optional libasound2-plugin-bluez_4.3.1-5_armhf.deb

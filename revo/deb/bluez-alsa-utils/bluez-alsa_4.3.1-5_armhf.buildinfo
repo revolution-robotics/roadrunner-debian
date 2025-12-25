@@ -2,25 +2,25 @@ Format: 1.0
 Source: bluez-alsa
 Binary: bluez-alsa-utils bluez-alsa-utils-dbgsym libasound2-plugin-bluez libasound2-plugin-bluez-dbgsym
 Architecture: armhf
-Version: 4.3.1-4
+Version: 4.3.1-5
 Checksums-Md5:
- 3d18a61f08b2a46afa45db917b4edb15 455200 bluez-alsa-utils-dbgsym_4.3.1-4_armhf.deb
- ef0e3229d48a8a9cb40ef625be648189 142892 bluez-alsa-utils_4.3.1-4_armhf.deb
- 7ee88b66280de2154596523318bfb4d8 101240 libasound2-plugin-bluez-dbgsym_4.3.1-4_armhf.deb
- e098b3c4b5881de6dc6430cd71f53aa4 49432 libasound2-plugin-bluez_4.3.1-4_armhf.deb
+ 3c4c3957fe6ebf51901ba5c1b0007cfd 467620 bluez-alsa-utils-dbgsym_4.3.1-5_armhf.deb
+ ac81b61fb9ae04767d216f6c8862d601 145932 bluez-alsa-utils_4.3.1-5_armhf.deb
+ bbfcfa5b40d8e81bf24be0910c5c0fd5 101232 libasound2-plugin-bluez-dbgsym_4.3.1-5_armhf.deb
+ 811707c35d6bbf7783a68223ed1ec352 49476 libasound2-plugin-bluez_4.3.1-5_armhf.deb
 Checksums-Sha1:
- 6e0669b440b74a7277e35422c60c7dd83ed0340d 455200 bluez-alsa-utils-dbgsym_4.3.1-4_armhf.deb
- 6312ab990e437f30d9d6d7b1646c924c6f26e97b 142892 bluez-alsa-utils_4.3.1-4_armhf.deb
- ae6faf6390d2034886a8507f8bf0566d3946e1b4 101240 libasound2-plugin-bluez-dbgsym_4.3.1-4_armhf.deb
- 22ef76fc4d06203b5771d409cfbed8fb608ff4c7 49432 libasound2-plugin-bluez_4.3.1-4_armhf.deb
+ be749822c60a3b59e3e26876c5f36d4e97e5e826 467620 bluez-alsa-utils-dbgsym_4.3.1-5_armhf.deb
+ da048cd24a6e8da5ce98eaec761f72f1cb62322e 145932 bluez-alsa-utils_4.3.1-5_armhf.deb
+ e1861841765d5bc220a3b2fc484275c858413432 101232 libasound2-plugin-bluez-dbgsym_4.3.1-5_armhf.deb
+ 3dfe3d6fb20476d36ddb63032ca2362d82de460f 49476 libasound2-plugin-bluez_4.3.1-5_armhf.deb
 Checksums-Sha256:
- 29e6c50a2f6e4e5d200f544444ab9ee3621e28adffbbee0a3b2fca51d63931d3 455200 bluez-alsa-utils-dbgsym_4.3.1-4_armhf.deb
- 2316f46eb7cd57906a01d131e74d1632efb23b4332b5888bacbc3aadf5e3adf0 142892 bluez-alsa-utils_4.3.1-4_armhf.deb
- b32ba64f06e3a8e80e54da062ac2c46f971e2db6f282687fa612904dd4ec4d18 101240 libasound2-plugin-bluez-dbgsym_4.3.1-4_armhf.deb
- 6eb01027efb8729c4aa0621f807cb682aaac481f21134dacf4807466bdd19d7a 49432 libasound2-plugin-bluez_4.3.1-4_armhf.deb
+ b8dac71bc7b4b5354ccb8d05527ad27eb66acae948940789366e653b512fa6ab 467620 bluez-alsa-utils-dbgsym_4.3.1-5_armhf.deb
+ d7e1bd658c884942f94526d89ffb531213897c3a39b5d1202aa8f0627c29d451 145932 bluez-alsa-utils_4.3.1-5_armhf.deb
+ d57f70819a485f03cba3034702a313dee1522239f2ee2c9602f068b5dcc8a87c 101232 libasound2-plugin-bluez-dbgsym_4.3.1-5_armhf.deb
+ 119f06e1d76600d26ec377ba96ecaff307eea5a93222dab8db871b626c220236 49476 libasound2-plugin-bluez_4.3.1-5_armhf.deb
 Build-Origin: Debian
 Build-Architecture: armhf
-Build-Date: Sat, 06 Dec 2025 06:11:57 +0000
+Build-Date: Thu, 25 Dec 2025 11:59:58 +0000
 Installed-Build-Depends:
  autoconf (= 2.72-3.1),
  automake (= 1:1.17-4),
@@ -276,4 +276,4 @@ Installed-Build-Depends:
 Environment:
  DEB_BUILD_OPTIONS="parallel=2"
  LANG="en_US.UTF-8"
- SOURCE_DATE_EPOCH="1764941514"
+ SOURCE_DATE_EPOCH="1766511765"

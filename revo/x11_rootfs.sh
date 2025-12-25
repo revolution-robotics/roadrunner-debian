@@ -165,8 +165,6 @@ make_debian_x11_rootfs ()
     install -d -m 0750 "${ROOTFS_BASE}/etc/sudoers.d"
     # echo "user ALL=(root) /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /sbin/reboot, /sbin/shutdown, /sbin/halt" > "${ROOTFS_BASE}/etc/sudoers.d/user"
     # chmod 0440 "${ROOTFS_BASE}/etc/sudoers.d/user"
-    echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > "${ROOTFS_BASE}/etc/sudoers.d/revo"
-    chmod 0640 "${ROOTFS_BASE}/etc/sudoers.d/revo"
 
     ## install local Debian packages
     install -d -m 0755 "${ROOTFS_BASE}/srv/local-apt-repository"
@@ -187,8 +185,14 @@ make_debian_x11_rootfs ()
     cp -a "${G_VENDOR_PATH}/deb/ed"/* \
        "${ROOTFS_BASE}/srv/local-apt-repository"
 
-    ## Bluez-alsa with AAC codec enabled.
+    ## Bluez-alsa with AAC and LC3plus codec enabled.
     cp -a "${G_VENDOR_PATH}/deb/bluez-alsa-utils"/* \
+       "${ROOTFS_BASE}/srv/local-apt-repository"
+
+    ## LC3plus codec standalone and library.
+    cp -a "${G_VENDOR_PATH}/deb/liblc3plus"/* \
+       "${ROOTFS_BASE}/srv/local-apt-repository"
+    cp -a "${G_VENDOR_PATH}/deb/lc3plus"/* \
        "${ROOTFS_BASE}/srv/local-apt-repository"
 
     install -d -m 0755 "${ROOTFS_BASE}/var/lib/usbmux"
@@ -447,6 +451,10 @@ protected_install bluez-tools
 protected_install bluez-obexd
 protected_install rfkill
 protected_install libfdk-aac2t64
+protected_install liblc3plus-dev
+protected_install faac
+protected_install faad
+protected_install lc3plus
 
 ## Enable real-time scheduling.
 protected_install rtkit
@@ -455,7 +463,7 @@ ln -sf /usr/lib/systemd/system/rtkit-daemon.service \
       /etc/systemd/system/multi-user.target.wants/rtkit-daemon.service
 
 install -d -m 0755 /etc/systemd/system/bluetooth.service.d/
-ed -s /etc/systemd/system/bluetooth.service.d/override.conf <<'EOT'
+ed -s /etc/systemd/system/bluetooth.service.d/override.conf <<EOT
 a
 [Service]
 ExecStart=
@@ -465,11 +473,11 @@ wq
 EOT
 
 install -d -m 0755 /etc/systemd/system/bluealsa.service.d/
-ed -s /etc/systemd/system/bluealsa.service.d/override.conf <<'EOT'
+ed -s /etc/systemd/system/bluealsa.service.d/override.conf <<EOT
 a
 [Service]
 ExecStart=
-ExecStart=/usr/bin/bluealsa -S --keep-alive=5 -p a2dp-source -p a2dp-sink -p hfp-ag -p hfp-hf -p hsp-ag -p hsp-hs --io-rt-priority=50
+ExecStart=/usr/bin/bluealsa -c LC3plus --keep-alive=5 -p a2dp-source -p a2dp-sink -p hfp-ag -p hfp-hf -p hsp-ag -p hsp-hs --io-rt-priority=50
 
 AmbientCapabilities=CAP_SYS_NICE
 CapabilityBoundingSet=CAP_SYS_NICE
@@ -555,7 +563,8 @@ echo "root:root" | chpasswd
 
 useradd -mU -G audio,bluetooth,lp,video -s /bin/bash -c "REVO Roadrunner" revo
 useradd -rmU  -s /bin/bash -c "Smallstep PKI" step
-
+echo "revo ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/revo
+chmod 0640 /etc/sudoers.d/revo
 # END -- REVO i.MX7D users
 
 rm -f /third-stage
@@ -928,6 +937,9 @@ EOF
         pr_info "rootfs: Install user-requested packages:"
         pr_info "        \"${G_USER_PACKAGES}\""
 
+        install -m 0644 "${G_VENDOR_PATH}/revo/resources/home/revo/dot.bash_aliases" \
+           "${ROOTFS_BASE}/home/revo/.bash_aliases"
+
         cat >"${ROOTFS_BASE}/user-stage" <<EOF
 #!/bin/bash
 
@@ -979,6 +991,8 @@ update-ca-certificates
 
 # Allow Python to load root CA certificate bundle.
 ln -s /etc/ssl/certs/ca-certificates.crt /usr/lib/ssl/cert.pem
+
+chown -R revo:revo /home/revo
 
 rm -f /user-stage
 EOF
