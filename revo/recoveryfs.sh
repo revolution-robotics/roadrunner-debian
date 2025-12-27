@@ -933,8 +933,10 @@ EOF
         pr_info "recoveryfs: Install user-requested packages:"
         pr_info "            \"${G_USER_MINIMAL_PACKAGES}\""
 
-        install -m 0644 "${G_VENDOR_PATH}/revo/resources/home/revo/dot.bash_aliases" \
-                "${RECOVERYFS_BASE}/home/revo/.bash_aliases"
+    ## Install .bash_aliaes for user revo.
+    install -d -m 0755 "${RECOVERYFS_BASE}/home/revo"
+    install -m 0644 "${G_VENDOR_PATH}/resources/home/revo/dot.bash_aliases" \
+            "${RECOVERYFS_BASE}/home/revo/.bash_aliases"
 
         cat >"${RECOVERYFS_BASE}/user-stage" <<EOF
 #!/bin/bash

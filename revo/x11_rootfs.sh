@@ -939,8 +939,10 @@ EOF
         pr_info "rootfs: Install user-requested packages:"
         pr_info "        \"${G_USER_PACKAGES}\""
 
-        install -m 0644 "${G_VENDOR_PATH}/revo/resources/home/revo/dot.bash_aliases" \
-           "${ROOTFS_BASE}/home/revo/.bash_aliases"
+    ## Install .bash_aliaes for user revo.
+    install -d -m 0755 "${ROOTFS_BASE}/home/revo"
+    install -m 0644 "${G_VENDOR_PATH}/resources/home/revo/dot.bash_aliases" \
+            "${ROOTFS_BASE}/home/revo/.bash_aliases"
 
         cat >"${ROOTFS_BASE}/user-stage" <<EOF
 #!/bin/bash
