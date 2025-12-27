@@ -188,12 +188,14 @@ make_debian_recoveryfs ()
     ## Bluez-alsa with AAC and LC3plus codec enabled.
     cp -a "${G_VENDOR_PATH}/deb/bluez-alsa-utils"/* \
        "${RECOVERYFS_BASE}/srv/local-apt-repository"
+    cp -a "${G_VENDOR_PATH}/deb/bluez-tools"/* \
+       "${RECOVERYFS_BASE}/srv/local-apt-repository"
 
     ## LC3plus codec standalone and library.
     cp -a "${G_VENDOR_PATH}/deb/liblc3plus"/* \
-       "${ROOTFS_BASE}/srv/local-apt-repository"
+       "${RECOVERYFS_BASE}/srv/local-apt-repository"
     cp -a "${G_VENDOR_PATH}/deb/lc3plus"/* \
-       "${ROOTFS_BASE}/srv/local-apt-repository"
+       "${RECOVERYFS_BASE}/srv/local-apt-repository"
 
     install -d -m 0755 "${RECOVERYFS_BASE}/var/lib/usbmux"
 

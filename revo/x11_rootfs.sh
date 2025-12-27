@@ -188,6 +188,8 @@ make_debian_x11_rootfs ()
     ## Bluez-alsa with AAC and LC3plus codec enabled.
     cp -a "${G_VENDOR_PATH}/deb/bluez-alsa-utils"/* \
        "${ROOTFS_BASE}/srv/local-apt-repository"
+    cp -a "${G_VENDOR_PATH}/deb/bluez-tools"/* \
+       "${ROOTFS_BASE}/srv/local-apt-repository"
 
     ## LC3plus codec standalone and library.
     cp -a "${G_VENDOR_PATH}/deb/liblc3plus"/* \

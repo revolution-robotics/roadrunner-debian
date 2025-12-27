@@ -1,0 +1,28 @@
+Format: 1.8
+Date: Wed, 26 Dec 2025 13:49:27 +0500
+Source: bluez-tools
+Binary: bluez-tools bluez-tools-dbgsym
+Architecture: armhf
+Version: 2.0~20230131.0.c0dac538-1
+Distribution: unstable
+Urgency: medium
+Maintainer: Debian Bluetooth Maintainers <team+pkg-bluetooth@tracker.debian.org>
+Changed-By: Andrew L. Moore <andy@revolution-robotics.com>
+Description:
+ bluez-tools - Set of tools to manage Bluetooth devices for linux
+Changes:
+ bluez-tools (2.0~20230131.0.c0dac538-1) unstable; urgency=medium
+ .
+   * Sync with upstream github/thatlittlegit.
+Checksums-Sha1:
+ 14e9e07cd51f3c253de9ca4769fb2828b5cbffc4 477252 bluez-tools-dbgsym_2.0~20230131.0.c0dac538-1_armhf.deb
+ 92da02d6ae1a21c17d50286e254bcc1a85262e31 6495 bluez-tools_2.0~20230131.0.c0dac538-1_armhf.buildinfo
+ 4184bd34342e278968c858a59f3850b2a1e2c312 79760 bluez-tools_2.0~20230131.0.c0dac538-1_armhf.deb
+Checksums-Sha256:
+ 19488a9d22bd924b25819b2dda8bd6d6f7c2ba1943252ec825c1df33c2439e0a 477252 bluez-tools-dbgsym_2.0~20230131.0.c0dac538-1_armhf.deb
+ a8a5d9a1bc804125e54c0f16f9999fd58d3cf46bb8d4248550afc407d7a70cf1 6495 bluez-tools_2.0~20230131.0.c0dac538-1_armhf.buildinfo
+ 73e4c9e4ea52a0a25ca79a019a9cdbba52f2eabebbd68630c4426538f2ebc344 79760 bluez-tools_2.0~20230131.0.c0dac538-1_armhf.deb
+Files:
+ 8f662a19e23f0ab660e05606ce1b02d3 477252 debug optional bluez-tools-dbgsym_2.0~20230131.0.c0dac538-1_armhf.deb
+ 78902135d4eddfa29f953e84792b545f 6495 utils optional bluez-tools_2.0~20230131.0.c0dac538-1_armhf.buildinfo
+ 47784917c4de852af78cdd79fb6a0904 79760 utils optional bluez-tools_2.0~20230131.0.c0dac538-1_armhf.deb
