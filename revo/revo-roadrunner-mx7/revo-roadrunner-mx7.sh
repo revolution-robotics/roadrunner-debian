@@ -36,7 +36,7 @@ declare -r G_LINUX_DTB='imx7d-roadrunner-gpio16.dtb imx7d-roadrunner-iomix.dtb i
 #   Apparmor
 #   SELinux
 #   Unix
-declare -r ACCESS_CONTROL=SELinux
+declare -r ACCESS_CONTROL=Apparmor
 declare -r UBOOT_SCRIPT=boot.scr
 declare -r UBOOT_PROVISION_SCRIPT=provision.scr
 
