@@ -680,24 +680,33 @@ EOF
                 "${ROOTFS_BASE}/usr/share/boot"
 
     ## Install support for /boot/cmdline.txt
-    case "${ACCESS_CONTROL,,}" in
-        apparmor)
-            echo 'security=apparmor apparmor=1' \
-                 >"${ROOTFS_BASE}/boot/cmdline.txt"
-            ;;
-        selinux)
-            echo 'security=selinux selinux=1 enforcing=0' \
-                 >"${ROOTFS_BASE}/boot/cmdline.txt"
-            ;;
-        unix|*)
-            ;;
-    esac
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/update-kernel-cmdline" \
             "${ROOTFS_BASE}/usr/sbin"
     install -m 0644 "${G_VENDOR_PATH}/${MACHINE}/systemd/kernel-cmdline".{path,service} \
             "${ROOTFS_BASE}/lib/systemd/system"
     ln -sf '/lib/systemd/system/kernel-cmdline.path' \
        "${ROOTFS_BASE}/etc/systemd/system/multi-user.target.wants"
+
+    case "${ACCESS_CONTROL,,}" in
+        apparmor)
+            echo 'security=apparmor apparmor=1' \
+                 >"${ROOTFS_BASE}/boot/cmdline.txt"
+            ln -sf /dev/null \
+               "${ROOTFS_BASE}/etc/systemd/system/firewalld.service"
+            ;;
+        selinux)
+            echo 'security=selinux selinux=1 enforcing=1' \
+                 >"${ROOTFS_BASE}/boot/cmdline.txt"
+            ln -sf /dev/null \
+               "${ROOTFS_BASE}/etc/systemd/system/apparmor.service"
+            ;;
+        unix|*)
+            ln -sf /dev/null \
+               "${ROOTFS_BASE}/etc/systemd/system/apparmor.service"
+            ln -sf /dev/null \
+               "${ROOTFS_BASE}/etc/systemd/system/firewalld.service"
+            ;;
+    esac
 
     ## Install REVO flash eMMC service.
     install -m 0755 "${G_VENDOR_PATH}/${MACHINE}/systemd/flash-emmc" \
