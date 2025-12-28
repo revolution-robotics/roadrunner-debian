@@ -1198,10 +1198,10 @@ apt -y purge build-essential gcc g++ libx11-6 manpages{,-dev}
 apt -y autoremove --purge
 
 # apt -y install apparmor-profiles-extra
-apt -y install apparmor{,-utils,-profiles}
+apt -y install apparmor{,-utils,-profiles} selinux-policy-default
 
 ## Set apparamor profiles to complain mode by default.
-find /etc/apparmor.d -maxdepth 1 -type f -exec aa-complain {} \\; 2>/dev/null
+# find /etc/apparmor.d -maxdepth 1 -type f -exec aa-complain {} \\; 2>/dev/null
 
 protected_install kmod
 

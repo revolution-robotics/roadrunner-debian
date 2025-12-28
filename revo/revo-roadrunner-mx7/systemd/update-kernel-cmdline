@@ -8,6 +8,7 @@
 # /boot/cmdline.txt.
 #
 : ${AWK_CMD:='/usr/bin/awk'}
+: ${ED_CMD:='/bin/ed'}
 : ${FINDMNT_CMD:='/bin/findmnt'}
 : ${FLOCK_CMD:='/usr/bin/flock'}
 : ${INSTALL_CMD:='/usr/bin/install'}
@@ -16,8 +17,8 @@
 : ${MKTEMP_CMD:='/usr/bin/mktemp'}
 : ${MOUNT_CMD:='/bin/mount'}
 : ${RM_CMD:='/bin/rm'}
-: ${SED_CMD:='/bin/sed'}
 : ${SUDO_CMD:='/usr/bin/sudo'}
+: ${SYSTEMCTL_CMD:='/bin/systemctl'}
 : ${UMOUNT_CMD:='/bin/umount'}
 
 : ${LOCKED_CMD:=''}
@@ -27,15 +28,10 @@ process-cmdline ()
     local mountdir=$1
     local tmpdir=$2
 
-    local cmdline=$(
-        $SED_CMD -nE -e '/^\s*#/d' \
-            -e '/^\s*$/d' \
-            -e '/[[:alnum:]]/{s/^\s*//;p;q}' \
-            "/boot/cmdline.txt"
-            )
+    local cmdline=$($ED_CMD -Ee '/^\s*[[:alnum:]]/s;^\s*;;p' "/boot/cmdline.txt")
 
     $INSTALL_CMD -m 0644 /usr/share/boot/boot.sh "${tmpdir}"
-    $SED_CMD -i -e "0,/^setenv kernelargs/s;\$; ${cmdline};" "${tmpdir}/boot.sh"
+    $ED_CMD -i -e "/^setenv kernelargs/s;\$; ${cmdline};" "${tmpdir}/boot.sh"
     $MAKE_CMD -C "$tmpdir" -f "/usr/share/boot/Makefile"
 
     if test -f "${tmpdir}/boot.scr"; then
@@ -45,6 +41,21 @@ process-cmdline ()
                 )
         $MOUNT_CMD "$boot_device" "$mountdir"
         $SUDO_CMD $INSTALL_CMD -m 0644 "${tmpdir}/boot.scr" "$mountdir"
+
+        case $cmdline in
+            *selinux*)
+                $SYSTEMCTL_CMD unmask selinux.service
+                $SYSTEMCTL_CMD enable selinux.service
+                $SYSTEMCTL_CMD disable apparmor.service
+                $SYSTEMCTL_CMD mask apparmor.service
+                ;;
+            *apparmor*)
+                $SYSTEMCTL_CMD unmask apparmor.service
+                $SYSTEMCTL_CMD enable apparmor.service
+                $SYSTEMCTL_CMD disable selinux.service
+                $SYSTEMCTL_CMD mask selinux.service
+                ;;
+        esac
     fi
 }
 
@@ -59,6 +70,7 @@ clean-up ()
     if test -d "$tmpdir"; then
         $RM_CMD -rf "$tmpdir"
     fi
+    $SYSTEMCTL_CMD daemon-reload
 }
 
 if test ."$0" = ."${BASH_SOURCE[0]}"; then
@@ -71,7 +83,7 @@ if test ."$0" = ."${BASH_SOURCE[0]}"; then
     fi
 
     declare mountdir=/mnt
-    declare tmpdir=$(mktemp -d "/tmp/${script_name}.XXXXX")
+    declare tmpdir=$($MKTEMP_CMD -p '' -d "${script_name}.XXXXXXX")
 
     trap 'clean-up "$mountdir" "$tmpdir"; exit' 0  1 2 15
 
