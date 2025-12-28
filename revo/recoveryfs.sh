@@ -980,10 +980,10 @@ for (( offset = 0; offset < total_packages; offset += increment )); do
     protected_install "\${g_minimal_packages[*]:offset:increment}"
 done
 
-pip3 install https://github.com/zeromq/pyre/archive/master.zip
-pip3 install minimalmodbus
-pip3 install pystemd
-pip3 install pytz
+pip install https://github.com/zeromq/pyre/archive/master.zip
+pip install minimalmodbus
+pip install pystemd
+pip install pytz
 
 update-ca-certificates
 
