@@ -479,7 +479,7 @@ ed -s /etc/systemd/system/bluealsa.service.d/override.conf <<EOT
 a
 [Service]
 ExecStart=
-ExecStart=/usr/bin/bluealsa -c LC3plus --keep-alive=5 -p a2dp-source -p a2dp-sink -p hfp-ag -p hfp-hf -p hsp-ag -p hsp-hs --io-rt-priority=50
+ExecStart=/usr/bin/bluealsa -c LC3plus --sbc-quality=xq+ --aac-afterburner --a2dp-force-mono --keep-alive=5 -p a2dp-source -p a2dp-sink -p hfp-ag -p hfp-hf -p hsp-ag -p hsp-hs --io-rt-priority=50
 
 AmbientCapabilities=CAP_SYS_NICE
 CapabilityBoundingSet=CAP_SYS_NICE
