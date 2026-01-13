@@ -995,10 +995,14 @@ for (( offset = 0; offset < total_packages; offset += increment )); do
     protected_install "\${g_user_packages[*]:offset:increment}"
 done
 
-pip install https://github.com/zeromq/pyre/archive/master.zip
-pip install minimalmodbus
-pip install pystemd
-pip install pytz
+pip install --break-system-packages minimalmodbus
+
+## Debian 13 replaced setuptools with python3-pkg-resources, q.v.
+# git clone https://github.com/zeromq/pyre
+# cd pyre
+# python3 setup.py install
+# cd ..
+# rm -rf pyre
 
 update-ca-certificates
 
