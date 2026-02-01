@@ -416,10 +416,7 @@ fi
 ## Create missing data directory.
 # install -d -m 0755 /var/lib/lightdm/data
 
-## Add ALSA & ALSA utilites.
-# protected_install alsa-utils
 protected_install gstreamer1.0-alsa
-
 protected_install gstreamer1.0-plugins-bad
 protected_install gstreamer1.0-plugins-base
 protected_install gstreamer1.0-plugins-good
@@ -457,6 +454,7 @@ protected_install liblc3plus-dev
 protected_install faac
 protected_install faad
 protected_install lc3plus
+protected_install sox
 
 ## Enable real-time scheduling.
 protected_install rtkit
